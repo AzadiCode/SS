@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""نقطه‌ی ورود (gunicorn app:app). منطق در پوشه‌ی server/ است؛ راهنما: README.md"""
+"""نقطه‌ی ورود: gunicorn app:app یا python app.py"""
 import os
 from server import create_app
 

@@ -1,0 +1,47 @@
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:#1a0f08;font-family:Vazirmatn,Tahoma,sans-serif}
+canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges}
+
+/* ── لودینگ ── */
+#ld{position:fixed;inset:0;z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+background:radial-gradient(circle at 50% 40%,#3d2410,#1a0f08 70%);color:#ffd9a0;transition:opacity .6s}
+#ld.out{opacity:0;pointer-events:none}
+#ld b{font-size:22px}#ld i{width:140px;height:4px;background:#00000055;border-radius:4px;overflow:hidden}
+#ld i:after{content:"";display:block;height:100%;width:40%;background:#ff9d3c;border-radius:4px;animation:lb 1.2s infinite}
+@keyframes lb{0%{transform:translateX(160%)}100%{transform:translateX(-320%)}}
+#ld small{opacity:.6}
+
+/* ── HUD ── */
+#hud{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px;pointer-events:none}
+#resbar{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;background:#140b04cc;border:2px solid #00000088;border-radius:14px;padding:7px 12px;box-shadow:0 4px 0 #00000055}
+.r{color:#ffe9c9;font-size:14px;font-weight:600;text-shadow:1px 2px 0 #000;white-space:nowrap}
+#era{display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:auto}
+#eraName{font-weight:800;font-size:17px;color:#ffc76e;text-shadow:0 2px 0 #000,0 0 14px #ff9d3c66;background:#140b04bb;padding:4px 18px;border-radius:12px;border:2px solid #00000077}
+#eraBar{width:220px;height:8px;background:#00000088;border-radius:6px;overflow:hidden;border:1px solid #000}
+#eraBar em{display:block;height:100%;width:0;background:linear-gradient(90deg,#ff9d3c,#ffe45e);transition:width .4s}
+#eraUp{font-family:inherit;font-weight:800;font-size:14px;color:#1a0f08;background:linear-gradient(180deg,#ffe45e,#ffb13c);border:2px solid #000;border-radius:12px;padding:8px 18px;cursor:pointer;box-shadow:0 4px 0 #7a4a12;transition:transform .1s}
+#eraUp:active{transform:translateY(3px);box-shadow:0 1px 0 #7a4a12}
+#eraUp:disabled{filter:grayscale(.9);opacity:.55;cursor:default}
+
+/* ── منوی ساخت ── */
+#menu{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);z-index:10;display:flex;gap:8px;max-width:96vw;overflow-x:auto;padding:10px;background:#140b04cc;border:2px solid #00000088;border-radius:16px}
+.b{flex:0 0 auto;width:104px;font-family:inherit;text-align:center;background:linear-gradient(180deg,#4a2c14,#2c1808);border:2px solid #000;border-radius:12px;padding:8px 6px;cursor:pointer;color:#ffe9c9;box-shadow:0 4px 0 #00000066;transition:transform .08s}
+.b:active{transform:translateY(3px)}
+.b img,.b .ic{font-size:26px;display:block;margin-bottom:3px}
+.b b{font-size:12.5px;display:block}
+.b small{font-size:10.5px;display:block;opacity:.8;margin-top:2px;line-height:1.5}
+.b.off{filter:grayscale(1);opacity:.5;cursor:default}
+.b.maxed{outline:2px solid #ffe45e}
+
+/* ── توست و مودال ── */
+#toast{position:fixed;top:90px;left:50%;transform:translateX(-50%);z-index:20;display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
+.t{background:#000000d9;color:#ffe9c9;border:2px solid #ffb13c;border-radius:12px;padding:8px 16px;font-size:13.5px;font-weight:600;animation:tp 2.6s forwards}
+@keyframes tp{0%{opacity:0;transform:translateY(-10px)}10%,80%{opacity:1;transform:none}100%{opacity:0}}
+#eraModal{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;background:#000000aa;backdrop-filter:blur(3px)}
+#eraModal.on{display:flex}
+#eraModal>div{background:linear-gradient(180deg,#3d2410,#1a0f08);border:3px solid #ffb13c;border-radius:20px;padding:28px 34px;text-align:center;color:#ffe9c9;max-width:86vw;box-shadow:0 0 60px #ff9d3c55}
+#eraModal h2{color:#ffe45e;margin-bottom:10px;font-size:24px}
+#eraModal p{opacity:.85;font-size:14px;line-height:2;margin-bottom:18px}
+#emOk{font-family:inherit;font-weight:800;font-size:16px;background:linear-gradient(180deg,#ffe45e,#ffb13c);border:2px solid #000;border-radius:12px;padding:10px 30px;cursor:pointer;box-shadow:0 4px 0 #7a4a12}
+
+@media (max-width:640px){.b{width:88px}.r{font-size:12.5px}}
