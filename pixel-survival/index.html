@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>از صفر | بقا و تمدن</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="game"></canvas>
+  
+  <header class="top-bar">
+    <div class="brand">
+      <span class="mark">◈</span>
+      <div>
+        <b>از صفر</b>
+        <small>بقا • ساخت • تمدن</small>
+      </div>
+    </div>
+    <div class="era-info">
+      <small>دورهٔ تمدن</small>
+      <strong id="eraName">عصر سنگی</strong>
+      <span id="dayCount">روز ۱</span>
+    </div>
+    <div class="resources" id="resources"></div>
+  </header>
+
+  <aside class="panel left">
+    <div class="panel-title">فرمان‌های بقا</div>
+    <button data-action="gather" data-type="food">🍓 <span>جمع‌آوری غذا</span><b>+۳</b></button>
+    <button data-action="gather" data-type="wood">🪵 <span>قطع چوب</span><b>+۳</b></button>
+    <button data-action="gather" data-type="stone">🪨 <span>استخراج سنگ</span><b>+۲</b></button>
+    <button data-action="gather" data-type="fiber">🌿 <span>جمع‌آوری الیاف</span><b>+۲</b></button>
+    <button data-action="gather" data-type="metal" id="metalBtn" hidden>⚒️ <span>استخراج فلز</span><b>+۲</b></button>
+    
+    <div class="sep"></div>
+    <div class="panel-title">ساختمان‌ها</div>
+    <div id="buildList" class="build-list"></div>
+    
+    <div class="sep"></div>
+    <button id="researchBtn">📚 <span>پژوهش و دانش</span></button>
+    <button id="advanceBtn" class="primary">✦ <span>پیشرفت به عصر بعد</span></button>
+    <div class="hint" id="hint">برای زنده ماندن، منابع اولیه جمع کن.</div>
+  </aside>
+
+  <aside class="panel right">
+    <div class="panel-title">دفتر وقایع</div>
+    <div id="eventLog"></div>
+    <div class="legend">
+      <span>🟩 زمین قابل ساخت</span>
+      <span>🌲 منابع طبیعی</span>
+      <span>🏕️ اردوگاه تو</span>
+    </div>
+  </aside>
+
+  <div class="bottom-bar">
+    <span>🖱️Drag: چرخش | اسکرول: زوم | کلیک: انتخاب | Space: مرکز</span>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <div id="loading" class="loading">بارگذاری جهان...</div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
