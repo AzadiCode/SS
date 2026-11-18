@@ -12,24 +12,31 @@ if(cr){const zb=(w,d,x,z)=>q(w,d,x,z,0xefe9d6,.095);for(let i=-2;i<=2;i++){if(cr
 if(lamp)A.push(vcGeo(new THREE.CylinderGeometry(.025,.035,1.1,5).translate(.82,.55,.82),0x2f3338));
 g.add(vcMesh(A,VCM,!!lamp,true));
 if(lamp){const bl=new THREE.Mesh(LBG,LAMP);bl.position.set(.82,1.12,.82);g.add(bl);const pl=NORAY(new THREE.Mesh(LPG,LP));pl.rotation.x=-Math.PI/2;pl.position.set(.55,.12,.55);g.add(pl);const hl=NORAY(new THREE.Sprite(LHALO));hl.scale.set(1,1,1);hl.position.set(.82,1.12,.82);g.add(hl)}}
-// ── پیاده‌رو: بلوک‌های پیکسی سه‌بعدی (مکعب‌های کوچکِ سنگی با دو تنِ ملایم، بی‌درزِ تیره) + حاشیهٔ curb.
-// باریک‌تر از نسخهٔ قبلی ⇒ قلمِ ریز برای چیدمانِ دقیق کنار جاده/خونه. بازوها تا لبهٔ سلول می‌رسند ⇒ بی‌فاصله.
+// ── پیاده‌رو: مسیر خاکیِ باریکِ «رد پایی»؛ نوارِ پیوسته از دیسک‌های خاکیِ نامنظم + رد پا + سنگ‌ریزه.
+// خاکی/طبیعی (نه کاشی): پالت قهوه‌ای، لبه‌های ناهموار، ساییدگی و سنگ‌ریزه.
+// ضد پرپر: دیسک‌ها با ارتفاع واقعی (.045/.06) و کفِ تخت روی زمین، بدون سطحِ هم‌مرزِ هم‌سطح.
 // پارامترها: m=بیتمسک اتصال چهار جهت، L=طول بازوی هر جهت، bl=بیتمسک درِ ساختمان.
-const SDW=.6,PV=.3,ST_BASE=0x6a6d72,TONES=[0xcac7be,0xb8b2a4],ST_STEP=0xd8c8a0;
+const PTW=.55,PT_DIRT=[0xb09366,0xaa8f63,0xb59a6c],PT_EDGE=0x8d8c55,PT_WORN=0x9b8058,PT_FOOT=0x8f744c,PT_PBG=new THREE.IcosahedronGeometry(.03,0),PT_PBC=[0x8f8a80,0x7d786e,0xa39d90],PT_CYL=new THREE.CylinderGeometry(1,1,1,10,1),PT_M=new THREE.Matrix4(),PT_Q=new THREE.Quaternion(),PT_P=new THREE.Vector3(),PT_S=new THREE.Vector3(),PT_E=new THREE.Euler();
 function pathMesh(g,m,id,L,bl=0,gx=0,gz=0){clearKids(g);
-const hw=PW/2,B=[1,2,4,8],DX=[0,1,0,-1],DZ=[-1,0,1,0],all=[];
-const bx=(x,z,w,d,c)=>all.push(vcGeo(new THREE.BoxGeometry(w,.05,d).translate(x,.025,z),c)); // پایه/curb تیره
-const px=(x,z,w,d,c)=>all.push(vcGeo(new THREE.BoxGeometry(w,.05,d).translate(x,.055,z),c)); // یک بلوکِ پیکسی
-const pave=(x0,z0,x1,z1)=>{for(let z=z0;z<z1;z+=PV){for(let x=x0;x<x1;x+=PV){const w=Math.min(PV,x1-x),d=Math.min(PV,z1-z);if(w<.05||d<.05)continue;px(x+w/2,z+d/2,w,d,TONES[((Math.round(x/PV)+Math.round(z/PV))%2+2)%2])}}}; // چیدمانِ بلوک‌ها با تنِ شطرنجیِ ملایم
-// پایهٔ curb تیره: مرکز + بازوها (کمی بزرگ‌تر ⇒ لبهٔ تیره دیده شود)
-bx(0,0,SDW+.14,SDW+.14,ST_BASE);
-B.forEach((bit,i)=>{if(!(m&bit))return;const l=hw+L[i],ax=DX[i]!==0,cx=DX[i]*l/2,cz=DZ[i]*l/2;bx(cx,cz,ax?l:SDW+.14,ax?SDW+.14:l,ST_BASE)});
-// بلوک‌های پیکسیِ روشن: مرکز
-pave(-SDW/2,-SDW/2,SDW/2,SDW/2);
-// بازوها (تا l می‌رسند ⇒ به همسایه/جاده بی‌درز وصل می‌شوند)
-B.forEach((bit,i)=>{if(!(m&bit))return;const l=hw+L[i],ax=DX[i]!==0;
-if(ax){const x0=DX[i]>0?0:-l,x1=DX[i]>0?l:0;pave(x0,-SDW/2,x1,SDW/2)}else{const z0=DZ[i]>0?0:-l,z1=DZ[i]>0?l:0;pave(-SDW/2,z0,SDW/2,z1)}
-if(bl&bit)all.push(vcGeo(new THREE.BoxGeometry(.62,.14,.62).translate(DX[i]*(l-.08),.07,DZ[i]*(l-.08)),ST_STEP))}); // پلهٔ گرمِ مرتفعِ جلوی در (از زمین تا آستانهٔ پایهٔ خونه)
+const hw=PW/2,base=[],edge=[],worn=[],foot=[];let sd=(id*9301+49297)%233280;const r=()=>(sd=(sd*9301+49297)%233280)/233280;
+// دیسکِ استوانه‌ای (بیضی با شعاع‌های rx/rz و چرخش ry) — کفِ تخت روی زمین (y=0) ⇒ بدون z-fight
+const disc=(arr,x,z,rx,rz,h,ry=0)=>{PT_P.set(x,h/2,z);PT_S.set(rx,h,rz);PT_Q.setFromEuler(PT_E.set(0,ry,0));PT_M.compose(PT_P,PT_Q,PT_S);arr.push(PT_CYL.clone().applyMatrix4(PT_M))};
+const B=[1,2,4,8],DX=[0,1,0,-1],DZ=[-1,0,1,0],any=B.some(b=>m&b);
+// مرکز: لبهٔ محو + دیسکِ خاک
+const cr=any?PTW/2+.03:.4;disc(edge,0,0,cr+.06,cr+.06,.045);disc(base,0,0,cr,cr,.06);
+// بازوها: زنجیرهٔ دیسک‌های خاکی با انحراف ملایم؛ دو سرِ نوار بدون انحراف تا به همسایه بی‌درز بچسبد
+B.forEach((bit,i)=>{if(!(m&bit))return;const l=hw+L[i],n=Math.max(2,Math.ceil(l/.2)),ax=DX[i]!==0;
+for(let k=1;k<=n;k++){const t=k/n,d=t*l,j=(r()-.5)*.11*Math.sin(Math.PI*t),rad=PTW/2*(.92+r()*.22),px=ax?DX[i]*d:j,pz=ax?j:DZ[i]*d;
+disc(edge,px,pz,rad+.06,rad+.06,.045);disc(base,px,pz,rad,rad,.06);
+if(r()<.55)disc(worn,px+(ax?0:(r()-.5)*.2),pz+(ax?(r()-.5)*.2:0),.07+r()*.07,.05+r()*.06,.065,r()*3)}
+// جلوی در: دیسک گشادتر (حیاطِ ورودی)
+if(bl&bit){disc(edge,DX[i]*(l-.06),DZ[i]*(l-.06),.44,.44,.045);disc(base,DX[i]*(l-.06),DZ[i]*(l-.06),.38,.38,.06)}
+// رد پاها: جفت‌بیضی‌های کم‌رنگ چپ/راست در امتداد مسیر
+for(let d=.35,s=1;d<l-.1;d+=.34,s=-s){const px=ax?DX[i]*d:s*.07,pz=ax?s*.07:DZ[i]*d;disc(foot,px,pz,ax?.085:.045,ax?.045:.085,.062,(r()-.5)*.4)}});
+// ادغامِ همهٔ دیسک‌ها (لبه، خاک، ساییدگی، رد پا) + دو سنگ‌ریزه ← فقط یک مش
+const all=[];const mk=(arr,c)=>{for(const x of arr)all.push(vcGeo(x,c))};
+mk(edge,PT_EDGE);mk(base,PT_DIRT[((id%3)+3)%3]);mk(worn,PT_WORN);mk(foot,PT_FOOT);
+for(let i=0;i<2;i++){const px=(r()-.5)*.6,pz=(r()-.5)*.6,ry=r()*3,ge=PT_PBG.clone();ge.scale(1,.5,1);ge.rotateY(ry);ge.translate(px,.035,pz);all.push(vcGeo(ge,PT_PBC[i%3]))}
 g.add(vcMesh(all,VCP,false,true))}
 function roads(w){const rs=new Set(),ps=new Set();for(const b of w.buildings){if(b.type==='road')rs.add(b.x+','+b.z);else if(b.type==='path')ps.add(b.x+','+b.z)}
 const hr=(x,z)=>rs.has(x+','+z),hq=(x,z)=>ps.has(x+','+z),hc=(x,z)=>hr(x,z)||hq(x,z);
