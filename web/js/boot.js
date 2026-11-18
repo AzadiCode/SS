@@ -18,7 +18,6 @@ const GAME_FILES=[
   'world/environment',
   'characters/nametags',
   'ui/interaction',
-  'world/dirt',
   'admin/panel',
   'features/recorder',
   'characters/navigation',
