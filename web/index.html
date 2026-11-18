@@ -377,10 +377,10 @@ const ROADC=[0xa88458,0x9a7a52,0x8d8b84,0x58585c,0x3f4144],SCORCH=new Float32Arr
 function tileColor(k,era){const i=(k/N)|0,j=k%N,t=TC[k],v=.97+h2(i,j,3)*.06;
   if(WAT[k])_c.set(0x2a4766);else if(t===3)_c.set(ROADC[era]).multiplyScalar(v+(((i+j)%3===0&&era>=3)?.12:0));else{const p=PAL[t];_c.set(p[(h2(i,j,4)*p.length)|0]).multiplyScalar(v*(.92+HT[k]*.035))}
   const sc=SCORCH[k];if(sc>0)_c.multiplyScalar(1-.62*sc);return _c}
-function setTile(k,era=G.era){const i=(k/N)|0,j=k%N,top=topY(k);_o.position.set(T2W(i),(top-1.5)/2,T2W(j));_o.rotation.set(0,0,0);_o.scale.set(1.035,top+1.5,1.035);_o.updateMatrix();terr.setMatrixAt(k,_o.matrix);terr.setColorAt(k,tileColor(k,era))}
+function setTile(k,era=G.era){const i=(k/N)|0,j=k%N,top=topY(k);_o.position.set(T2W(i),(top-1.5)/2,T2W(j));_o.rotation.set(0,0,0);_o.scale.set(1.10,top+1.5,1.10);_o.updateMatrix();terr.setMatrixAt(k,_o.matrix);terr.setColorAt(k,tileColor(k,era))}
 function buildTerrain(){for(let k=0;k<N*N;k++)setTile(k,0);terr.instanceMatrix.needsUpdate=true;terr.instanceColor.needsUpdate=true;scene.add(terr)}
 function repaintRoad(era){for(const k of ROAD)terr.setColorAt(k,tileColor(k,era));terr.instanceColor.needsUpdate=true}
-const water=new THREE.Mesh(new THREE.PlaneGeometry(900,900),new THREE.MeshLambertMaterial({color:0x2f78b0,transparent:true,opacity:.8}));water.rotation.x=-Math.PI/2;water.position.y=-.1;water.receiveShadow=true;scene.add(water);
+const water=new THREE.Mesh(new THREE.PlaneGeometry(900,900),new THREE.MeshLambertMaterial({color:0x20364b,transparent:true,opacity:.42}));water.rotation.x=-Math.PI/2;water.position.y=-.1;water.receiveShadow=true;scene.add(water);
 const deep=new THREE.Mesh(new THREE.PlaneGeometry(900,900),new THREE.MeshBasicMaterial({color:0x14283f}));deep.rotation.x=-Math.PI/2;deep.position.y=-1.6;scene.add(deep);
 
 /* — منابع (درخت، سنگ، بوته، معدن) و دکور: InstancedMesh — */
@@ -464,9 +464,9 @@ function canPlace(type,i0,j0){const s=BD[type].s;let mn=9,mx=-9;
 function addBuilding(type,i0,j0,team,instant){const d=BD[type],s=d.s,ts=fpTiles(s,i0,j0);let lv=0;for(const[i,j]of ts)lv+=HT[ix(i,j)];lv=Math.round(lv/ts.length);
   for(const[i,j]of ts){const k=ix(i,j);HT[k]=lv;BLK[k]=1;if(TC[k]!==3)TC[k]=4;SCORCH[k]=0;setTile(k)}terr.instanceMatrix.needsUpdate=true;terr.instanceColor.needsUpdate=true;
   const b={id:nid++,type,team,i0,j0,s,cx:T2W(i0)+(s-1)/2,cz:T2W(j0)+(s-1)/2,y:topY(ix(i0,j0)),prog:instant?1:0,q:[],qt:0,cd:0,hit:0,em:0,et:0};
-  b.max=Math.round(d.hp*(1+.25*G.era));b.hp=instant?b.max:b.max*.2;const geo=bGeo(type,G.era,team);b.mesh=new THREE.Mesh(geo.g,matV);b.mesh.castShadow=b.mesh.receiveShadow=true;b.mesh.position.set(b.cx,b.y,b.cz);b.em=geo.em;if(geo.em&&geo.em[3]==='fire'){const fl=new THREE.PointLight(0xffa13b,2.15,8.5,2);fl.position.set(b.cx+geo.em[0],b.y+geo.em[1]+.45,b.cz+geo.em[2]);fl.castShadow=false;scene.add(fl);b.fireLight=fl}if(!instant)b.mesh.scale.y=.12;scene.add(b.mesh);blds.push(b);return b}
+  b.max=Math.round(d.hp*(1+.25*G.era));b.hp=instant?b.max:b.max*.2;const geo=bGeo(type,G.era,team);b.mesh=new THREE.Mesh(geo.g,matV);b.mesh.castShadow=b.mesh.receiveShadow=true;b.mesh.position.set(b.cx,b.y,b.cz);b.em=geo.em;if(geo.em&&geo.em[3]==='fire'){const fl=new THREE.PointLight(0xffa13b,5.2,14,1.45);fl.position.set(b.cx+geo.em[0],b.y+geo.em[1]+.45,b.cz+geo.em[2]);fl.castShadow=false;scene.add(fl);b.fireLight=fl;const glow=new THREE.Mesh(new THREE.CircleGeometry(3.8,32),new THREE.MeshBasicMaterial({color:0xff922c,transparent:true,opacity:.22,depthWrite:false,blending:THREE.AdditiveBlending}));glow.rotation.x=-Math.PI/2;glow.position.set(b.cx+geo.em[0],b.y+.035,b.cz+geo.em[2]);scene.add(glow);b.fireGlow=gl}if(!instant)b.mesh.scale.y=.12;scene.add(b.mesh);blds.push(b);return b}
 function reskin(b){const geo=bGeo(b.type,G.era,b.team);b.mesh.geometry=geo.g;b.em=geo.em;const m=Math.round(BD[b.type].hp*(1+.25*G.era));b.hp=Math.max(1,b.hp*m/b.max);b.max=m}
-function removeB(b){b.hp=0;b.dead=true;scene.remove(b.mesh);for(const[i,j]of fpTiles(b.s,b.i0,b.j0))BLK[ix(i,j)]=0;blds.splice(blds.indexOf(b),1);if(SEL.b===b)clearSel()}
+function removeB(b){b.hp=0;b.dead=true;scene.remove(b.mesh);if(b.fireLight)scene.remove(b.fireLight);if(b.fireGlow)scene.remove(b.fireGlow);for(const[i,j]of fpTiles(b.s,b.i0,b.j0))BLK[ix(i,j)]=0;blds.splice(blds.indexOf(b),1);if(SEL.b===b)clearSel()}
 function trainList(b){if(b.type==='hq')return['worker'];if(b.type==='barracks')return MIL.filter(t=>UD[t].era<=G.era&&UD[t].era>=G.era-1);return[]}
 function train(b,t){const d=UD[t];if(b.prog<1)return;if(!canPay(d.cost))return toast('منابع کافی نیست','bad');if(popNow()>=popCap())return toast('جای خالی نیست؛ خونه بساز','bad');pay(d.cost);b.q.push({type:t});sfx('click');selDirty=1}
 function openTiles(cx,cz,n,minR=0){const o=[],ci=W2T(cx),cj=W2T(cz);for(let r=minR;r<14&&o.length<n;r++)for(let a=-r;a<=r&&o.length<n;a++)for(let b=-r;b<=r&&o.length<n;b++){if(Math.max(Math.abs(a),Math.abs(b))!==r)continue;const i=ci+a,j=cj+b;if(inb(i,j)&&!WAT[ix(i,j)]&&!BLK[ix(i,j)])o.push([T2W(i),T2W(j)])}return o}
@@ -476,7 +476,7 @@ function stepBld(b,dt){
     if(b.prog>=1){b.mesh.scale.y=1;if(b.team===0){sfx('ok');selDirty=1;P(b.cx,b.y+1,b.cz,0,2,0,.5,.8,.1,0xffe27a)}}return}
   if(b.q.length){b.qt+=dt;const t=b.q[0].type;if(b.qt>=UD[t].t){b.qt=0;b.q.shift();const sp=openTiles(b.cx,b.cz+b.s/2+.5,1,0)[0]||[b.cx,b.cz+b.s];const u=spawnUnit(t,0,sp[0],sp[1]);G.st.made++;if(t==='worker')autoGather(u);selDirty=1}}
   if(b.type==='tower'||(b.team===1&&b.type==='tower')){b.cd-=dt;if(b.cd<=0){b.cd=.35;const e=findEnemy({x:b.cx,z:b.cz,team:b.team,type:'rifle'},7.2+.35*G.era);if(e){b.cd=1.15;const tp=entPos(e);shoot({x:b.cx,y:b.y+1.7,z:b.cz},{x:tp.x,y:e.k==='u'?e.e.y+.5:e.e.y+.9,z:tp.z},['rock','arrow','arrow','bullet','bullet'][G.era],7+4*G.era,0,b.team,e,.5)}}}
-  if(b.fireLight){b.fireLight.intensity=1.75+Math.sin(G.t*17+b.id)*.28+Math.sin(G.t*29+b.id*2)*.16}if(b.em){b.et-=dt;if(b.et<=0&&Math.hypot(cam.position.x-b.cx,cam.position.z-b.cz)<70){const[x,y,z,k]=b.em;if(k==='fire'){b.et=.08;fireFx(b.cx+x,b.y+y,b.cz+z)}else{b.et=.35;P(b.cx+x,b.y+y,b.cz+z,rr(-.1,.2),rr(.7,1.1),rr(-.1,.1),2.2,.3,.9,0x6a6e74)}}}}
+  if(b.fireLight){b.fireLight.intensity=4.6+Math.sin(G.t*17+b.id)*.65+Math.sin(G.t*29+b.id*2)*.35;if(b.fireGlow)b.fireGlow.material.opacity=.18+Math.sin(G.t*13+b.id)*.035}if(b.em){b.et-=dt;if(b.et<=0&&Math.hypot(cam.position.x-b.cx,cam.position.z-b.cz)<70){const[x,y,z,k]=b.em;if(k==='fire'){b.et=.08;fireFx(b.cx+x,b.y+y,b.cz+z)}else{b.et=.35;P(b.cx+x,b.y+y,b.cz+z,rr(-.1,.2),rr(.7,1.1),rr(-.1,.1),2.2,.3,.9,0x6a6e74)}}}}
 
 /* — سرباز‌ها — */
 function spawnUnit(type,team,x,z,o={}){const d=UD[type],hp=Math.round(d.hp*(team?.9+.05*G.era:1));
