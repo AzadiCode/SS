@@ -1,87 +1,162 @@
-// ═══ مود نقشهٔ ساخت حرفه‌ای: شبحِ کم‌رنگِ شفافِ خودِ ساختمان روی نقشه ← چیدن/درگ با لمس ← تیک (ساخت همه) / ضربدر (کنسل).
-// جریان لمسی: انگشت بگذار → شبح چسبیده به انگشت حرکت می‌کند (سبز=خالی/قرمز=اشغال) → رها کن = همان‌جا می‌نشیند.
-// درگ روی شبحِ چیده‌شده = جابه‌جایی دقیق همان آیتم. درگ روی زمین با قلم جاده/پیاده‌رو = ردیف پیوسته بدون گپ (خط برِزن‌هام).
-// کلیدها: R=چرخش، Enter=تیک، Esc=کنسل. سرور: POST /api/admin/buildings/batch (اتمیک) ← server/admin.py ═══
+// ═══ مود نقشهٔ ساخت حرفه‌ای: شبحِ شفافِ «همان مدل واقعی» زیر انگشت ← چیدن/درگ/چرخش/انتخاب ← تیک = ساخت دسته‌ای با انیمیشن پله‌ای.
+// معماری: BP (وضعیت مود) · bpTemplate (کش مدل شبح به‌ازای نوع+ماسک) · bpVal (اعتبارسنجی لایه‌دار) · bpRemesh (اتصال زندهٔ کاشی‌ها)
+// · bpStroke (ردیف پیوستهٔ بدون گپ) · bpCommit (تأیید اتمیک + زمان‌بندی stagger ← core/main.js).
+// سرور: POST /api/admin/buildings/batch (اتمیک) ← server/admin.py ═══
 'use strict';
-let BP={on:false,ghost:null,items:[],type:'house',rot:0,busy:false,dragIt:null,pending:false,px:0,pz:0,down:null,line:null};
-const BP_OK=0x3ddc97,BP_BAD=0xff5a4c;
-const BP_GEO=new THREE.RingGeometry(.72,.92,4,1,Math.PI/4),BP_MAT=new THREE.MeshBasicMaterial({color:BP_OK,transparent:true,opacity:.9,depthWrite:false,side:THREE.DoubleSide});
-// ── شبح: پوستهٔ شفافِ هم‌اندازهٔ خودِ ساختمان (از bbox مدل واقعی) + خط دور + حلقهٔ اعتبار
-function bpGhost(type,rot){
-  const g=new THREE.Group(),model=new THREE.Group(),bid=(type==='tree'||type==='hq')?7:1234+((rot/90)|0);
-  build[type]?.(model,{id:bid,x:0,z:0,rot});
-  const hol=new THREE.MeshStandardMaterial({color:0x9fe8ff,transparent:true,opacity:.42,roughness:.3,emissive:0x1c6a8a,emissiveIntensity:.55,depthWrite:false});
-  const edges=new THREE.LineBasicMaterial({color:0xbdf3ff,transparent:true,opacity:.85});
-  const box=new THREE.Box3().setFromObject(model),size=box.getSize(new THREE.Vector3()),ctr=box.getCenter(new THREE.Vector3());
-  disposeObj(model);                                  // مدل زیرین لازم نیست؛ فقط اندازه‌اش را می‌خواهیم
-  const shell=new THREE.Mesh(new THREE.BoxGeometry(size.x,size.y,size.z),hol);
-  shell.position.copy(ctr);g.add(shell);
-  const eg=new THREE.EdgesGeometry(shell.geometry);eg.translate(ctr.x,ctr.y,ctr.z);
-  g.add(new THREE.LineSegments(eg,edges));
-  const ring=new THREE.Mesh(BP_GEO,BP_MAT.clone());ring.rotation.x=-Math.PI/2;ring.position.y=.05;ring.scale.setScalar(.8);g.add(ring);
-  g.userData={ring};
-  return g}
-// ── چیدمان فعلی نقشه: کدام سلول‌ها اشغاله (ساختمان‌های واقعی + اشباه چیده‌شده)
-function bpUsed(){const u=new Set(W.buildings.map(b=>b.x+','+b.z));for(const it of BP.items)u.add(it.x+','+it.z);return u}
-const bpFree=(x,z)=>x>=-20&&x<20&&z>=-20&&z<20&&((x*2+17)/8.6)**2+((z*2+17)/6)**2>=1.15&&!bpUsed().has(x+','+z);
-// ── شبحِ چیده‌شدهٔ ثابت روی نقشه (هر آیتم: پوسته + حلقه‌اش)
-function bpPlace(it){
-  const g=bpGhost(it.type,it.rot);g.position.set(it.x*CELL,0,it.z*CELL);
+const BP={on:false,items:[],type:'house',rot:0,sel:null,dragIt:null,down:null,ghost:null,line:null,busy:false,_tpl:new Map(),_stag:new Map()};
+const BP_OK=0x3ddc97,BP_BAD=0xff5a4c,BP_GOLD=0xffc247;
+const BP_GEO=new THREE.RingGeometry(.74,.94,4,1,Math.PI/4),BP_PGEO=new THREE.PlaneGeometry(1,1);
+// شبح = مدل واقعیِ ادغام‌شده در یک متریال شفاف مشترک؛ عمق‌نویسی خاموش تا از هم پشت هم هم دیده شوند
+const BP_HOL=new THREE.MeshStandardMaterial({color:0xaee9ff,transparent:true,opacity:.34,roughness:.5,metalness:0,depthWrite:false});
+const BP_EDGE=new THREE.LineBasicMaterial({color:0xeaffff,transparent:true,opacity:.5});
+const BP_TILE=new THREE.MeshBasicMaterial({color:BP_OK,transparent:true,opacity:.5,depthWrite:false});
+// ── لایه‌ها: خانه/مزرعه/بازار/درخت/hq = لایهٔ ساختمان؛ جاده = لایهٔ خودش؛ پیاده‌رو روی زمینِ باز قابل‌همزیست با لایهٔ جاده نیست
+const bpCompat=(a,b)=>a!==b;                                    // لایه‌های متفاوت همزیست؛ هم‌لایه = تداخل
+const bpInPond=(x,z)=>((x*2+17)/8.6)**2+((z*2+17)/6)**2<1.15;
+const inMap=(x,z)=>x>=-20&&x<20&&z>=-20&&z<20;
+// ── اعتبارسنجی لایه‌دار: خروجی true یا دلیل خطا (رشته). مجاورت هرگز خطا نیست؛ فقط همپوشانیِ هم‌لایه، برکه و خارج نقشه.
+function bpVal(type,x,z,skip){if(!inMap(x,z))return'خارج از نقشه';if(bpInPond(x,z))return'برکه';
+  // هم‌پوشانی با هر ساختمان واقعی ممنوع (مثل سرور: check_cell بدون لایه) — مجاورت آزاد است
+  if(W.buildings.some(b=>b.x===x&&b.z===z))return'اشغال است';
+  for(const it of BP.items)if(it!==skip&&it.x===x&&it.z===z)return'تداخل با پیش‌نمایش';
+  if(type==='hq'&&[...W.buildings,...BP.items.filter(i=>i!==skip)].some(b=>b.type==='hq'))return'دفتر فقط یکی است';
+  return true}
+const bpFree=(x,z,skip)=>bpVal(BP.type,x,z,skip)===true;
+// ── شبحِ مدل واقعی: مدل کامل ساخته می‌شود، همهٔ مش‌ها در یک مش ادغام و با متریال شبح رندر می‌شوند (۱ دراکال)
+const BP_DIR=[[0,-1],[1,0],[0,1],[-1,0]],BP_ROTD=[0,Math.PI/2,Math.PI,Math.PI*1.5];
+// ماسک اتصال برای یک سلولِ نوع t: همسایه‌های واقعی (W) + همسایه‌های صف (BP.items)
+// ماسک اتصال مثل roads.js: جاده و پیاده‌رو هر دو «مسیر»اند و به هم وصل می‌شوند
+function bpMask(t,x,z){const same=b=>b.type==='road'||b.type==='path';
+  let m=0;for(let i=0;i<4;i++){const nx=x+BP_DIR[i][0],nz=z+BP_DIR[i][1],k=nx+','+nz;
+  if(W.buildings.some(b=>b.x===nx&&b.z===nz&&same(b))||BP.items.some(it=>it.x===nx&&it.z===nz&&same(it)))m|=1<<i}
+  return m}
+function bpTemplate(type,rot,mask){const key=type+'|'+rot+'|'+mask;
+  if(BP._tpl.has(key))return BP._tpl.get(key);
+  const g=new THREE.Group();
+  if(type==='road'){roadMesh(g,mask,0);g.userData.tile=1}
+  else if(type==='path'){pathMesh(g,7777+mask,[.5,.5,.5,.5].map(()=>1),0,0,0);g.userData.tile=1}
+  else{build[type]?.(g,{id:type==='tree'||type==='hq'?7:1234+(rot/90|0),x:0,z:0,rot});if(type!=='tree'&&type!=='hq')plaqueless(g)}
+  // ادغام کل مدل به یک مش شفاف + ذخیرهٔ bbox برای خط دور
+  const geos=[];g.traverse(c=>{if(c.isMesh&&c.geometry){let ge=c.geometry.clone();ge.applyMatrix4(c.matrixWorld);if(ge.index)ge=ge.toNonIndexed();
+    for(const a of Object.keys(ge.attributes))if(!['position','normal','uv'].includes(a))ge.deleteAttribute(a);geos.push(ge)}});
+  const out=new THREE.Group();
+  if(geos.length){const me=new THREE.Mesh(mergeGeometries(geos,false),BP_HOL);me.renderOrder=5;out.add(me);
+    const box=new THREE.Box3().setFromObject(me),sz=box.getSize(new THREE.Vector3()),ct=box.getCenter(new THREE.Vector3());
+    const eg=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(sz.x,Math.max(sz.y,.02),sz.z)),BP_EDGE);
+    eg.position.copy(ct);out.add(eg);out.userData.box={sz,ct}}
+  geos.forEach(x=>x.dispose());
+  // کاشی زمینی (جاده/پیاده‌رو): صفحهٔ رنگی زیر مدل که سبز/قرمز را نشان می‌دهد
+  const tile=new THREE.Mesh(BP_PGEO,BP_TILE.clone());tile.rotation.x=-Math.PI/2;tile.position.y=.02;
+  if(type==='road'||type==='path'){tile.scale.set(2,2,1)}else{const b=out.userData.box;tile.scale.set(Math.min(2,b?b.sz.x+.5:2),Math.min(2,b?b.sz.z+.5:2),1)}
+  out.add(tile);out.userData.tileMesh=tile;
+  const ring=new THREE.Mesh(BP_GEO,new THREE.MeshBasicMaterial({color:BP_OK,transparent:true,opacity:.9,depthWrite:false,side:THREE.DoubleSide}));
+  ring.rotation.x=-Math.PI/2;ring.position.y=.06;out.add(ring);out.userData.ring=ring;
+  BP._tpl.set(key,out);return out}
+// حذف پلاک شمارهٔ خانه از شبح (عنصر نامربوط به پیش‌نمایش)
+function plaqueless(g){for(const c of[...g.children])if(c.isMesh&&c.material&&(c.material.map===GRADT))g.remove(c)}
+// کلون امن قالب شبح: ring و کاشی اعتبار را از روی هندسهٔ مشخص پیدا می‌کند (clone در three.js userData را کپی سطحی می‌دهد)
+function bpClone(type,rot,mask){const src=bpTemplate(type,rot,mask),g=src.clone(true);
+  const ring=g.children.find(c=>c.geometry===BP_GEO),tile=g.children.find(c=>c.geometry===BP_PGEO);
+  if(ring)ring.material=ring.material.clone();if(tile)tile.material=tile.material.clone();   // متریال جدا تا رنگ هر شبح مستقل باشد
+  g.userData={ring,tileMesh:tile,k:mask};return g}
+
+// ── ساخت/به‌روزرسانی یک آیتم صف: مدل شبح + حلقه + کاشی اعتبار
+function bpMake(it){const mask=(it.type==='road'||it.type==='path')?bpMask(it.type,it.x,it.z):0;
+  const g=bpClone(it.type,it.rot,mask);
+  g.userData.it=it;
+  g.position.set(it.x*CELL,0,it.z*CELL);
   if(it.type!=='road'&&it.type!=='path')g.rotation.y=it.rot*Math.PI/180;
-  scene.add(g);it.g=g;return g}
-function bpSetRing(it,ok){if(it.g)it.g.userData.ring.material.color.setHex(ok?BP_OK:BP_BAD)}
-function bpAdd(x,z){if(!bpFree(x,z))return false;
-  const it={type:BP.type,x,z,rot:BP.type==='road'||BP.type==='path'?0:BP.rot};
-  bpPlace(it);BP.items.push(it);bpBar();return true}
-function bpRemove(it){if(it.g){scene.remove(it.g);disposeObj(it.g);it.g=null}BP.items.splice(BP.items.indexOf(it),1);bpBar()}
-function bpClear(){for(const it of BP.items)if(it.g){scene.remove(it.g);disposeObj(it.g)}BP.items=[];bpLine(null);bpBar()}
-// ── جابه‌جایی آیتم چیده‌شده (درگ): سلول قبلی موقتاً آزاد می‌شود تا همپوشانی با خودش خطا ندهد
-function bpMoveTo(it,x,z){const ox=it.x,oz=it.z;it.x=1e4;const ok=bpFree(x,z);it.x=ox;
-  if(!ok){bpSetRing(it,false);return false}
-  it.x=x;it.z=z;it.g.position.set(x*CELL,0,z*CELL);bpSetRing(it,true);return true}
-// ── ردیف پیوستهٔ جاده/پیاده‌رو: خط برِزن‌هام بین دو نقطهٔ لمس — هیچ سلولی در مسیر جا نمی‌ماند (بدون گپ)
-function bpStroke(x0,z0,x1,z1){
-  const pts=[],n=Math.max(Math.abs(x1-x0),Math.abs(z1-z0));
+  scene.add(g);it.g=g;bpPaint(it);return g}
+// رنگ حالت: سبز=معتبر · قرمز=نامعتبر · طلایی=انتخاب‌شده
+function bpPaint(it){if(!it.g)return;const val=bpVal(it.type,it.x,it.z,it),ring=it.g.userData.ring;
+  it.ok=val===true;it.err=val===true?'':val;
+  ring.material.color.setHex(it===BP.sel?BP_GOLD:it.ok?BP_OK:BP_BAD);
+  it.g.userData.tileMesh.material.color.setHex(it.ok?BP_OK:BP_BAD);
+  it.g.userData.tileMesh.material.opacity=it.ok?.5:.65}
+// چیدن/حذف/جابه‌جایی
+function bpAdd(x,z){if(BP.items.length>=400)return toast('حداکثر ۴۰۰ مورد در یک نقشه');
+  if(bpVal(BP.type,x,z)!==true)return false;
+  const it={type:BP.type,x,z,rot:(BP.type==='road'||BP.type==='path')?0:BP.rot};
+  bpMake(it);BP.items.push(it);bpRemesh(it);bpAfterChange();return true}
+function bpRemove(it){if(!it)return;if(it.g){scene.remove(it.g);disposeObj(it.g);it.g=null}
+  BP.items.splice(BP.items.indexOf(it),1);if(BP.sel===it)BP.sel=null;
+  for(const o of BP.items)if((o.type==='road'||o.type==='path')&&Math.abs(o.x-it.x)<=1&&Math.abs(o.z-it.z)<=1)bpRemesh(o);
+  bpAfterChange()}
+function bpMove(it,x,z){if(it.x===x&&it.z===z){bpPaint(it);return true}
+  const val=bpVal(it.type,x,z,it);if(val!==true){bpPaint(it);return false}
+  it.x=x;it.z=z;it.g.position.set(x*CELL,0,z*CELL);bpRemesh(it);bpPaint(it);bpAfterChange();return true}
+function bpRot(it){if(it.type==='road'||it.type==='path')return;
+  it.rot=(it.rot+90)%360;it.g.rotation.y=it.rot*Math.PI/180;bpRemesh(it);bpPaint(it)}
+function bpAfterChange(){for(const it of BP.items)bpPaint(it);bpBar()}
+// ── اتصال زندهٔ کاشی‌ها: با هر تغییر، ماسک همسایگیِ همهٔ کاشی‌های مجاور دوباره ساخته می‌شود (مسیر پیوسته همیشه درست)
+function bpRemesh(changed){if(changed.type!=='road'&&changed.type!=='path')return;
+  const near=[changed,...BP.items.filter(it=>(it.type==='road'||it.type==='path')&&Math.abs(it.x-changed.x)<=1&&Math.abs(it.z-changed.z)<=1)];
+  for(const it of near){const m=bpMask(it.type,it.x,it.z);
+    if(it.g&&it.g.userData.k!==m){
+      scene.remove(it.g);disposeObj(it.g);
+      const g=bpClone(it.type,it.rot,m);g.userData.it=it;
+      g.position.set(it.x*CELL,0,it.z*CELL);scene.add(g);it.g=g;bpPaint(it)}}}
+// ── ردیف پیوستهٔ جاده/پیاده‌رو: خط برِزن‌هام بین دو نقطه — هیچ سلولی در مسیر جا نمی‌ماند
+function bpStroke(x0,z0,x1,z1){const pts=[],n=Math.max(Math.abs(x1-x0),Math.abs(z1-z0));
   if(n===0)pts.push([x0,z0]);
   else for(let i=0;i<=n;i++)pts.push([Math.round(x0+(x1-x0)*i/n),Math.round(z0+(z1-z0)*i/n)]);
-  let added=0;for(const[x,z]of pts)if(bpAdd(x,z))added++;
-  return added}
-// ── خط راهنمای کشیدن (از نقطهٔ شروع تا انگشت)
+  let added=0;for(const[x,z]of pts)if(bpAdd(x,z))added++;return added}
+// ── خط راهنمای کشیدن
 function bpLine(c){if(!c){if(BP.line){scene.remove(BP.line);disposeObj(BP.line);BP.line=null}return}
   if(!BP.line){BP.line=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xffe0a0,transparent:true,opacity:.8}));BP.line.position.y=.1;scene.add(BP.line)}
   BP.line.geometry.setFromPoints([new THREE.Vector3(BP.down.c[0]*CELL,0,BP.down.c[1]*CELL),new THREE.Vector3(c[0]*CELL,0,c[1]*CELL)])}
-// ── شبحِ شناور زیر انگشت (بدون ایونت: با مختصات سلول مستقیم)
-function bpFloat(c){
-  if(!BP.ghost){BP.ghost=bpGhost(BP.type,BP.rot);scene.add(BP.ghost)}
-  const ok=bpFree(c[0],c[1]);
+// ── شبحِ شناور زیر انگشت (مدل واقعی؛ فقط وقتی درگِ جدید روی زمین است)
+function bpFloat(c){if(!BP.ghost){const g=bpClone(BP.type,BP.rot,0);BP.ghost=g;scene.add(BP.ghost)}
+  const val=bpVal(BP.type,c[0],c[1]),ok=val===true;
   BP.ghost.position.set(c[0]*CELL,0,c[1]*CELL);
   if(BP.type!=='road'&&BP.type!=='path')BP.ghost.rotation.y=BP.rot*Math.PI/180;
   BP.ghost.userData.ring.material.color.setHex(ok?BP_OK:BP_BAD);
+  BP.ghost.userData.tileMesh.material.color.setHex(ok?BP_OK:BP_BAD);
   BP.ghost.visible=true;BP.ok=ok}
-function bpRefreshGhost(){if(BP.ghost){scene.remove(BP.ghost);disposeObj(BP.ghost);BP.ghost=null}}
-// ── نوار پایین: تیک/ضربدر + شمارنده
-function bpBar(){const b=$('bpb');if(!b)return;
-  b.style.display=BP.on?'flex':'none';
-  if(BP.on){const n=BP.items.length,cost=n?(W.cost?BP.items.reduce((s,i)=>s+(W.cost[i.type]||0),0):0):0;
-  $('bpn').textContent='نقشهٔ ساخت: '+cpx(n)+' مورد'+(cost&&!$('fr').checked?' · '+fa(cost/1e6,1)+' م':'');
-  $('bpok').style.opacity=n?1:.35}}
-function bpStart(){if(!T)return;BP.on=true;BP.rot=0;bpBar();
+function bpGhostType(){if(!BP.ghost)return;
+  scene.remove(BP.ghost);disposeObj(BP.ghost);BP.ghost=null}
+// ── نوار پایین و راهنما
+function bpBar(){const b=$('bpb');if(!b)return;b.style.display=BP.on?'flex':'none';if(!BP.on)return;
+  const n=BP.items.length,bad=BP.items.filter(i=>!i.ok).length;
+  const cost=W.cost?BP.items.reduce((s,i)=>s+(W.cost[i.type]||0),0):0;
+  $('bpn').innerHTML='نقشهٔ ساخت: '+cpx(n)+' مورد'+(bad?' · <b style="color:#ff8d80">'+cpx(bad)+' نامعتبر</b>':'')+(cost&&!$('fr').checked?' · '+fa(cost/1e6,1)+' م':'');
+  $('bpi').textContent=BP.sel?'انتخاب: '+cpx(BP.items.indexOf(BP.sel)+1)+' · '+(W.catalog?.[BP.sel.type]||BP.sel.type):'';
+  $('bpok').style.opacity=n&&!bad&&!BP.busy?1:.35}
+function bpStart(){if(!T)return;BP.on=true;BP.rot=0;BP.sel=null;bpBar();
   $('bph').style.display='block';$('adm').style.display='none';$('pal').style.display='flex'}
-function bpEnd(){BP.on=false;BP.dragIt=null;BP.down=null;bpClear();bpRefreshGhost();bpBar();
-  $('bph').style.display='none';if(admOn)$('adm').style.display='flex'}
-// ── تیک: ساخت همه (اتمیک) — sync خودش مدل‌ها را با انیمیشن پاپ می‌سازد
-async function bpCommit(){const n=BP.items.length;if(!n||BP.busy)return;BP.busy=true;
-  $('bpok').style.opacity=.4;
-  try{await api('/api/admin/buildings/batch','POST',{items:BP.items.map(i=>({type:i.type,x:i.x,z:i.z,rot:i.rot})),free:$('fr').checked});
-    toast('✅ '+cpx(n)+' ساختمان ساخته شد');bpClear()}
+function bpEnd(){BP.on=false;BP.sel=null;BP.dragIt=null;BP.down=null;
+  for(const it of BP.items)if(it.g){scene.remove(it.g);disposeObj(it.g);it.g=null}
+  BP.items=[];bpGhostType();bpLine(null);bpBar();
+  $('bph').style.display='none';$('bpq').style.display='none';if(admOn)$('adm').style.display='flex'}
+// ── تیک: ساخت همه (اتمیک سمت سرور) — stagger زمان انیمیشن هر ساختمان را BP._stag می‌دهد ← sync.js/main.js
+async function bpCommit(){const n=BP.items.length;if(!n||BP.busy)return;
+  const bad=BP.items.filter(i=>!i.ok);if(bad.length){toast(cpx(bad.length)+' مورد نامعتبر است — سبز شود یا حذفش کن');
+    BP.sel=bad[0];bpAfterChange();return}
+  BP.busy=true;bpBar();
+  try{const res=await api('/api/admin/buildings/batch','POST',{items:BP.items.map(i=>({type:i.type,x:i.x,z:i.z,rot:i.rot})),free:$('fr').checked});
+    const made=res.buildings||[];BP._stag.clear();
+    made.forEach((b,i)=>BP._stag.set(b.id,i*.12));        // پله‌ای: هر ساختمان ۱۲۰ms بعد از قبلی
+    toast('✅ '+cpx(n)+' ساختمان ساخته شد');
+    for(const it of BP.items)if(it.g){scene.remove(it.g);disposeObj(it.g);it.g=null}
+    BP.items=[];bpBar()}
   catch(e){/* api خودش توست خطا می‌زند */}
   BP.busy=false;bpBar()}
+// زمان شروع انیمیشنِ پاپ برای ساختمان تازه (۰ = همین حالا؛ stagger ← bpCommit)
+const bpDelay=id=>BP._stag.get(id)||0;
 document.body.insertAdjacentHTML('beforeend',
- `<div id="bph" class="g">🏗️ انگشت بگذار و بکش: شبح دنبال انگشت می‌آید، رها کن = بنشیند · روی شبحِ چیده‌شده بکش = جابه‌جایی · R چرخش</div>
-  <div id="bpb" class="g"><span id="bpn"></span><button id="bpx" title="کنسل (Esc)">✕</button><button id="bpok" title="ساخت (Enter)">✓</button></div>`);
-$('bpx').onclick=()=>{bpEnd();toast('نقشهٔ ساخت کنسل شد')};
+ `<div id="bph" class="g">🏗️ انگشت بگذار و بکش: شبح دنبال انگشت می‌آید، رها کن = بنشیند · روی پیش‌نمایش بکش = جابه‌جایی · تپ = انتخاب · R چرخش · ⇧ دوتایی حذف</div>
+  <div id="bpb" class="g"><span id="bpn"></span><button id="bpr" title="چرخش انتخاب‌شده (R)">🔄</button><button id="bpq2" title="صف ساخت">📋</button><button id="bpx" title="کنسل (Esc)">✕</button><button id="bpok" title="ساخت (Enter)">✓</button></div>
+  <div id="bpq" class="g"><div id="bpi"></div><ol id="bql"></ol></div>`);
+$('bpx').onclick=()=>{bpEnd();toast('نقشهٔ ساخت کنسل شد — هیچی ساخته نشد')};
 $('bpok').onclick=bpCommit;
+$('bpr').onclick=()=>{if(BP.sel)bpRot(BP.sel);else toast('اول یک پیش‌نمایش را انتخاب کن')};
+$('bpq2').onclick=()=>{const q=$('bpq');const on=q.style.display==='flex';q.style.display=on?'none':'flex';if(!on)bpQList()};
+function bpQList(){const l=$('bql');if(!l)return;l.innerHTML=BP.items.map((it,i)=>
+  `<li data-i="${i}" class="${it===BP.sel?'on':''} ${it.ok?'':'bad'}">${cpx(i+1)}. ${W.catalog?.[it.type]||it.type} <i>(${it.x},${it.z})</i><span data-del="${i}">✕</span></li>`).join('')||'<li style="opacity:.6">خالی</li>';
+  l.querySelectorAll('[data-del]').forEach(s=>s.onclick=ev=>{ev.stopPropagation();const it=BP.items[+s.dataset.del];bpRemove(it);bpQList()});
+  l.querySelectorAll('li[data-i]').forEach(li=>li.onclick=()=>{BP.sel=BP.items[+li.dataset.i]||null;bpAfterChange();bpQList()})}
 addEventListener('keydown',e=>{if(!BP.on)return;
   if(e.key==='Escape'){bpEnd();toast('کنسل شد')}
   else if(e.key==='Enter'){e.preventDefault();bpCommit()}
-  else if(e.key==='r'||e.key==='R'){BP.rot=(BP.rot+90)%360;bpRefreshGhost()}});
+  else if(e.key==='r'||e.key==='R'){if(BP.sel)bpRot(BP.sel);else{BP.rot=(BP.rot+90)%360;bpGhostType()}}
+  else if(e.key==='Delete'||e.key==='Backspace'){if(BP.sel){bpRemove(BP.sel)}}});

@@ -25,3 +25,13 @@
 #bpb button{width:34px;height:30px;border:0;border-radius:7px;font-size:15px;font-weight:900;cursor:pointer;line-height:1}
 #bpb #bpok{background:var(--gold);color:#3a2500}
 #bpb #bpx{background:var(--ember);color:#2a1100}
+#bpb #bpr,#bpb #bpq2{width:30px;height:30px;background:rgba(255,243,214,.12);color:var(--cream);font-size:13px}
+#bpq{position:fixed;bottom:calc(max(18px,env(safe-area-inset-bottom)) + 48px);left:50%;transform:translateX(-50%);display:none;flex-direction:column;gap:4px;padding:7px 9px;border-radius:var(--r);background:rgba(11,36,38,.96);border:1px solid var(--line);z-index:7;max-width:92vw;max-height:38vh}
+#bpi{font-size:10px;font-weight:700;color:var(--gold)}
+#bql{margin:0;padding:0;list-style:none;overflow:auto;display:flex;flex-direction:column;gap:2px}
+#bql li{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--cream);padding:3px 6px;border-radius:5px;cursor:pointer;white-space:nowrap}
+#bql li.on{background:rgba(255,194,71,.22);outline:1px solid var(--gold)}
+#bql li.bad{color:#ff9d92}
+#bql li i{font-style:normal;opacity:.6;font-size:9px;direction:ltr}
+#bql li span{margin-inline-start:auto;opacity:.7;padding:0 3px}
+#bql li span:hover{opacity:1;color:var(--ember)}

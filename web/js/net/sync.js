@@ -4,7 +4,7 @@ let bSig='';
 // سرور با هر tick اقتصادی rev را بالا می‌برد حتی وقتی ساختمانی عوض نشده؛ ناوبری (A*) و جاده‌ها فقط وقتی ساختمان‌ها یا جمعیت واقعاً عوض شدند بازسازی می‌شوند
 function sync(w){W=w;rev=w.rev;const ids=new Set(w.buildings.map(b=>b.id));
 for(const[id,g]of objs)if(!ids.has(id)){scene.remove(g);disposeObj(g);objs.delete(id)}
-for(const b of w.buildings){const g=objs.get(b.id);if(!g)addB(b);else if(g.userData.b.x!==b.x||g.userData.b.z!==b.z||g.userData.b.rot!==b.rot){g.position.set(b.x*CELL,0,b.z*CELL);if(b.type!=='road'&&b.type!=='path')g.rotation.y=b.rot*Math.PI/180;g.userData.b=b}}
+for(const b of w.buildings){const g=objs.get(b.id);if(!g)addB(b,bpDelay(b.id));else if(g.userData.b.x!==b.x||g.userData.b.z!==b.z||g.userData.b.rot!==b.rot){g.position.set(b.x*CELL,0,b.z*CELL);if(b.type!=='road'&&b.type!=='path')g.rotation.y=b.rot*Math.PI/180;g.userData.b=b}}
 plan.visible=!w.buildings.some(b=>b.type==='hq');
 {const sig=w.buildings.length+'|'+((w.stats&&w.stats.pop)||0)+'|'+w.buildings.map(b=>b.id+b.type+b.x+','+b.z+','+b.rot).join(';');if(sig!==bSig){bSig=sig;rebuildNav(w);roads(w)}}
 const s=w.stats;tgt.pop=s.pop;tgt.money=s.money/1e6;tgt.food=s.food;
