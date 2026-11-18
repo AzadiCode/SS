@@ -23,11 +23,7 @@ def health(): return "ok"
 
 
 @bp.get("/")
-def index(): return send_from_directory(WEB, "survival.html")
-
-
-@bp.get("/legacy")
-def legacy_index(): return send_from_directory(WEB, "index.html")
+def index(): return send_from_directory(WEB, "index.html")
 
 
 @bp.get("/admin")

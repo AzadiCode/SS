@@ -50,10 +50,10 @@ lm(c.aL,-.17,.62);put(P.arm,X,pl.cl);put(P.hand,X,pl.sk);
 lm(c.aR,.17,.62);put(P.arm,X,pl.cl);put(P.hand,X,pl.sk);
 if(c.lan&&c.lan.visible&&nl<I.CAP){A.makeTranslation(0,-.33,.05);L.multiplyMatrices(X,A);put(P.lan,L);const e=L.elements,dx=e[12]-cp.x,dy=e[13]-cp.y,dz=e[14]-cp.z;I.lx[nl*3]=e[12];I.lx[nl*3+1]=e[13];I.lx[nl*3+2]=e[14];I.ld[nl]=dx*dx+dy*dy+dz*dz;nl++}}
 for(const k in P){const p=P[k],m=p.m;m.count=p.n;m.instanceMatrix.needsUpdate=true;if(p.pal)m.instanceColor.needsUpdate=true}
-const H=I.HALO,K=H.length;let thr=1e18,u=0;if(nl>K){I.tmp.set(I.ld.subarray(0,nl));thr=I.tmp.subarray(0,nl).sort()[K-1]}
+const H=I.HALO,K=Math.min(H.length,Q.halo());let thr=1e18,u=0;if(nl>K){I.tmp.set(I.ld.subarray(0,nl));thr=I.tmp.subarray(0,nl).sort()[K-1]}
 for(let j=0;j<nl&&u<K;j++)if(I.ld[j]<=thr){const s=H[u++];s.position.set(I.lx[j*3],I.lx[j*3+1],I.lx[j*3+2]);s.visible=true}
-for(;u<K;u++)H[u].visible=false}
-function killInst(){const I=INST;if(!I)return;INST=null;for(const k in I.P){scene.remove(I.P[k].m);I.P[k].m.dispose();I.P[k].m.geometry.dispose()}I.HALO.forEach(s=>scene.remove(s));HARD=140;VIS=Math.min(VIS,MOB?40:70);while(cits.length){const c=cits.pop();scene.remove(c.g);c.el.remove()}fitCits()}
+for(;u<H.length;u++)H[u].visible=false}
+function killInst(){const I=INST;if(!I)return;INST=null;for(const k in I.P){scene.remove(I.P[k].m);I.P[k].m.dispose();I.P[k].m.geometry.dispose()}I.HALO.forEach(s=>scene.remove(s));HARD=140;VIS=Math.min(VIS,MOB?40:70);while(cits.length){const c=cits.pop();scene.remove(c.g);disposeObj(c.g);if(c._el)c._el.remove()}fitCits()}
 function mkCitLite(i){
 const g=new THREE.Group();g.rotation.order='YXZ';
 const hs=Math.random()*5|0,bd=(hs===0||hs===4)&&Math.random()<.4,lb=()=>({rotation:{x:0}});
@@ -61,13 +61,14 @@ const pal={cl:lin(rr(cloth)),sk:lin(rr(skin)),hc:lin(rr(hairC)),pn:lin(rr(pants)
 const c={g,lite:1,pal,pop:0,body:{scale:{y:1}},lL:lb(),lR:lb(),aL:lb(),aR:lb(),path:[],ph:Math.random()*6,wait:Math.random()*2,sp:(.8+Math.random()*.5)*.85,act:'',st:'stay',tm:Math.random()*2.5,hid:0,by:0,chain:0,lk:0,ct:0,talk:0,fa:null,pt:null,ty:null,tr:{f:Math.random(),s:Math.random(),so:Math.random()}};
 g.scale.setScalar(.008);if(Math.random()<.35)c.lan={visible:false};
 const hb=new THREE.Mesh(HBG,HBM);hb.position.y=.5;g.add(hb);c.i=i;g.userData.cit=c;
-const el=document.createElement('div');el.className='nt';el.innerHTML='<b></b>';$('nts').appendChild(el);c.el=el;c.nb=el.firstChild;c.nb.textContent=nameOf(i);
+lazyEl(c,0);
 const p=freeNear(ctr[0],ctr[1],Math.min(RAD*.85,5+i*.5));g.position.set(p[0],0,p[1]);scene.add(g);return c}
 try{if(!/classic/.test(location.search)){INST=initInst();HARD=MOB?320:640;VIS=MOB?90:180}}catch(e){console.error('instancing off',e);INST=null}
-function tune(){if(RC.on||rec){fpsUp=0;return} // هنگام ضبط، سیستم خودکار کاهش شهروندان خاموش است تا کسی از بازی ناپدید نشود
-const mx=Math.min(POP,HARD),MIN=MOB?24:36;vcT+=1.5;if(vcT>=8){vcT=0;if(VCAP<1e9)VCAP=Math.ceil(VCAP*1.12)+3}
-if(fpsA<27&&VIS>MIN){VIS=Math.max(MIN,Math.floor(VIS*.85));VCAP=VIS+4;fitCits();fpsUp=0}
-else if(fpsA<24&&VIS<=MIN&&PRX>(LOW?.76:1.01)&&!RC.on){PRX=Math.max(LOW?.75:1,PRX-.25);R.setPixelRatio(PRX);onRes();fpsUp=0}
+// تنظیم تعداد شهروندان نمایش‌داده‌شده (VIS). کاهش کیفیت کلی را Q (core/perf.js) انجام می‌دهد؛ اینجا فقط «رشد تدریجی» و «سقف پله‌ها» اعمال می‌شود
+function tune(){if(RC.on||rec){fpsUp=0;return} // هنگام ضبط، کاهش خودکار شهروندان خاموش است تا کسی از بازی ناپدید نشود
+const mx=Math.max(1,Math.min(POP,HARD,Q.citCap())),MIN=MOB?24:36;vcT+=1.5;if(vcT>=8){vcT=0;if(VCAP<1e9)VCAP=Math.ceil(VCAP*1.12)+3}
+if(VIS>mx){VIS=mx;VCAP=Math.min(VCAP,VIS+4);fitCits();fpsUp=0}
+else if(fpsA<27&&Q.lv()>=9&&VIS>MIN){VIS=Math.max(MIN,Math.floor(VIS*.85));VCAP=VIS+4;fitCits();fpsUp=0} // آخرین پله: کاهش ریز شهروندان
 else if(fpsA>50&&VIS<mx&&VIS<VCAP){if(++fpsUp>=2){VIS=Math.min(mx,VCAP,Math.ceil(VIS*1.1)+3);fitCits();fpsUp=0}}
 else fpsUp=0}
 function mkCit(i){if(i>0&&INST)return mkCitLite(i);const g=new THREE.Group(),f=i===0,cl=f?0x1b2540:rr(cloth),sk=rr(skin),hc=f?0x1c1410:rr(hairC),pn=f?0x14182a:rr(pants),hs=f?0:(Math.random()*5|0);g.rotation.order='YXZ';
@@ -88,7 +89,7 @@ const limb=(w,h,c,px,py,shc)=>{const P=Parts();P.p(BG(w,h,w),c,0,-h/2,0);if(shc)
 const c={g,body,lL:limb(.085,.28,pn,-.06,.3,sh),lR:limb(.085,.28,pn,.06,.3,sh),aL:limb(.065,.26,cl,-.17,.62),aR:limb(.065,.26,cl,.17,.62),path:[],ph:Math.random()*6,wait:Math.random()*2,sp:(.8+Math.random()*.5)*.85,act:'',st:'stay',tm:Math.random()*2.5,hid:0,by:0,chain:0,lk:0,ct:0,talk:0,fa:null,pt:null,ty:null,tr:{f:Math.random(),s:Math.random(),so:Math.random()}};
 g.scale.setScalar(f?.9:.8);c.hm=M(hc,.85);if(f)founderLook(c);
 if(!f&&Math.random()<.35){const ln=new THREE.Group(),lb=new THREE.Mesh(new THREE.SphereGeometry(.05,8,6),LANT);ln.add(lb);const lh=NORAY(new THREE.Sprite(LNHALO));lh.scale.set(.6,.6,1);ln.add(lh);ln.position.set(0,-.33,.05);ln.visible=false;c.aR.add(ln);c.lan=ln}
-const hb=new THREE.Mesh(new THREE.SphereGeometry(.5,6,5),new THREE.MeshBasicMaterial({visible:false}));hb.position.y=.5;g.add(hb);c.i=i;g.userData.cit=c;const el=document.createElement('div');el.className='nt'+(f?' f':'');el.innerHTML='<b></b>';$('nts').appendChild(el);c.el=el;c.nb=el.firstChild;c.nb.textContent=nameOf(i);
+const hb=new THREE.Mesh(new THREE.SphereGeometry(.5,6,5),new THREE.MeshBasicMaterial({visible:false}));hb.position.y=.5;g.add(hb);c.i=i;g.userData.cit=c;lazyEl(c,f);
 const p=freeNear(ctr[0],ctr[1],Math.min(RAD*.85,5+i*.5));g.position.set(p[0],0,p[1]);scene.add(g);return c}
 // ── ظاهر بنیان‌گذار: هکر نئونی (پالتوی تاریک، گاگل، چشم سبز، دورخط درخشان)
 let fL=null;

@@ -88,9 +88,9 @@ if(!pool.length)return null;const s=pk(pool)[1];R.push(s);if(R.length>mx)R.shift
 function dgSay(c,tags,ms=3200,ring='a'){const s=dgLine(tags,c,ring);if(!s)return;bubble(c,s,ms);c.ls=dgNow()}
 const dgVis=c=>{tv.copy(c.g.position);tv.project(cam);return tv.z<1&&Math.abs(tv.x)<1.05&&Math.abs(tv.y)<1.05&&cam.position.distanceTo(c.g.position)<60};
 // حرف زدن خودبه‌خودی: کم، فقط از بین آدم‌هایی که دیده می‌شوند، با ترجیح جاهای جالب (مزرعه، بازار، برکه...)
-function dgAmb(){if(document.hidden)return;let on=0;for(const c of cits)if(c.el.querySelector('.bb'))on++;if(on>=2||Math.random()<.35)return;
+function dgAmb(){if(document.hidden)return;let on=0;for(const c of cits)if(c._el&&c._el.querySelector('.bb'))on++;if(on>=2||Math.random()<.35)return;
 const now=dgNow(),WT={farm:3,market:3,pond:2.5,tree:2.5,path:1.6,home:1.4,road:1.2},pool=[];
-for(const c of cits){if(c.hid||c.act==='chat'||c.st==='enter'||c.st==='exit'||c.st==='greet'||c.el.querySelector('.bb')||now-(c.ls||0)<50||!dgVis(c))continue;pool.push([WT[dgZone(c)]||.8,c])}
+for(const c of cits){if(c.hid||c.act==='chat'||c.st==='enter'||c.st==='exit'||c.st==='greet'||(c._el&&c._el.querySelector('.bb'))||now-(c.ls||0)<50||!dgVis(c))continue;pool.push([WT[dgZone(c)]||.8,c])}
 if(!pool.length)return;const c=pk(pool)[1];dgSay(c,dgTags(c),3400)}
 // گفتگوی دو نفره: ۳ جملهٔ مرتبط با موقعیت، نه حرف بی‌پایان
 function dgConv(c,p){const tg=dgTags(c),pz=dgZone(p);if(!tg.includes(pz))tg.push(pz);const pool=[];

@@ -1,44 +1,24 @@
 # -*- coding: utf-8 -*-
-"""وب‌سرویس سبک ذخیره‌سازی پیشرفت بازیکن (فایل JSON — بدون دیتابیس خارجی)."""
-import json, os, time, uuid
-from flask import Flask, request, jsonify, send_from_directory
-
-BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-WEB = os.path.join(BASE, "web")
-DATA = os.path.join(BASE, "data")
-os.makedirs(DATA, exist_ok=True)
+"""Tribe World — جهان زنده قبیله (بک‌اند Flask).
+هر فایل یک مسئولیت دارد:
+  config.py   تنظیمات و ثابت‌ها (قیمت‌ها، قوانین، مراحل)
+  db.py       ذخیره‌سازی (MongoDB یا حافظه)
+  world.py    منطق دنیا (اقتصاد، رویدادها، خروجی)
+  auth.py     ورود و توکن مدیر
+  public.py   صفحه‌ی بازی و /api/world
+  telegram.py ربات تلگرام
+  players.py  بازیکن‌ها و کارکتر من
+  admin.py    API مدیر
+"""
+import logging
+from flask import Flask
+from .config import WEB
 
 
 def create_app():
-    app = Flask(__name__, static_folder=None)
-
-    @app.route("/")
-    @app.route("/<path:p>")
-    def web(p="index.html"):
-        return send_from_directory(WEB, p)
-
-    @app.route("/api/join", methods=["POST"])
-    def join():
-        """شناسه‌ی بازیکن: اولویت با pid ارسالی/ذخیره‌شده است."""
-        pid = (request.json or {}).get("pid") or uuid.uuid4().hex[:12]
-        f = os.path.join(DATA, f"{pid}.json")
-        state = None
-        if os.path.exists(f):
-            try:
-                state = json.load(open(f, encoding="utf-8"))
-            except Exception:
-                state = None
-        return jsonify({"pid": pid, "state": state})
-
-    @app.route("/api/save", methods=["POST"])
-    def save():
-        body = request.json or {}
-        pid = str(body.get("pid") or uuid.uuid4().hex[:12])[:32]
-        state = body.get("state")
-        if not isinstance(state, dict):
-            return jsonify({"ok": False}), 400
-        state["_ts"] = time.time()
-        json.dump(state, open(os.path.join(DATA, f"{pid}.json"), "w", encoding="utf-8"))
-        return jsonify({"ok": True})
-
+    logging.basicConfig(level=logging.INFO)
+    app = Flask(__name__, static_folder=WEB, static_url_path="")   # css/js از پوشه‌ی web سرو می‌شوند
+    from . import public, auth, telegram, players, admin           # هر بخش یک Blueprint است
+    for part in (public, auth, telegram, players, admin):
+        app.register_blueprint(part.bp)
     return app

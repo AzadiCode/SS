@@ -1,19 +1,15 @@
 services:
   - type: web
-    name: voxel-age
+    name: tribe-world
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app --workers 1 --threads 8 --bind 0.0.0.0:$PORT
     healthCheckPath: /healthz
     envVars:
-      - key: MONGO_URI
-        sync: false
       - key: ADMIN_KEY
         sync: false
-      - key: YT_API_KEY
-        sync: false
-      - key: YT_CHANNEL_ID
+      - key: MONGO_URI
         sync: false
       - key: BOT_TOKEN
         sync: false

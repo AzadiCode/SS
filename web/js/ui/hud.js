@@ -1,53 +1,13 @@
-// ═══ رابط کاربری: نوار منابع، منوی ساخت، مودال عصر، توست ═══
+// ═══ HUD: چیپ‌های منابع (جمعیت/خزانه/غذا)، پیام موقت (toast) و متن داستان آغازین. ═══
 'use strict';
-import { $, fa } from '../core/engine.js';
-import { G, ERAS, CATALOG, ERA_COST, eraItems, countOf, canAfford, fmtCost, eraUp } from '../core/state.js';
-import { placeBuilding, rebuildAll } from '../world/buildings.js';
-import { celebrate } from '../world/effects.js';
-import * as THREE from 'three';
-
-export const toast = msg => { const t = document.createElement('div'); t.className = 't'; t.textContent = msg; $('toast').appendChild(t); setTimeout(() => t.remove(), 2600); };
-
-const RES_KEYS = { food: 'v_food', wood: 'v_wood', stone: 'v_stone', sci: 'v_sci', gold: 'v_gold' };
-export function refreshHUD() {
-  for (const [k, id] of Object.entries(RES_KEYS)) $(id).textContent = ({ food: '🍖', wood: '🪵', stone: '🪨', sci: '📜', gold: '🪙' })[k] + ' ' + fa(Math.floor(G.res[k]));
-  $('v_pop').textContent = `👥 ${fa(G.pop)}/${fa(G.popMax)}`;
-  $('eraName').textContent = `${ERAS[G.era].icon} ${ERAS[G.era].name}`;
-  $('eraBar').firstElementChild.style.width = (G.era / (ERAS.length - 1) * 100) + '%';
-  const up = $('eraUp');
-  if (G.era >= ERAS.length - 1) { up.disabled = true; up.textContent = '🏆 تمدن شما به اوج رسید!'; }
-  else {
-    const c = ERA_COST[G.era];
-    up.disabled = !canAfford(c);
-    up.textContent = `⬆️ ${ERAS[G.era + 1].icon} ${ERAS[G.era + 1].name} — ${fmtCost(c)}`;
-  }
-  renderMenu();
-}
-
-function renderMenu() {
-  const m = $('menu'); m.innerHTML = '';
-  for (const b of eraItems()) {
-    const n = countOf(b.id), full = n >= b.max, ok = canAfford(b.cost) && !full;
-    const d = document.createElement('div');
-    d.className = 'b' + (ok ? '' : ' off') + (full && b.max <= 5 ? ' maxed' : '');
-    d.innerHTML = `<span class="ic">${b.icon}</span><b>${b.name}${b.max < 99 ? ` (${fa(n)}/${fa(b.max)})` : ''}</b><small>${b.desc}</small><small>${fmtCost(b.cost)}</small>`;
-    if (ok) d.onclick = () => {
-      if (placeBuilding(b.id)) { import('../core/state.js').then(s => { s.buy(b.id); refreshHUD(); toast(`${b.icon} ${b.name} ساخته شد!`); }); }
-    };
-    m.appendChild(d);
-  }
-}
-
-export function bindEraUp() {
-  $('eraUp').onclick = () => {
-    if (!eraUp()) return;
-    rebuildAll();
-    const e = ERAS[G.era];
-    $('emTitle').textContent = `${e.icon} ${e.name}`;
-    $('emDesc').textContent = e.desc;
-    $('eraModal').classList.add('on');
-    celebrate(new THREE.Vector3(0, 3, 0));
-    refreshHUD();
-  };
-  $('emOk').onclick = () => $('eraModal').classList.remove('on');
-}
+let rev=-1,seenEv=null,tmT;const tgt={pop:0,money:0,food:0},disp={pop:0,money:0,food:0},last={};
+const IC={pop:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3.1"/><path d="M3.4 19.5c.5-3.6 2.7-5.5 5.6-5.5s5.1 1.9 5.6 5.5"/><circle cx="17.2" cy="9.6" r="2.4"/><path d="M16.2 14.2c2.6-.1 4.2 1.5 4.6 4.8"/></svg>',money:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v10M9.6 10c0-1 1-1.7 2.4-1.7s2.4.7 2.4 1.7c0 2.3-4.8 1.3-4.8 3.7 0 1 1 1.7 2.4 1.7s2.4-.7 2.4-1.7"/></svg>',food:'<svg viewBox="0 0 24 24"><path d="M12 21V8.5M12 8.5C10.6 7.4 10.2 5.8 10.2 4c1.4 1 1.8 2.6 1.8 4.5zM12 8.5c1.4-1.1 1.8-2.7 1.8-4.5-1.4 1-1.8 2.6-1.8 4.5zM12 13.5c-2.6 0-4-1.6-4-4 2.6 0 4 1.6 4 4zM12 13.5c2.6 0 4-1.6 4-4-2.6 0-4 1.6-4 4zM12 18c-2.6 0-4-1.6-4-4 2.6 0 4 1.6 4 4zM12 18c2.6 0 4-1.6 4-4-2.6 0-4 1.6-4 4z"/></svg>',flag:'<svg viewBox="0 0 24 24"><path d="M6 21V4M6 5c4-2 6 2 12 0v8c-6 2-8-2-12 0"/></svg>'};
+const RS=[['pop','جمعیت','نفر','linear-gradient(145deg,#4be8a8,#12a06b)',0],['money','خزانه','میلیون تومان','linear-gradient(145deg,#ffd36b,#e89a14)',1],['food','غذا','کیلوگرم','linear-gradient(145deg,#ffa36b,#e5562a)',0]];
+$('res').innerHTML=RS.map(([k,a,u,bg])=>`<div class="chip g" id="c_${k}" style="--a:${({pop:'#3ddc97',money:'#ffc247',food:'#ff8a4c'})[k]}"><div class="ic">${IC[k]}</div><div class="tx"><b id="v_${k}">۰</b><small>${u}</small></div></div>`).join('');
+function toast(t){const e=$('toast');e.textContent=t;e.classList.add('on');clearTimeout(tmT);tmT=setTimeout(()=>e.classList.remove('on'),4500)}
+function bump(k,d){const e=document.createElement('span');e.className='d';e.textContent=(d>0?'+':'')+fa(d,k==='money'?1:0);$('c_'+k).appendChild(e);setTimeout(()=>e.remove(),1600)}
+// داستان آغازین (از ویدیو)
+const story=['می‌شه از این زمین خالی... یه کشور ساخت؟','منم بنیان‌گذار و رئیس موقتم.','غذا؟ صفر.','اول، دو میلیون برای خونهٔ رئیس...','هر کدومتون فالو کنین، هر فالو = ۱ نفر + ۱ میلیون تومن به خزانهٔ این دنیای مجازی اضافه می‌شه!','مصرف هر نفر: روزی نیم کیلو غذا. کم بیاریم، باید از خزانه بخریم!','صد نفر که شدیم، اسم اینجا رو با رأی شما انتخاب می‌کنیم.','دو هزار نفر که شدیم، نظام حکومت: پادشاهی یا جمهوری. خودتون هم می‌تونین نامزد بشین!'];
+let tm=0,si=0;function say(i){clearTimeout(tm);si=i;if(i>=story.length){$('cap').style.display='none';$('bot').style.paddingBottom='0';localStorage.seen=1;return}$('cap').style.display='';typ(story[i]);tm=setTimeout(()=>say(i+1),Math.max(3600,story[i].length*85))}
+let ty;function typ(t){clearInterval(ty);let n=0;$('ct').textContent='';ty=setInterval(()=>{$('ct').textContent=t.slice(0,++n);if(n>=t.length)clearInterval(ty)},28)}
+$('cap').onclick=()=>say(si+1);$('bs').onclick=()=>say(0);$('be').onclick=()=>{const e=$('ev');e.style.display=e.style.display==='block'?'none':'block'};

@@ -7,10 +7,12 @@ import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 Object.assign(globalThis,{THREE,OrbitControls,mergeGeometries});
 
 const GAME_FILES=[
+  'core/quality',
   'core/engine',
   'core/state',
   'core/materials',
   'world/scenery',
+  'world/wildlife',
   'buildings/models',
   'characters/dialogue',
   'world/roads',
@@ -28,6 +30,7 @@ const GAME_FILES=[
   'net/sync',
   'net/telegram',
   'features/music',
+  'core/perf',
   'core/main',
 ];
 
