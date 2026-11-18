@@ -9,6 +9,12 @@ services:
     envVars:
       - key: MONGO_URI
         sync: false
+      - key: ADMIN_KEY
+        sync: false
+      - key: YT_API_KEY
+        sync: false
+      - key: YT_CHANNEL_ID
+        sync: false
       - key: BOT_TOKEN
         sync: false
       - key: SECRET_KEY

@@ -116,6 +116,19 @@ def api_top():
     with lock: return jsonify(top=db_top())
 
 
+import tribe                                   # لایه‌ی قبیله/یوتیوب (tribe.py)
+tribe.init(MONGO_URI)
+app.register_blueprint(tribe.bp)
+
+
+@app.get("/tribe.js")
+def tribe_js(): return send_from_directory(WEB, "tribe.js", max_age=0)
+
+
+@app.get("/admin")
+def admin_page(): return send_from_directory(WEB, "admin.html", max_age=0)
+
+
 @app.get("/healthz")
 def health(): return "ok"
 
