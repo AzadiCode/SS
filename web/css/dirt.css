@@ -1,0 +1,7 @@
+/* پنل مسیر خاکی دست‌آزاد (جنس، اندازهٔ قلم، ابزار) — web/js/world/dirt.js */
+#dp{position:fixed;inset-inline-end:76px;top:50%;transform:translateY(-50%);display:none;flex-direction:column;gap:6px;padding:6px;border-radius:var(--r);font-size:11px;z-index:5;max-width:150px}
+#dp div{display:flex;gap:3px;flex-wrap:wrap}
+#dp b{padding:4px 7px;border-radius:5px;cursor:pointer;font-weight:600;background:rgba(255,255,255,.08);user-select:none}
+#dpm b{border-inline-start:7px solid var(--c)}
+#dp b.on{background:rgba(255,194,71,.35);outline:1.5px solid var(--gold)}
+body.rch #dp{display:none!important}

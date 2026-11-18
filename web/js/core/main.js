@@ -2,7 +2,6 @@
 'use strict';
 const onRes=()=>{if(RC.on)return;cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();R.setSize(innerWidth,innerHeight)};addEventListener('resize',onRes);
 async function startGame(){
-if(document.fonts&&document.fonts.load)try{await Promise.race([Promise.all([document.fonts.load('800 104px Vazirmatn'),document.fonts.load('800 32px Vazirmatn')]),new Promise(r=>setTimeout(r,1500))])}catch(e){} // فونت فارسی (وزن ۸۰۰) برای متن پلاکِ خونه‌ها
 await poll();joinMe();setInterval(poll,3000);localStorage.seen?$('cap').style.display='none':say(0);
 const ck=new THREE.Clock(),START=new THREE.Vector3(46,52,56);let intro=0,ldDone=0,ldF=0;ctl.enabled=false;
 R.setAnimationLoop(()=>{const dt=Math.min(ck.getDelta(),.1),t=ck.elapsedTime;envStep(dt);

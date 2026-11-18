@@ -12,20 +12,25 @@ if(cr){const zb=(w,d,x,z)=>q(w,d,x,z,0xefe9d6,.095);for(let i=-2;i<=2;i++){if(cr
 if(lamp)A.push(vcGeo(new THREE.CylinderGeometry(.025,.035,1.1,5).translate(.82,.55,.82),0x2f3338));
 g.add(vcMesh(A,VCM,!!lamp,true));
 if(lamp){const bl=new THREE.Mesh(LBG,LAMP);bl.position.set(.82,1.12,.82);g.add(bl);const pl=NORAY(new THREE.Mesh(LPG,LP));pl.rotation.x=-Math.PI/2;pl.position.set(.55,.12,.55);g.add(pl);const hl=NORAY(new THREE.Sprite(LHALO));hl.scale.set(1,1,1);hl.position.set(.82,1.12,.82);g.add(hl)}}
-// ── پیاده‌رو: روبانِ پیوسته و یک‌تکه (سطحِ روشنِ صاف + حاشیهٔ curb تیره) که به جاده/خونهٔ مجاور بی‌درز وصل می‌شود.
-// بدون شبکه/درز/سنگ‌فرشِ جدولی ← جایگزینِ مسیر خاکیِ موج‌دار و سنگ‌فرشِ شبکه‌ای قبلی. فقط یک مش ادغام‌شده.
-// پارامترها مثل قبل: m=بیتمسک اتصال چهار جهت، L=طول بازوی هر جهت، bl=بیتمسک درِ ساختمان.
-const SDW=.9,ST_BASE=0x6a6d72,ST_TOP=0xcac7be,ST_STEP=0xd8c8a0;
+// ── پیاده‌رو: مسیر خاکیِ باریکِ «رد پایی»؛ از مرکز خانه به‌صورت یک نوار موج‌دار تا خانه/جاده/پیاده‌روی بعدی می‌رود (نه سطح پهن).
+// عرض مسیر: PTW. هر نوار از چند دیسک هم‌پوشان با انحرافِ ملایم ساخته می‌شود؛ دو سرِ نوار بدون انحراف‌اند تا به خانهٔ بعدی بی‌درز وصل شوند.
+const PTW=.5,PT_DIRT=[0xb09366,0xaa8f63,0xb59a6c],PT_EDGE=0x8d8c55,PT_WORN=0x9b8058,PT_FOOT=0x8f744c,PT_PBG=new THREE.IcosahedronGeometry(.03,0),PT_PBC=[0x8f8a80,0x7d786e,0xa39d90],PT_CYL=new THREE.CylinderGeometry(1,1,1,10,1),PT_M=new THREE.Matrix4(),PT_Q=new THREE.Quaternion(),PT_P=new THREE.Vector3(),PT_S=new THREE.Vector3(),PT_E=new THREE.Euler();
 function pathMesh(g,m,id,L,bl=0,gx=0,gz=0){clearKids(g);
-const hw=PW/2,B=[1,2,4,8],DX=[0,1,0,-1],DZ=[-1,0,1,0],all=[];
-const bx=(x,z,w,d,c)=>all.push(vcGeo(new THREE.BoxGeometry(w,.05,d).translate(x,.025,z),c)); // پایه/curb تیره
-const sx=(x,z,w,d,c)=>all.push(vcGeo(new THREE.BoxGeometry(w,.04,d).translate(x,.06,z),c)); // سطحِ روشنِ پیوسته
-// پایهٔ تیره (حاشیهٔ curb): مرکز + بازوها (کمی بزرگ‌تر ⇒ لبهٔ تیره دیده شود)
-bx(0,0,SDW+.12,SDW+.12,ST_BASE);
-B.forEach((bit,i)=>{if(!(m&bit))return;const l=hw+L[i],ax=DX[i]!==0,cx=DX[i]*l/2,cz=DZ[i]*l/2;bx(cx,cz,ax?l:SDW+.12,ax?SDW+.12:l,ST_BASE)});
-// سطحِ روشنِ یک‌تکه و پیوسته (بدون شبکه/درز): مرکز + بازوها ← روبانِ بی‌وقفهٔ پیاده‌رو
-sx(0,0,SDW,SDW,ST_TOP);
-B.forEach((bit,i)=>{if(!(m&bit))return;const l=hw+L[i],ax=DX[i]!==0,cx=DX[i]*l/2,cz=DZ[i]*l/2;sx(cx,cz,ax?l:SDW,ax?SDW:l,ST_TOP);if(bl&bit)sx(DX[i]*(l-.05),DZ[i]*(l-.05),.62,.62,ST_STEP)}); // پلهٔ گرمِ جلوی در
+const hw=PW/2,base=[],edge=[],worn=[],foot=[];let sd=(id*9301+49297)%233280;const r=()=>(sd=(sd*9301+49297)%233280)/233280;
+// دیسکِ تخت (بیضی با شعاع‌های rx/rz و چرخش ry) ← به لیست مربوط اضافه می‌شود تا بعد ادغام شود
+const disc=(arr,x,z,rx,rz,top,ry=0)=>{PT_P.set(x,top/2,z);PT_S.set(rx,top,rz);PT_Q.setFromEuler(PT_E.set(0,ry,0));PT_M.compose(PT_P,PT_Q,PT_S);arr.push(PT_CYL.clone().applyMatrix4(PT_M))};
+const B=[1,2,4,8],DX=[0,1,0,-1],DZ=[-1,0,1,0],any=B.some(b=>m&b);
+const cr=any?PTW/2+.03:.4;disc(edge,0,0,cr+.06,cr+.06,.015);disc(base,0,0,cr,cr,.03);
+B.forEach((bit,i)=>{if(!(m&bit))return;const l=hw+L[i],n=Math.max(2,Math.ceil(l/.2)),ax=DX[i]!==0;let ft=0;
+for(let k=1;k<=n;k++){const t=k/n,d=t*l,j=(r()-.5)*.11*Math.sin(Math.PI*t),rad=PTW/2*(.92+r()*.22),px=ax?DX[i]*d:j,pz=ax?j:DZ[i]*d;disc(edge,px,pz,rad+.06,rad+.06,.015);disc(base,px,pz,rad,rad,.03);
+if(r()<.55)disc(worn,px+(ax?0:(r()-.5)*.2),pz+(ax?(r()-.5)*.2:0),.07+r()*.07,.05+r()*.06,.034,r()*3)}
+if(bl&bit){disc(edge,DX[i]*(l-.06),DZ[i]*(l-.06),.44,.44,.015);disc(base,DX[i]*(l-.06),DZ[i]*(l-.06),.38,.38,.03)}   // جلوی در ساختمان کمی گشادتر
+// رد پاها: جفت‌بیضی‌های کم‌رنگ، یکی چپ و یکی راست، در امتداد مسیر
+for(let d=.35,s=1;d<l-.1;d+=.34,s=-s){const px=ax?DX[i]*d:s*.07,pz=ax?s*.07:DZ[i]*d;disc(foot,px,pz,ax?.085:.045,ax?.045:.085,.038,(r()-.5)*.4)}});
+// همهٔ دیسک‌ها (لبه، خاک، ساییدگی، رد پا) + دو سنگ‌ریزه ← فقط یک مش (قبلاً ۶ مش)
+const all=[];const mk=(arr,c)=>{for(const x of arr)all.push(vcGeo(x,c))};
+mk(edge,PT_EDGE);mk(base,PT_DIRT[((id%3)+3)%3]);mk(worn,PT_WORN);mk(foot,PT_FOOT);
+for(let i=0;i<2;i++){const px=(r()-.5)*.6,pz=(r()-.5)*.6,ry=r()*3,ge=PT_PBG.clone();ge.scale(1,.5,1);ge.rotateY(ry);ge.translate(px,.034,pz);all.push(vcGeo(ge,PT_PBC[i%3]))}
 g.add(vcMesh(all,VCP,false,true))}
 function roads(w){const rs=new Set(),ps=new Set();for(const b of w.buildings){if(b.type==='road')rs.add(b.x+','+b.z);else if(b.type==='path')ps.add(b.x+','+b.z)}
 const hr=(x,z)=>rs.has(x+','+z),hq=(x,z)=>ps.has(x+','+z),hc=(x,z)=>hr(x,z)||hq(x,z);

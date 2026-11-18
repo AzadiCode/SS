@@ -1,7 +1,7 @@
 // ═══ لمس و انتخاب روی صحنه، ساخت دکمه‌های رابط، و ابزار مدیر (جابه‌جایی، ساخت، چرخش، حذف، نام، پیام).
 // پنل مدیر ← admin/panel.js ═══
 'use strict';
-const MODES={move:'✋ جابه‌جایی: ساختمان را بکش و رها کن',build:'🏗️ ساخت: روی زمین بزن (جاده و پیاده‌رو: بکش)',rot:'🔄 چرخش: روی ساختمان بزن',del:'🗑️ حذف: روی ساختمان بزن',name:'🏷️ نام مستعار: روی آدم بزن',say:'💬 پیام: روی آدم بزن'};
+const MODES={move:'✋ جابه‌جایی: ساختمان را بکش و رها کن',build:'🏗️ ساخت: روی زمین بزن (جاده: بکش) · 🟫 مسیر خاکی: آزاد بکش',rot:'🔄 چرخش: روی ساختمان بزن',del:'🗑️ حذف: روی ساختمان بزن',name:'🏷️ نام: روی آدم (نام مستعار) یا روی خانه (نام پلاک) بزن',say:'💬 پیام: روی آدم بزن'};
 // ── رابط
 document.body.insertAdjacentHTML('afterbegin','<div id="nts"></div>');
 document.body.insertAdjacentHTML('beforeend',`<div id="adm"><div class="btn e g" data-m="move" title="جابه‌جایی">✋</div><div class="btn e g" data-m="build" title="ساخت">🏗️</div><div class="btn e g" data-m="rot" title="چرخش">🔄</div><div class="btn e g" data-m="del" title="حذف">🗑️</div><div class="btn e g" data-m="name" title="نام مستعار">🏷️</div><div class="btn e g" data-m="say" title="پیام">💬</div><div class="btn e g" id="brec" title="ضبط ویدیو (فقط تصویر سه‌بعدی)">🎥</div><div class="btn e g" id="brec2" title="استودیوی سینمایی: حرکت‌های آماده + ضبط (کامپیوتر و موبایل)">🎬</div><div class="btn e g" id="btm" title="زمان">⏱️</div></div><div id="pal" class="g"><span data-t="house" class="on">🏠</span><span data-t="hq">🏢</span><span data-t="farm">🌾</span><span data-t="market">🏪</span><span data-t="road">🛣️</span><span data-t="path" title="پیاده‌رو">🚶</span><span data-t="tree">🌲</span><label><input type="checkbox" id="fr" checked> رایگان</label></div><div id="md" class="g"><p id="mt"></p><input id="mi" maxlength="120"><div><button id="mok">تأیید</button><button id="mno">انصراف</button></div></div>`);
@@ -19,13 +19,14 @@ const cellOf=e=>{ray0(e);return ray.ray.intersectPlane(GP,gp3)?[Math.round(gp3.x
 const cellOk=(x,z,id)=>x>=-20&&x<20&&z>=-20&&z<20&&((x*2+17)/8.6)**2+((z*2+17)/6)**2>=1.15&&!W.buildings.some(b=>b.x===x&&b.z===z&&b.id!==id);
 function pickAt(e){ray0(e);if(mode!=='move'){const h=ray.intersectObjects(cits.map(c=>c.g),true)[0];if(h){let o=h.object;while(o&&!o.userData.cit)o=o.parent;if(o)return{c:o.userData.cit}}}
 const h=ray.intersectObjects([...objs.values()],true)[0];if(h){let o=h.object;while(o&&!o.userData.b)o=o.parent;if(o)return{g:o,b:o.userData.b}}return{}}
-function paintAt(e){const c=cellOf(e);if(!c)return;const k=c+'';if(painted.has(k))return;painted.add(k);if(!cellOk(c[0],c[1],0))return;api('/api/admin/building','POST',{type:bt,x:c[0],z:c[1],free:$('fr').checked},1).catch(()=>0)}
+function paintAt(e){if(bt==='dirt')return;const c=cellOf(e);if(!c)return;const k=c+'';if(painted.has(k))return;painted.add(k);if(!cellOk(c[0],c[1],0))return;api('/api/admin/building','POST',{type:bt,x:c[0],z:c[1],free:$('fr').checked},1).catch(()=>0)}
 async function onTap(e){const h=pickAt(e);
 if(h.c){react(h.c);if(h.c.me&&!(T&&(mode==='name'||mode==='say'))){const v=await ask('اسم کارکتر تو (خالی = پیش‌فرض)',nameOf(MY));if(v!==null)fetch('/api/player/name',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({init:INIT,name:v})}).then(r=>r.ok?poll():r.json().then(j=>toast(j.error||'خطا'))).catch(()=>0)}else if(T&&mode==='name'){const v=await ask('نام مستعار (خالی = پیش‌فرض)',nameOf(h.c.i));if(v!==null)api('/api/admin/citizen/'+h.c.i,'PUT',{name:v}).catch(()=>0)}
 else if(T&&mode==='say'){const v=await ask('پیام بالای سر «'+nameOf(h.c.i)+'»');if(v)api('/api/admin/say','POST',{cid:h.c.i,text:v}).catch(()=>0)}return}
 if(h.b){h.g.userData.t=.55;
 if(T&&mode==='rot')api('/api/admin/building/'+h.b.id,'PUT',{x:h.b.x,z:h.b.z,rot:(h.b.rot+90)%360}).catch(()=>0);
 else if(T&&mode==='del'){if(confirm('حذف شود؟'))api('/api/admin/building/'+h.b.id,'DELETE').catch(()=>0)}
+else if(T&&mode==='name'&&(h.b.type==='house'||h.b.type==='hq'))plateRename(h.b);
 else if(!mode){if(!openHouse(h.g)){closeHouse();toast(bInfo(h.b)+(h.b.type==='house'?' · برای دیدن داخل خانه بیشتر زوم کن':''));ownerHi(h.b)}}}else if(!mode)closeHouse()}
 R.domElement.addEventListener('pointerdown',e=>{dn={x:e.clientX,y:e.clientY,t:performance.now()};if(!T||!mode)return;
 if(mode==='move'){const h=pickAt(e);if(h.b){drag={g:h.g,b:h.b,c:[h.b.x,h.b.z]};ctl.enabled=false;cur.visible=true;cur.position.set(h.b.x*CELL,.12,h.b.z*CELL);cur.material.color.setHex(0x3ddc97)}}
