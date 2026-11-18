@@ -1,13 +1,13 @@
 // ═══ پلاک خانه‌ها: تابلوی چوبیِ کنار در که «نام خانه یا صاحب خانه» + «پلاک» را نشان می‌دهد.
 // فقط وقتی دوربین نزدیک شد ساخته/نمایش داده می‌شود (دور = هیچ هزینه‌ای). نام دلخواه را مدیر با ابزار 🏷️ روی خانه می‌زند. ═══
 'use strict';
-const PL_NEAR=18,PL_FAR=24,PL_TW=.62,PL_TH=.23,PL_TILT=-.55;
+const PL_NEAR=18,PL_FAR=24,PL_TW=.76,PL_TH=.282,PL_TILT=-.55;
 const PL_WOOD=new THREE.MeshStandardMaterial({color:0x6b4326,roughness:.9}),PL_POS={house:[.58,.82],hq:[.8,1.08]};
 const PL_GEO=keepGeo((()=>{                                   // تخته + میله در یک ژئومتری (یک draw call)؛ تخته رو به بالا-جلو خم است تا از دید بالا خوانده شود
 const m=new THREE.Matrix4().makeTranslation(0,.34,0).multiply(new THREE.Matrix4().makeRotationX(PL_TILT));
-const board=new THREE.BoxGeometry(PL_TW+.05,PL_TH+.05,.03).applyMatrix4(m),post=new THREE.CylinderGeometry(.018,.022,.3,6).translate(0,.15,0);
+const board=new THREE.BoxGeometry(PL_TW+.05,PL_TH+.05,.04).applyMatrix4(m),post=new THREE.CylinderGeometry(.018,.022,.3,6).translate(0,.15,0);
 return mergeGeometries([board,post])})());
-const PL_FACE=keepGeo((()=>{const m=new THREE.Matrix4().makeTranslation(0,.34,0).multiply(new THREE.Matrix4().makeRotationX(PL_TILT)).multiply(new THREE.Matrix4().makeTranslation(0,0,.018));return new THREE.PlaneGeometry(PL_TW,PL_TH).applyMatrix4(m)})());
+const PL_FACE=keepGeo((()=>{const m=new THREE.Matrix4().makeTranslation(0,.34,0).multiply(new THREE.Matrix4().makeRotationX(PL_TILT)).multiply(new THREE.Matrix4().makeTranslation(0,0,.03));return new THREE.PlaneGeometry(PL_TW,PL_TH).applyMatrix4(m)})());
 let PL_FONT=false,PL_FL=0,PL_MAP=null,PL_MW=null;
 function plNum(n){return cpx(n)}
 function plText(b){                                              // [خط اول، خط دوم]
@@ -24,7 +24,7 @@ let s=64;const f=z=>(PL_FONT?'800 ':'bold ')+z+'px Vazirmatn,Tahoma,sans-serif';
 x.fillText(t[0],w/2,h*.37);x.font=f(40);x.fillStyle='#5a3a1f';x.fillText(t[1],w/2,h*.76);p.tex.needsUpdate=true}
 function plMake(g,b){const p=new THREE.Group(),at=PL_POS[b.type]||PL_POS.house;p.position.set(at[0],0,at[1]);
 const cv=document.createElement('canvas');cv.width=512;cv.height=190;const tex=new THREE.CanvasTexture(cv);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=4;
-const wood=NORAY(new THREE.Mesh(PL_GEO,PL_WOOD)),face=NORAY(new THREE.Mesh(PL_FACE,new THREE.MeshStandardMaterial({map:tex,roughness:.85})));wood.castShadow=true;p.add(wood,face);g.add(p);
+const wood=NORAY(new THREE.Mesh(PL_GEO,PL_WOOD)),face=NORAY(new THREE.Mesh(PL_FACE,new THREE.MeshStandardMaterial({map:tex,roughness:.85,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4})));wood.castShadow=true;p.add(wood,face);g.add(p);
 return g.userData.plate={g:p,cv,tex,mat:face.material,key:''}}
 function plKill(g){const p=g.userData.plate;if(!p)return;g.remove(p.g);p.tex.dispose();p.mat.dispose();g.userData.plate=null}
 function plMap(){if(PL_MW!==W){PL_MW=W;PL_MAP=new Map(W.buildings.map(b=>[b.id,b]))}return PL_MAP}
