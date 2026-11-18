@@ -18,3 +18,10 @@
 #apb button.s{background:rgba(255,243,214,.12);color:var(--cream)}#apb button.d{background:var(--ember);color:#2a1100}
 #apb .b{display:flex;justify-content:space-between;align-items:center;gap:6px;border-top:1px solid var(--line);padding:3px 0}#apb .b span:last-child{display:flex;gap:4px;flex:none}
 #apb .l{max-height:150px;overflow:auto}
+/* ── مود نقشهٔ ساخت (blueprint) ── */
+#bph{position:fixed;top:8px;left:50%;transform:translateX(-50%);display:none;padding:6px 14px;border-radius:var(--r);font-size:10.5px;font-weight:700;color:var(--cream);background:rgba(11,36,38,.92);border:1px solid var(--line);white-space:nowrap;z-index:7}
+#bpb{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);display:none;align-items:center;gap:8px;padding:6px 8px;border-radius:var(--r);background:rgba(11,36,38,.94);border:1px solid var(--line);z-index:7}
+#bpb span{font-size:10.5px;font-weight:700;color:var(--cream);padding:0 4px}
+#bpb button{width:34px;height:30px;border:0;border-radius:7px;font-size:15px;font-weight:900;cursor:pointer;line-height:1}
+#bpb #bpok{background:var(--gold);color:#3a2500}
+#bpb #bpx{background:var(--ember);color:#2a1100}

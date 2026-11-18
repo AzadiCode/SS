@@ -27,7 +27,7 @@ def seed():
     return d
 
 
-def extras(): return {"citizens": {}, "players": {}, "chat": [], "chat_id": 0, "env": {"mode": "live", "hour": 12.0}, "hq_made": False, "dirt": [], "dirt_id": 0}
+def extras(): return {"citizens": {}, "players": {}, "chat": [], "chat_id": 0, "env": {"mode": "live", "hour": 12.0}, "hq_made": False}
 
 
 def migrate(d):                                           # افزودن فیلدهای جدید به دیتابیس قدیمی
@@ -136,7 +136,7 @@ def view(d):
     return {"rev": d["rev"], "country": d["country"], "stats": d["stats"], "capacity": capacity(d),
             "buildings": d["buildings"], "events": d["events"][:20], "catalog": CATALOG, "cost": COST, "day": DAY,
             "tier": [n for at, n in TIERS if d["stats"]["subs"] >= at][-1], "tiers": [n for _, n in TIERS],
-            "citizens": d["citizens"], "bot": runtime["bot_user"], "chat": d["chat"][-12:], "env": d["env"], "tz": TZ_NAME, "dirt": d.get("dirt", []),
+            "citizens": d["citizens"], "bot": runtime["bot_user"], "chat": d["chat"][-12:], "env": d["env"], "tz": TZ_NAME,
             "goals": [{"at": a, "key": k, "title": t, "value": d["story"]["values"].get(k)} for a, k, t in GOALS]}
 
 

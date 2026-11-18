@@ -17,6 +17,7 @@ const GAME_FILES=[
   'world/roads',
   'world/environment',
   'characters/nametags',
+  'ui/blueprint',
   'ui/interaction',
   'admin/panel',
   'features/recorder',

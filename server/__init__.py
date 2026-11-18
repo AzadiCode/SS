@@ -9,8 +9,6 @@
   telegram.py ربات تلگرام
   players.py  بازیکن‌ها و کارکتر من
   admin.py    API مدیر
-  plates.py   نام دلخواه خانه (پلاک)
-  dirt.py     مسیرهای خاکی دست‌آزاد
 """
 import logging
 from flask import Flask
@@ -20,7 +18,7 @@ from .config import WEB
 def create_app():
     logging.basicConfig(level=logging.INFO)
     app = Flask(__name__, static_folder=WEB, static_url_path="")   # css/js از پوشه‌ی web سرو می‌شوند
-    from . import public, auth, telegram, players, admin, plates, dirt          # هر بخش یک Blueprint است
-    for part in (public, auth, telegram, players, admin, plates, dirt):
+    from . import public, auth, telegram, players, admin           # هر بخش یک Blueprint است
+    for part in (public, auth, telegram, players, admin):
         app.register_blueprint(part.bp)
     return app

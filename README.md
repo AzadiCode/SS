@@ -12,9 +12,7 @@
 | حرف زدن کارکترها | `web/js/characters/dialogue.js` · نام/حباب: `nametags.js` |
 | زمین، آسمان، برکه، درخت و کوه | `web/js/world/scenery.js` |
 | شب‌وروز، ستاره، ماه | `web/js/world/environment.js` |
-| جاده و پیاده‌رو (قدیمی، خانه‌ای) / ماشین‌ها | `web/js/world/roads.js` / `cars.js` |
-| مسیر خاکی دست‌آزاد (قلم، جنس، پاک‌کن) | `web/js/world/dirt.js` + `web/css/dirt.css` + `server/dirt.py` |
-| پلاک خانه‌ها (نام صاحب / نام خانه / شماره) | `web/js/buildings/plates.js` + `server/plates.py` |
+| جاده و پیاده‌رو / ماشین‌ها | `web/js/world/roads.js` / `cars.js` |
 | ساختمان‌ها و آیتم‌ها (مدل سه‌بعدی) | `web/js/buildings/models.js` |
 | نمای داخل خانه (سقف باز می‌شود، مبلمان، کارت مشخصات) | `web/js/buildings/houseview.js` + `web/css/house.css` |
 | نوع، نام و قیمت ساختمان‌ها | `server/config.py` (`CATALOG`, `COST`) |
