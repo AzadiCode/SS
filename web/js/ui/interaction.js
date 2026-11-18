@@ -22,6 +22,16 @@ const cellOk=(x,z,id)=>x>=-20&&x<20&&z>=-20&&z<20&&((x*2+17)/8.6)**2+((z*2+17)/6
 function pickAt(e){ray0(e);if(mode!=='move'){const h=ray.intersectObjects(cits.map(c=>c.g),true)[0];if(h){let o=h.object;while(o&&!o.userData.cit)o=o.parent;if(o)return{c:o.userData.cit}}}
 const h=ray.intersectObjects([...objs.values()],true)[0];if(h){let o=h.object;while(o&&!o.userData.b)o=o.parent;if(o)return{g:o,b:o.userData.b}}return{}}
 function paintAt(e){const c=cellOf(e);if(!c)return;const k=c+'';if(painted.has(k))return;painted.add(k);if(!bpFree(c[0],c[1]))return;bpAdd(c[0],c[1])}
+// ── مود ساخت: شبحِ زیرِ انگشت چیده می‌شود؛ آیتم چیده‌شده را هم می‌شود گرفت و درگ کرد (روی موبایل با خودِ لمس)
+const bpPick=e=>{ray0(e);const h=ray.intersectObjects(BP.items.filter(i=>i.g).map(i=>i.g),true)[0];if(!h)return null;let o=h.object;while(o&&!BP.items.some(i=>i.g===o))o=o.parent;return BP.items.find(i=>i.g===o)||null};
+const bpDown=e=>{const c=cellOf(e);if(!c)return;ctl.enabled=false;
+  BP.down={c,cell:c};
+  const it=bpPick(e);
+  if(it){BP.dragIt=it;bpRefreshGhost()}                    // درگِ آیتمِ چیده‌شده = جابه‌جایی دقیق
+  else{BP.dragIt=null;bpFloat(c);if(bt==='road'||bt==='path')bpLine(c)}};
+const bpMove=e=>{const c=cellOf(e);if(!c)return;
+  if(BP.dragIt){if(c[0]!==BP.dragIt.x||c[1]!==BP.dragIt.z)bpMoveTo(BP.dragIt,c[0],c[1])}
+  else{bpFloat(c);if(BP.down&&(bt==='road'||bt==='path'))bpLine(c)}};
 async function onTap(e){const h=pickAt(e);
 if(h.c){react(h.c);if(h.c.me&&!(T&&(mode==='name'||mode==='say'))){const v=await ask('اسم کارکتر تو (خالی = پیش‌فرض)',nameOf(MY));if(v!==null)fetch('/api/player/name',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({init:INIT,name:v})}).then(r=>r.ok?poll():r.json().then(j=>toast(j.error||'خطا'))).catch(()=>0)}else if(T&&mode==='name'){const v=await ask('نام مستعار (خالی = پیش‌فرض)',nameOf(h.c.i));if(v!==null)api('/api/admin/citizen/'+h.c.i,'PUT',{name:v}).catch(()=>0)}
 else if(T&&mode==='say'){const v=await ask('پیام بالای سر «'+nameOf(h.c.i)+'»');if(v)api('/api/admin/say','POST',{cid:h.c.i,text:v}).catch(()=>0)}return}
@@ -31,14 +41,26 @@ else if(T&&mode==='del'){if(confirm('حذف شود؟'))api('/api/admin/building/
 else if(!mode){if(!openHouse(h.g)){closeHouse();toast(bInfo(h.b)+(h.b.type==='house'?' · برای دیدن داخل خانه بیشتر زوم کن':''));ownerHi(h.b)}}}else if(!mode)closeHouse()}
 R.domElement.addEventListener('pointerdown',e=>{dn={x:e.clientX,y:e.clientY,t:performance.now()};if(!T||!mode)return;
 if(mode==='move'){const h=pickAt(e);if(h.b){drag={g:h.g,b:h.b,c:[h.b.x,h.b.z]};ctl.enabled=false;cur.visible=true;cur.position.set(h.b.x*CELL,.12,h.b.z*CELL);cur.material.color.setHex(0x3ddc97)}}
-else if(mode==='build'){ctl.enabled=false;painted.clear();paintAt(e)}},true);
+else if(mode==='build')bpDown(e)},true);
 addEventListener('pointermove',e=>{if(drag){const c=cellOf(e);if(c){drag.c=c;drag.g.position.set(c[0]*CELL,.35,c[1]*CELL);cur.position.set(c[0]*CELL,.12,c[1]*CELL);cur.material.color.setHex(cellOk(c[0],c[1],drag.b.id)?0x3ddc97:0xff5a4c)}}
-else if(mode==='build'){if(BP.on)bpFloat(e);if(dn&&(e.buttons&1)&&(bt==='road'||bt==='path'))paintAt(e)}});
+else if(mode==='build'&&BP.down)bpMove(e)});
+addEventListener('pointercancel',e=>{dn=null;drag=null;ctl.enabled=true;if(BP.on){BP.down=null;BP.dragIt=null;if(BP.ghost)BP.ghost.visible=false;bpLine(null)}});
 addEventListener('pointerup',async e=>{const was=dn;dn=null;
 if(drag){const d=drag,b=d.b;drag=null;ctl.enabled=true;cur.visible=false;d.g.position.y=0;const[x,z]=d.c;
 if((x!==b.x||z!==b.z)&&cellOk(x,z,b.id)){const ox=b.x,oz=b.z;b.x=x;b.z=z;try{await api('/api/admin/building/'+b.id,'PUT',{x,z,rot:b.rot});toast('✅ جابه‌جا و ذخیره شد')}catch(_){b.x=ox;b.z=oz;d.g.position.set(ox*CELL,0,oz*CELL)}}
 else d.g.position.set(b.x*CELL,0,b.z*CELL);return}
-if(mode==='build'){ctl.enabled=true;return}
+if(mode==='build'){const d=BP.down;BP.down=null;ctl.enabled=true;
+  if(d){const c=cellOf(e);
+    if(BP.dragIt){                                        // پایان درگ آیتم: اگر جایش عوض نشد و تکون نداشت = حذف
+      const moved=Math.hypot(e.clientX-was.x,e.clientY-was.y)>8;
+      if(!moved)bpRemove(BP.dragIt);
+      BP.dragIt=null}
+    else if(c){                                           // پایان چیدن: رها کردن شبح یا پایان خطِ ردیف
+      if(bt==='road'||bt==='path')bpStroke(d.c[0],d.c[1],c[0],c[1]);
+      else if(BP.ok!==false)bpAdd(c[0],c[1]);
+      else bpAdd(d.c[0],d.c[1])}
+    if(BP.ghost){BP.ghost.visible=false}bpLine(null)}
+  return}
 if(was&&Math.hypot(e.clientX-was.x,e.clientY-was.y)<8&&performance.now()-was.t<500)onTap(e)});
 $('adm').insertAdjacentHTML('afterbegin','<div class="btn e g" id="bap" title="پنل ادمین">🛠️</div>');$('bap').onclick=()=>openAP();
 $('adm').onclick=e=>{const m=e.target.closest('[data-m]');if(m)setMode(m.dataset.m)};
