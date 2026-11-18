@@ -24,6 +24,8 @@ const CI={n:'<svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 
 function envStep(dt){const e=W&&W.env||{mode:'live'};
 if(QH!==null)H=+QH;else if(e.mode==='fixed')H=+e.hour;else if(e.mode==='lapse')H=((+e.hour||0)+performance.now()/2500)%24;else if((hT-=dt)<=0){hT=1;H=realHour()}
 if(Math.abs(H-eh)>.002){eh=H;applyEnv(H);const hh=Math.floor(H),mm=Math.floor((H-hh)*60),s=cpx((hh<10?'0':'')+hh+':'+(mm<10?'0':'')+mm),ic=H<5||H>=19.5?'n':H<7.5?'r':H<17?'d':'s';if(s+ic!==clkTxt){clkTxt=s+ic;$('clk').innerHTML=CI[ic]+'<span>'+s+'</span>'}}
+// زمان باد برای تکان گیاهان (شیدر vegSway) — ادغام‌شده از voxel-age
+VT.value=performance.now()/1000;
 for(const r of turbs)r.rotation.z-=dt*1.1;
 if(fL)fL.intensity=.35+1.6*NT;
 {const c0=cits[0];if(c0&&c0.gl>0){c0.gl-=dt;c0.g.scale.set(.84+(Math.random()-.5)*.16,.84+(Math.random()-.5)*.1,.84);c0.g.visible=Math.random()>.12;if(c0.gl<=0){c0.g.scale.setScalar(.84);c0.g.visible=true}}}
