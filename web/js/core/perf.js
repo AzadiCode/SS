@@ -2,7 +2,7 @@
 // بودجهٔ draw call، حذف اشیای دور، محافظ از دست رفتن WebGL و نمایشگر آمار (?perf=1).
 // پله‌ها در core/quality.js تعریف شده‌اند. API: Q.set(n) دستی، Q.snapshot() آمار، Q.perf(true) نمایشگر. ═══
 'use strict';
-[HPG,LPG,HQGG,PT_PBG,PT_CYL,WH,HBG].forEach(keepGeo); // ژئومتری‌های مشترک هرگز dispose نشوند
+[HPG,LPG,HQGG,WH,HBG].forEach(keepGeo); // ژئومتری‌های مشترک هرگز dispose نشوند
 const Q=(()=>{
 const S={lv:QD.start,best:QD.best,floor:0,lockUntil:0,t:0,age:0,bad:0,good:0,tCh:0,tUp:-99,chk:0,tc:0,benched:0,bn:0,bs:0,benchFps:0,lost:0,cT:0,cul:0,shN:0,shE:1,cmax:0,calls:0,tris:0,auto:QD.forced==null,log:[]};
 const BUD={calls:QD.mob?250:600,tris:QD.mob?3e5:1.2e6};
