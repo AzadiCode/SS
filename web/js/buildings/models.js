@@ -24,19 +24,19 @@ function plaqueTex(num){
   if(_PLQ.has(num))return _PLQ.get(num);
   const c=document.createElement('canvas');c.width=420;c.height=180;const x=c.getContext('2d');
   x.fillStyle='#5a3a22';x.fillRect(0,0,420,180);                 // قاب چوبی تیره
-  x.fillStyle='#f3ead4';x.fillRect(14,14,392,152);               // صفحهٔ کرم ( روشن)
+  x.fillStyle='#f7eedb';x.fillRect(14,14,392,152);               // صفحهٔ کرمِ روشن
   x.strokeStyle='#c9a85a';x.lineWidth=3;x.strokeRect(26,26,368,128); // خطِ قاب داخلی
-  x.fillStyle='#7a5230';x.font='700 34px Vazirmatn,Tahoma,sans-serif';x.textAlign='center';x.textBaseline='middle';
-  x.fillText('خانه',210,52);                                     // برچسب «خانه»
-  x.fillStyle='#241710';x.font='800 92px Vazirmatn,Tahoma,sans-serif';
-  x.fillText(num,210,118);                                       // شمارهٔ فارسی (درشت)
+  x.fillStyle='#000000';x.font='800 32px Vazirmatn,Tahoma,sans-serif';x.textAlign='center';x.textBaseline='middle';
+  x.fillText('خانه',210,50);                                     // برچسب «خانه» (سیاهِ خالص)
+  x.fillStyle='#000000';x.font='800 106px Vazirmatn,Tahoma,sans-serif';
+  x.fillText(num,210,120);                                       // شمارهٔ فارسی (سیاهِ خالص، درشت)
   const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;_PLQ.set(num,t);return t;
 }
 // ساخت پلاک روی گروه خونه: قاب چوبی + صفحهٔ متنی، بالای در (محور +z = جلوی خونه)
-// صفحه کمی emissive است تا در سایهٔ سقف هم خوانا بماند.
 function plaque(g,num){
+  const tx=plaqueTex(num);
   const fr=new THREE.Mesh(new THREE.BoxGeometry(.66,.26,.035),M(0x5a3a22));fr.position.set(0,.80,.51);fr.castShadow=true;fr.receiveShadow=true;g.add(fr);
-  const fc=new THREE.Mesh(new THREE.PlaneGeometry(.60,.21),new THREE.MeshStandardMaterial({map:plaqueTex(num),roughness:.5,emissive:0xf3ead4,emissiveIntensity:.16}));fc.position.set(0,.80,.531);g.add(fc);
+  const fc=new THREE.Mesh(new THREE.PlaneGeometry(.60,.21),new THREE.MeshStandardMaterial({map:tx,roughness:.6}));fc.position.set(0,.80,.531);g.add(fc);
 }
 const build={
 house(g,b){const k=b.id,wc=WALL[k%4],rc=ROOF[(k>>2)%4],rd=new THREE.Color(rc).multiplyScalar(.78).getHex(),TB=0x6b4326,TD=0x4a3022,SH=AWN[k%4];
