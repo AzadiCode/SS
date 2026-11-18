@@ -70,7 +70,7 @@ function addFire(x,y,z){
   return f;
 }
 function clearFire(f){if(!f)return;f.on=false;f.l.intensity=0;f.sp.material.opacity=0}
-// به‌روزرسانی هر فریم — سوسوzanne آتش و شدت بر اساس شب (NT)
+// به‌روزرسانی هر فریم — سوسوزدن آتش و شدت بر اساس شب (NT)
 function fireLights(dt,now){
   for(const f of FL){
     if(!f.on)continue;
@@ -82,5 +82,5 @@ function fireLights(dt,now){
     f.sp.material.opacity=(.45+.4*flick)*k;
   }
 }
-// ── ثبت مشعل‌های scenery.js (در زمان بارگذاری این فایل، TORCHES از قبل تعریف‌شده است) ──
-if(typeof TORCHES!=='undefined'){for(const t of TORCHES)addFire(t.x,t.y,t.z);}
+// ثبت مشعل‌ها هنگام ساخت انجام می‌شود: initTorches در scenery.js خودش addFire را صدا می‌زند
+// (پس از بارگذاری دنیا، تا جای مشعل با ساختمان/جاده/برکه تداخل نکند)

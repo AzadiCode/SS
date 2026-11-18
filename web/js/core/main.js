@@ -3,6 +3,7 @@
 const onRes=()=>{if(RC.on)return;cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();R.setSize(innerWidth,innerHeight)};addEventListener('resize',onRes);
 async function startGame(){
 await poll();joinMe();setInterval(poll,3000);localStorage.seen?$('cap').style.display='none':say(0);
+try{initTorches()}catch(e){console.error('torches',e)} // پس از بارگذاری دنیا، مشعل‌ها جای امن می‌گیرند
 const ck=new THREE.Clock(),START=new THREE.Vector3(46,52,56);let intro=0,ldDone=0,ldF=0;ctl.enabled=false;
 R.setAnimationLoop(()=>{const dt=Math.min(ck.getDelta(),.1),t=ck.elapsedTime;envStep(dt);
 for(const k in disp){disp[k]+=(tgt[k]-disp[k])*Math.min(1,dt*5);const v=Math.abs(tgt[k]-disp[k])<.05?tgt[k]:disp[k],txt=fa(v,k==='money'?1:0);if(last[k]!==txt){last[k]=txt;$('v_'+k).textContent=txt}}

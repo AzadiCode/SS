@@ -4,11 +4,12 @@
 'use strict';
 const WILD=[];
 let wildSpawnT=18+Math.random()*14; // اولین ظهور پس از ۱۸–۳۲ ثانیه
-// ویژگی‌های هر نوع: نام، سرعت، اندازه، رنگ بدن/شکم/پا/سر، رنگ چشم، شعاع حمله، دامنهٔ تکان پا
+// ویژگی‌های هر نوع: نام، سرعت، اندازه، رنگ بدن/شکم/پا/سر، رنگ چشم، شعاع حمله
+// رنگ‌ها کمی روشن انتخاب شده‌اند تا شب‌ها (نور کم) هم خوانا باشند؛ اندازه‌ها ~۱٫۲ برابر شهروند بزرگ‌اند
 const WL_KINDS={
-  boar:{name:'گراز',sp:2.4,sz:1.0,body:0x5a3a22,belly:0x8a5a32,leg:0x3a2a18,head:0x4a2e1a,tusk:0xeae0c0,eye:0xffd23a,atkR:1.1},
-  wolf:{name:'گرگ',sp:3.0,sz:0.95,body:0x6a6a72,belly:0x9a9aa2,leg:0x4a4a52,head:0x5a5a62,tusk:0xeae0c0,eye:0xffd23a,atkR:1.0},
-  bear:{name:'خرس',sp:1.8,sz:1.3,body:0x4a3020,belly:0x6a4a30,leg:0x2a1a10,head:0x3a2418,tusk:0xeae0c0,eye:0xffae3a,atkR:1.3}
+  boar:{name:'گراز',sp:2.4,sz:1.2,body:0x7a5230,belly:0xa87848,leg:0x4a321e,head:0x6a4630,tusk:0xf2ead4,eye:0xffd23a,atkR:1.3},
+  wolf:{name:'گرگ',sp:3.0,sz:1.1,body:0x8a8a94,belly:0xb8b8c2,leg:0x5a5a64,head:0x7a7a84,tusk:0xf2ead4,eye:0xffd23a,atkR:1.2},
+  bear:{name:'خرس',sp:1.8,sz:1.55,body:0x6a4428,belly:0x8a5a36,leg:0x3a2414,head:0x5a3820,tusk:0xf2ead4,eye:0xffae3a,atkR:1.5}
 };
 // ساخت یک حیوان (Group از مش‌های BoxGeometry با متریال مشترک M)
 function mkWild(kind){
@@ -16,30 +17,33 @@ function mkWild(kind){
   const body=M(k.body,.85),belly=M(k.belly,.85),leg=M(k.leg,.85),head=M(k.head,.85);
   const put=(geo,m,x,y,z)=>{const e=new THREE.Mesh(geo,m);e.position.set(x,y,z);e.castShadow=true;e.receiveShadow=true;g.add(e);return e};
   // بدن، شکم، سر، پوزه
-  put(new THREE.BoxGeometry(.78*s,.44*s,1.05*s),body,0,.52*s,0);
-  put(new THREE.BoxGeometry(.62*s,.22*s,.92*s),belly,0,.36*s,0);
-  put(new THREE.BoxGeometry(.36*s,.34*s,.36*s),head,0,.62*s,.56*s);
-  put(new THREE.BoxGeometry(.24*s,.18*s,.18*s),head,0,.58*s,.76*s);
+  put(new THREE.BoxGeometry(.8*s,.5*s,1.15*s),body,0,.58*s,0);
+  put(new THREE.BoxGeometry(.64*s,.24*s,1.0*s),belly,0,.4*s,0);
+  put(new THREE.BoxGeometry(.4*s,.4*s,.4*s),head,0,.72*s,.64*s);
+  put(new THREE.BoxGeometry(.26*s,.2*s,.2*s),head,0,.66*s,.86*s);
   // گوش‌ها
-  put(new THREE.BoxGeometry(.1*s,.14*s,.05*s),head,.2*s,.78*s,.5*s);
-  put(new THREE.BoxGeometry(.1*s,.14*s,.05*s),head,-.2*s,.78*s,.5*s);
+  put(new THREE.BoxGeometry(.12*s,.16*s,.06*s),head,.22*s,.92*s,.58*s);
+  put(new THREE.BoxGeometry(.12*s,.16*s,.06*s),head,-.22*s,.92*s,.58*s);
   // عاج/دندان (گراز برجسته‌تر)
-  const tus=kind==='boar'?.04*s:.02*s;
-  put(new THREE.BoxGeometry(tus,.1*s,.04*s),M(k.tusk,.6),.12*s,.55*s,.82*s,0,.3,0);
-  put(new THREE.BoxGeometry(tus,.1*s,.04*s),M(k.tusk,.6),-.12*s,.55*s,.82*s,0,-.3,0);
+  const tus=kind==='boar'?.05*s:.02*s;
+  put(new THREE.BoxGeometry(tus,.12*s,.04*s),M(k.tusk,.6),.14*s,.62*s,.94*s,0,.3,0);
+  put(new THREE.BoxGeometry(tus,.12*s,.04*s),M(k.tusk,.6),-.14*s,.62*s,.94*s,0,-.3,0);
   // دم — متفاوت بر هر نوع
-  if(kind==='wolf'){const tg=new THREE.Group();tg.position.set(0,.55*s,-.56*s);const tm=new THREE.Mesh(new THREE.BoxGeometry(.1*s,.1*s,.32*s),body);tm.castShadow=true;tg.add(tm);g.add(tg);tg.rotation.z=.2;}
-  else if(kind==='boar'){put(new THREE.BoxGeometry(.06*s,.06*s,.18*s),body,0,.5*s,-.55*s);}
-  else{put(new THREE.BoxGeometry(.1*s,.08*s,.18*s),body,0,.45*s,-.55*s);}
+  if(kind==='wolf'){const tg=new THREE.Group();tg.position.set(0,.62*s,-.62*s);const tm=new THREE.Mesh(new THREE.BoxGeometry(.12*s,.12*s,.36*s),body);tm.castShadow=true;tg.add(tm);g.add(tg);tg.rotation.z=.2;}
+  else if(kind==='boar'){put(new THREE.BoxGeometry(.07*s,.07*s,.2*s),body,0,.56*s,-.62*s);}
+  else{put(new THREE.BoxGeometry(.12*s,.1*s,.2*s),body,0,.5*s,-.62*s);}
   // پاها — چهار تا، برای انیمیشن تکان
   const legs=[];
-  const lp=(x,z)=>{const lg=put(new THREE.BoxGeometry(.14*s,.42*s,.14*s),leg,x,.21*s,z);legs.push(lg);};
-  lp(-.24*s,.32*s);lp(.24*s,.32*s);lp(-.24*s,-.32*s);lp(.24*s,-.32*s);
-  // چشم‌های درخشان AdditiveSprite — شب‌ها دیده می‌شوند
+  const lp=(x,z)=>{const lg=put(new THREE.BoxGeometry(.16*s,.48*s,.16*s),leg,x,.24*s,z);legs.push(lg);};
+  lp(-.26*s,.36*s);lp(.26*s,.36*s);lp(-.26*s,-.36*s);lp(.26*s,-.36*s);
+  // چشم‌های درخشان — دو نقطهٔ AdditiveSprite جلوی پوزه (بیرون از هندسه تا depth-test نشوند)
   const eyeMat=new THREE.SpriteMaterial({map:GRADT,color:k.eye,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,fog:false});
-  const eye=new THREE.Sprite(eyeMat);eye.scale.set(.28*s,.13*s,1);eye.position.set(0,.66*s,.74*s);g.add(eye);
+  const eyeL=new THREE.Sprite(eyeMat),eyeR=new THREE.Sprite(eyeMat.clone());
+  eyeL.scale.set(.3*s,.3*s,1);eyeL.position.set(.14*s,.82*s,1.02*s);
+  eyeR.scale.set(.3*s,.3*s,1);eyeR.position.set(-.14*s,.82*s,1.02*s);
+  g.add(eyeL,eyeR);
   scene.add(g);
-  return{kind,k,g,legs,eye,eyeMat,state:'in',t:0,ph:Math.random()*6,atkT:0,fleeT:0,stT:0,target:null,spawn:[0,0]};
+  return{kind,k,g,legs,eye:eyeL,eyeMat,eyeMatR:eyeR.material,state:'in',t:0,ph:Math.random()*6,atkT:0,fleeT:0,stT:0,target:null,spawn:[0,0]};
 }
 // انتخاب نوع بر اساس شب/روز
 function pickKind(){
@@ -88,8 +92,8 @@ function stepWildlife(dt,t){
   for(let i=WILD.length-1;i>=0;i--){
     const w=WILD[i],g=w.g;
     w.t+=dt;w.ph+=dt*w.k.sp*2.4;
-    // چشم‌ها فقط شب دیده شوند
-    w.eyeMat.opacity=Math.max(0,NT-.2)*.95;
+    // چشم‌ها فقط شب دیده شوند — درخشان و واضح (شناسهٔ اصلی حیوان در تاریکی)
+    const eo=Math.min(1,Math.max(0,NT-.15)*1.3);w.eyeMat.opacity=eo;w.eyeMatR.opacity=eo;
     const px=g.position.x,pz=g.position.z;
     if(w.state==='in'){
       // انتخاب هدف (هر ۲ ثانیه تازه می‌شود)
