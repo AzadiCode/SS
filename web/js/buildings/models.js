@@ -17,6 +17,27 @@ function bake(g){const by=new Map();for(const c of g.children.filter(c=>c.isMesh
 for(const[m,a]of by){const me=new THREE.Mesh(mergeGeometries(a),m);me.castShadow=me.receiveShadow=true;g.add(me)}}
 // تختهٔ کج (شیب سقف): طول، ضخامت، عمق، رنگ، موقعیت x و y، چرخش حول z
 const slab=(g,L,t,D,c,x,y,rz)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(L,t,D),M(c,.7));m.position.set(x,y,0);m.rotation.z=rz;return add(g,m)};
+// ── پلاک شمارهٔ خانه: تابلوی چوبی بالای در، با CanvasTexture شمارهٔ فارسی ──
+// وقتی روی خونه زوم کنیم خواناست. متن = «خانه» + شمارهٔ خونه (fa). بوم با وضوح بالا + عدد درشت.
+const _PLQ=new Map();
+function plaqueTex(num){
+  if(_PLQ.has(num))return _PLQ.get(num);
+  const c=document.createElement('canvas');c.width=420;c.height=180;const x=c.getContext('2d');
+  x.fillStyle='#5a3a22';x.fillRect(0,0,420,180);                 // قاب چوبی تیره
+  x.fillStyle='#f3ead4';x.fillRect(14,14,392,152);               // صفحهٔ کرم ( روشن)
+  x.strokeStyle='#c9a85a';x.lineWidth=3;x.strokeRect(26,26,368,128); // خطِ قاب داخلی
+  x.fillStyle='#7a5230';x.font='700 34px Vazirmatn,Tahoma,sans-serif';x.textAlign='center';x.textBaseline='middle';
+  x.fillText('خانه',210,52);                                     // برچسب «خانه»
+  x.fillStyle='#241710';x.font='800 92px Vazirmatn,Tahoma,sans-serif';
+  x.fillText(num,210,118);                                       // شمارهٔ فارسی (درشت)
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;_PLQ.set(num,t);return t;
+}
+// ساخت پلاک روی گروه خونه: قاب چوبی + صفحهٔ متنی، بالای در (محور +z = جلوی خونه)
+// صفحه کمی emissive است تا در سایهٔ سقف هم خوانا بماند.
+function plaque(g,num){
+  const fr=new THREE.Mesh(new THREE.BoxGeometry(.66,.26,.035),M(0x5a3a22));fr.position.set(0,.80,.51);fr.castShadow=true;fr.receiveShadow=true;g.add(fr);
+  const fc=new THREE.Mesh(new THREE.PlaneGeometry(.60,.21),new THREE.MeshStandardMaterial({map:plaqueTex(num),roughness:.5,emissive:0xf3ead4,emissiveIntensity:.16}));fc.position.set(0,.80,.531);g.add(fc);
+}
 const build={
 house(g,b){const k=b.id,wc=WALL[k%4],rc=ROOF[(k>>2)%4],rd=new THREE.Color(rc).multiplyScalar(.78).getHex(),TB=0x6b4326,TD=0x4a3022,SH=AWN[k%4];
 // پایه، کف چوبی (از بالا دیده می‌شود وقتی سقف باز است) و پله
@@ -36,7 +57,7 @@ for(const s of[-1,1]){slab(ro,1.25,.05,1.5,rc,s*.46,.18,-s*Math.PI/4);for(const 
 bx(ro,.12,.06,1.54,rd,0,.57,0);gable(ro,1.2,.6,.06,wc,0).position.z=.44;gable(ro,1.2,.6,.06,wc,0).position.z=-.5;
 bx(ro,.16,.66,.16,0x8b8378,.42,-.1,-.2);bx(ro,.22,.05,.22,0x5f5a52,.42,.56,-.2);
 Object.assign(g.userData,{roof:ro,walls:wl,ry:.94,rl:1.7});bake(ro);bake(wl);bake(g);
-const hg=NORAY(new THREE.Mesh(HPG,HP));hg.rotation.x=-Math.PI/2;hg.position.set(0,.16,.95);g.add(hg)},
+const hg=NORAY(new THREE.Mesh(HPG,HP));hg.rotation.x=-Math.PI/2;hg.position.set(0,.16,.95);g.add(hg);plaque(g,fa(b.id))},
 farm(g){bx(g,1.9,.06,1.9,0x6e4a30);for(let i=-2;i<=2;i++){bx(g,1.6,.1,.2,0x5a3d28,0,.06,i*.34);for(let j=-3;j<=3;j++)ball(g,.1,[0x86b84e,0xa6c24a,0x6fa648][(i+j+9)%3],j*.24,.2,i*.34,0)}
 cyl(g,.03,.03,.6,0x6b4a2b,.8,.06,.8,5);bx(g,.4,.04,.04,0x6b4a2b,.8,.5,.8);ball(g,.07,0xe3c78a,.8,.7,.8,0);cyl(g,.1,.1,.03,0x8a6a45,.8,.74,.8,8);bakeVC(g)},
 market(g){bx(g,2,.06,1.4,0xb9ae96);for(let i=-1;i<=1;i++){const x=i*.66;bx(g,.55,.4,.45,0x9a6b3f,x,.06);

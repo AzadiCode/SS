@@ -2,8 +2,8 @@
 'use strict';
 const onRes=()=>{if(RC.on)return;cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();R.setSize(innerWidth,innerHeight)};addEventListener('resize',onRes);
 async function startGame(){
+if(document.fonts&&document.fonts.load)try{await Promise.race([document.fonts.load('700 48px Vazirmatn'),new Promise(r=>setTimeout(r,1500))])}catch(e){} // فونت فارسی برای متن پلاکِ خونه‌ها
 await poll();joinMe();setInterval(poll,3000);localStorage.seen?$('cap').style.display='none':say(0);
-try{initTorches()}catch(e){console.error('torches',e)} // پس از بارگذاری دنیا، مشعل‌ها جای امن می‌گیرند
 const ck=new THREE.Clock(),START=new THREE.Vector3(46,52,56);let intro=0,ldDone=0,ldF=0;ctl.enabled=false;
 R.setAnimationLoop(()=>{const dt=Math.min(ck.getDelta(),.1),t=ck.elapsedTime;envStep(dt);
 for(const k in disp){disp[k]+=(tgt[k]-disp[k])*Math.min(1,dt*5);const v=Math.abs(tgt[k]-disp[k])<.05?tgt[k]:disp[k],txt=fa(v,k==='money'?1:0);if(last[k]!==txt){last[k]=txt;$('v_'+k).textContent=txt}}
@@ -13,7 +13,6 @@ for(const g of objs.values())if(g.userData.sw!==undefined)g.rotation.z=Math.sin(
 for(const g of objs.values()){const u=g.userData;if(u.t<1){u.t=Math.min(1,u.t+dt*1.8);const e=1-Math.pow(1-u.t,3);g.scale.setScalar(Math.max(.01,e*(1+.12*Math.sin(u.t*Math.PI))))}}
 Q.frame(dt);
 stepCits(dt,t);stepCars(dt,t);stepHouse(dt);
-stepParts(dt);fireLights(dt,t);stepWildlife(dt,t);
 if(CIN)CIN.step(dt);ctl.target.x=Math.max(-34,Math.min(34,ctl.target.x));ctl.target.z=Math.max(-34,Math.min(34,ctl.target.z));ctl.update();if(INST){try{fillInst(dt)}catch(e){console.error(e);killInst()}}R.render(scene,cam);if(RCOMP)RCOMP();if(W&&!ldDone&&++ldF>2){ldDone=1;const l=$('ld');if(l){l.classList.add('out');setTimeout(()=>l.remove(),900)}}});
 }
 startGame();

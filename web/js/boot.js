@@ -11,7 +11,6 @@ const GAME_FILES=[
   'core/engine',
   'core/state',
   'core/materials',
-  'core/shaders',
   'world/scenery',
   'buildings/models',
   'characters/dialogue',
@@ -30,8 +29,6 @@ const GAME_FILES=[
   'net/sync',
   'net/telegram',
   'features/music',
-  'features/particles',
-  'world/wildlife',
   'core/perf',
   'core/main',
 ];

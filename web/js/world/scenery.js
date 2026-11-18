@@ -21,32 +21,11 @@ const rocks=[];for(let i=0;i<22;i++){const r=new THREE.Mesh(new THREE.Dodecahedr
 const hid=(x,z)=>occ.has(Math.round(x/CELL)+','+Math.round(z/CELL))||inPond(x,z);
 function refreshDeco(){FP.forEach(([x,z],i)=>{dm.position.set(x,.08,z);dm.scale.setScalar(hid(x,z)?0:1);dm.updateMatrix();fl.setMatrixAt(i,dm.matrix)});fl.instanceMatrix.needsUpdate=true;rocks.forEach(r=>r.visible=!hid(r.position.x,r.position.z))}
 for(let i=0;i<18;i++){const an=i/18*6.283,r=112+rnd()*14,h=16+rnd()*22,w=20+rnd()*16;const m=new THREE.Mesh(new THREE.ConeGeometry(w,h,6),M(i%3?0x6b8796:0x7a9a88,1));m.position.set(Math.cos(an)*r,h/2-1,Math.sin(an)*r);m.rotation.y=rnd()*3;scene.add(m);const c=new THREE.Mesh(new THREE.ConeGeometry(w*.32,h*.3,6),M(0xeef2f4,.9));c.position.set(m.position.x,h*.85-1,m.position.z);scene.add(c)}
-{const N=260,trMat=vegSway(new THREE.MeshStandardMaterial({color:0x6b4a30,roughness:.8}),.04),cnMat=vegSway(new THREE.MeshStandardMaterial({roughness:.95}),.09),tr=new THREE.InstancedMesh(new THREE.CylinderGeometry(.12,.18,1,6),trMat,N),cn=new THREE.InstancedMesh(new THREE.ConeGeometry(.9,1.8,7),cnMat,N*2),o=new THREE.Object3D();let k=0;
+{const N=260,tr=new THREE.InstancedMesh(new THREE.CylinderGeometry(.12,.18,1,6),M(0x6b4a30),N),cn=new THREE.InstancedMesh(new THREE.ConeGeometry(.9,1.8,7),new THREE.MeshStandardMaterial({roughness:.95}),N*2),o=new THREE.Object3D();let k=0;
 for(let i=0;i<N;i++){let x,z;do{x=(rnd()-.5)*104;z=(rnd()-.5)*104}while(Math.abs(x)<42&&Math.abs(z)<42);
 const sc=1+rnd()*1.3;o.rotation.set(0,rnd()*6,0);o.scale.setScalar(sc);o.position.set(x,.5*sc+hgt(x,z),z);o.updateMatrix();tr.setMatrixAt(i,o.matrix);
 for(let j=0;j<2;j++){o.scale.set(sc*(1-j*.3),sc*(1-j*.2),sc*(1-j*.3));o.position.set(x,(1.2+j*.9)*sc+hgt(x,z),z);o.updateMatrix();cn.setMatrixAt(k,o.matrix);cn.setColorAt(k++,new THREE.Color([0x3f7a4a,0x4a8a52,0x356b44,0x5a9a58][(rnd()*4)|0]))}}
 tr.castShadow=cn.castShadow=true;scene.add(tr,cn)}
-// ── مشعل‌های چوبی اطراف میدان مرکزی: پس از بارگذاری دنیا ساخته می‌شوند (initTorches از main.js)
-// تا با بررسی walk/dry/برکه، روی ساختمان یا جاده یا درخت آبنی دیده نشوند ──
-const TORCHES=[];
-function initTorches(){
-  if(TORCHES.length)return;
-  const post=M(0x5a3a20,.9),topM=new THREE.MeshStandardMaterial({color:0x2a1a10,roughness:.7,emissive:0xff7a1a,emissiveIntensity:.4});
-  const dirs=[[1,1],[1,-1],[-1,1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1],[1.2,1.2],[-1.2,-1.2]];
-  for(const [dx,dz] of dirs){
-    if(TORCHES.length>=4)break;
-    const px=dx*8.5,pz=dz*8.5;
-    if(!walk(px,pz)||!dry(px,pz)||inPond(px,pz)||hid(px,pz))continue; // روی ساختمان/جاده/برکه/گل؟ رد شو
-    const g=new THREE.Group();g.position.set(px,hgt(px,pz),pz);
-    const pole=new THREE.Mesh(new THREE.CylinderGeometry(.08,.12,2,8),post);pole.position.y=1;pole.castShadow=true;g.add(pole);
-    const cup=new THREE.Mesh(new THREE.CylinderGeometry(.18,.12,.22,8),topM);cup.position.y=2.05;cup.castShadow=true;g.add(cup);
-    const head=new THREE.Mesh(new THREE.SphereGeometry(.16,8,6),topM);head.position.y=2.2;g.add(head);
-    scene.add(g);
-    const y=hgt(px,pz)+2.2;
-    TORCHES.push({x:px,y,z:pz});
-    try{addFire(px,y,pz)}catch(e){}
-  }
-}
 const clouds=[];for(let i=0;i<8;i++){const g=new THREE.Group();for(let j=0;j<5;j++){const p=new THREE.Mesh(new THREE.IcosahedronGeometry(2.5+rnd()*2.5,1),new THREE.MeshStandardMaterial({color:0xf4f1ea,roughness:1,transparent:true,opacity:.85}));p.position.set(j*3.2-6,rnd()*1.5,rnd()*2);p.scale.y=.6;g.add(p)}g.position.set((rnd()-.5)*160,32+rnd()*14,(rnd()-.5)*120);scene.add(g);clouds.push(g)}
 // محل خانهٔ رئیس (خط‌چین)
 const pts=[[-1.1,-1.1],[1.1,-1.1],[1.1,1.1],[-1.1,1.1],[-1.1,-1.1]].map(p=>new THREE.Vector3(p[0],.06,p[1]));
