@@ -4,6 +4,8 @@
 const cv=document.createElement('canvas');cv.width=cv.height=512;const x=cv.getContext('2d');x.fillStyle='#7d9f5b';x.fillRect(0,0,512,512);
 for(let i=0;i<70;i++){const px=Math.random()*512,py=Math.random()*512,r=30+Math.random()*70,c=['120,160,88','140,172,98','104,142,78'][i%3];
 for(const ox of[-512,0,512])for(const oy of[-512,0,512]){const gr=x.createRadialGradient(px+ox,py+oy,0,px+ox,py+oy,r);gr.addColorStop(0,`rgba(${c},.35)`);gr.addColorStop(1,`rgba(${c},0)`);x.fillStyle=gr;x.fillRect(px+ox-r,py+oy-r,2*r,2*r)}}
+// جزئیات پیکسلی ظریف: لکه‌های کوچک رنگی برای شکستن سطح یکنواخت چمن، بدون تغییر خوانایی زمین.
+for(let i=0;i<1500;i++){const px=Math.random()*512,py=Math.random()*512;const colors=['rgba(168,190,119,.13)','rgba(56,93,45,.11)','rgba(210,194,126,.09)'];x.fillStyle=colors[i%colors.length];x.fillRect(px,py,1+Math.random()*2,1+Math.random()*2)}
 const tex=new THREE.CanvasTexture(cv);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(7,7);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=4;
 const hgt=(x,z)=>{const r=Math.hypot(x,z),k=Math.min(1,Math.max(0,(r-52)/50));return k*k*(3-2*k)*(7+5*Math.sin(x*.07)*Math.cos(z*.06)+3*Math.sin(x*.19+z*.13))};
 const gg=new THREE.PlaneGeometry(300,300,110,110);gg.rotateX(-Math.PI/2);{const p=gg.attributes.position;for(let i=0;i<p.count;i++)p.setY(i,hgt(p.getX(i),p.getZ(i)));gg.computeVertexNormals()}
@@ -21,11 +23,15 @@ const rocks=[];for(let i=0;i<22;i++){const r=new THREE.Mesh(new THREE.Dodecahedr
 const hid=(x,z)=>occ.has(Math.round(x/CELL)+','+Math.round(z/CELL))||inPond(x,z);
 function refreshDeco(){FP.forEach(([x,z],i)=>{dm.position.set(x,.08,z);dm.scale.setScalar(hid(x,z)?0:1);dm.updateMatrix();fl.setMatrixAt(i,dm.matrix)});fl.instanceMatrix.needsUpdate=true;rocks.forEach(r=>r.visible=!hid(r.position.x,r.position.z))}
 for(let i=0;i<18;i++){const an=i/18*6.283,r=112+rnd()*14,h=16+rnd()*22,w=20+rnd()*16;const m=new THREE.Mesh(new THREE.ConeGeometry(w,h,6),M(i%3?0x6b8796:0x7a9a88,1));m.position.set(Math.cos(an)*r,h/2-1,Math.sin(an)*r);m.rotation.y=rnd()*3;scene.add(m);const c=new THREE.Mesh(new THREE.ConeGeometry(w*.32,h*.3,6),M(0xeef2f4,.9));c.position.set(m.position.x,h*.85-1,m.position.z);scene.add(c)}
-{const N=260,tr=new THREE.InstancedMesh(new THREE.CylinderGeometry(.12,.18,1,6),M(0x6b4a30),N),cn=new THREE.InstancedMesh(new THREE.ConeGeometry(.9,1.8,7),new THREE.MeshStandardMaterial({roughness:.95}),N*2),o=new THREE.Object3D();let k=0;
+{const N=260,tr=new THREE.InstancedMesh(new THREE.CylinderGeometry(.12,.18,1,6),M(0x6b4a30),N),cn=new THREE.InstancedMesh(new THREE.ConeGeometry(.9,1.8,7),new THREE.MeshStandardMaterial({roughness:.95}),N*2),
+// برگ‌های مکعبیِ تکمیلی از سبک Voxel Age؛ یک InstancedMesh برای کنترل draw-call.
+leaf=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial({roughness:1}),N*5),o=new THREE.Object3D();let k=0,lk=0;
 for(let i=0;i<N;i++){let x,z;do{x=(rnd()-.5)*104;z=(rnd()-.5)*104}while(Math.abs(x)<42&&Math.abs(z)<42);
 const sc=1+rnd()*1.3;o.rotation.set(0,rnd()*6,0);o.scale.setScalar(sc);o.position.set(x,.5*sc+hgt(x,z),z);o.updateMatrix();tr.setMatrixAt(i,o.matrix);
-for(let j=0;j<2;j++){o.scale.set(sc*(1-j*.3),sc*(1-j*.2),sc*(1-j*.3));o.position.set(x,(1.2+j*.9)*sc+hgt(x,z),z);o.updateMatrix();cn.setMatrixAt(k,o.matrix);cn.setColorAt(k++,new THREE.Color([0x3f7a4a,0x4a8a52,0x356b44,0x5a9a58][(rnd()*4)|0]))}}
-tr.castShadow=cn.castShadow=true;scene.add(tr,cn)}
+for(let j=0;j<2;j++){o.scale.set(sc*(1-j*.3),sc*(1-j*.2),sc*(1-j*.3));o.position.set(x,(1.2+j*.9)*sc+hgt(x,z),z);o.updateMatrix();cn.setMatrixAt(k,o.matrix);cn.setColorAt(k++,new THREE.Color([0x3f7a4a,0x4a8a52,0x356b44,0x5a9a58][(rnd()*4)|0]))}
+// پنج توده‌ی برگ کم‌حجم روی تاج؛ با رنگ‌های هم‌خانواده تا طبیعی و voxel-like بماند.
+for(let j=0;j<5;j++){const ang=j*2.399+rnd()*.35,rad=j===0?0:.38*sc,sz=(.52+rnd()*.36)*sc;o.position.set(x+Math.cos(ang)*rad,(2.65+rnd()*.3)*sc+hgt(x,z),z+Math.sin(ang)*rad);o.rotation.set(0,rnd()*6,0);o.scale.set(sz,sz*(.72+rnd()*.4),sz);o.updateMatrix();leaf.setMatrixAt(lk,o.matrix);leaf.setColorAt(lk++,new THREE.Color([0x4c8850,0x5a9656,0x397345,0x679f5d][(rnd()*4)|0]))}}
+leaf.count=lk;leaf.castShadow=false;leaf.receiveShadow=true;tr.castShadow=cn.castShadow=true;scene.add(tr,cn,leaf)}
 const clouds=[];for(let i=0;i<8;i++){const g=new THREE.Group();for(let j=0;j<5;j++){const p=new THREE.Mesh(new THREE.IcosahedronGeometry(2.5+rnd()*2.5,1),new THREE.MeshStandardMaterial({color:0xf4f1ea,roughness:1,transparent:true,opacity:.85}));p.position.set(j*3.2-6,rnd()*1.5,rnd()*2);p.scale.y=.6;g.add(p)}g.position.set((rnd()-.5)*160,32+rnd()*14,(rnd()-.5)*120);scene.add(g);clouds.push(g)}
 // محل خانهٔ رئیس (خط‌چین)
 const pts=[[-1.1,-1.1],[1.1,-1.1],[1.1,1.1],[-1.1,1.1],[-1.1,-1.1]].map(p=>new THREE.Vector3(p[0],.06,p[1]));

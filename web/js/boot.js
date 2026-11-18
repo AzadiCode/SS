@@ -14,6 +14,7 @@ const GAME_FILES=[
   'world/scenery',
   'world/wildlife',
   'buildings/models',
+  'buildings/architectural',
   'characters/dialogue',
   'world/roads',
   'world/environment',
