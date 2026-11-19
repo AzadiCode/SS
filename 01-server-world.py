@@ -27,13 +27,15 @@ def seed():
     return d
 
 
-def extras(): return {"citizens": {}, "players": {}, "chat": [], "chat_id": 0, "env": {"mode": "live", "hour": 12.0}, "hq_made": False}
+def extras(): return {"citizens": {}, "players": {}, "chat": [], "chat_id": 0, "env": {"mode": "live", "hour": 12.0}, "hq_made": False, "infrastructure": None}
 
 
 def migrate(d):                                           # افزودن فیلدهای جدید به دیتابیس قدیمی
     ch = False
     for k, v in extras().items():
         if k not in d: d[k] = v; ch = True
+    from srv_infra import infra_migrate                   # کاشی‌های قدیمی ← مسیرهای هندسی v2 (تکرارپذیر)
+    if infra_migrate(d): ch = True
     return ch
 
 
@@ -103,7 +105,10 @@ def _hit(a, b): return min(a[1], b[1]) - max(a[0], b[0]) > EPS and min(a[3], b[3
 
 
 def check_place(d, t, x, z, rot=0, ignore=None, extra=()):
-    """اعتبارسنجی با شکل واقعی: داخل نقشه، نه روی برکه، بدون هم‌پوشانیِ واقعی با هیچ آیتمی. خروجی: (x, z, rot) نرمال‌شده."""
+    """اعتبارسنجی با شکل واقعی: داخل نقشه، نه روی برکه، بدون هم‌پوشانیِ واقعی با هیچ آیتمی. خروجی: (x, z, rot) نرمال‌شده.
+    زیرساخت v2: جاده/پیاده‌روی جدید (کاشی) پذیرفته نمی‌شود (باید از /api/admin/infra بیاید)؛
+    ساختمان هم نباید روی مسیرهای هندسی v2 بیفتد (برخورد واقعی چندضلعی-مستطیل)."""
+    from srv_infra import infra_view, infra_load, edge_polys, poly_vs_rect
     if t in GRID_TYPES: x, z, rot = int(round(float(x))), int(round(float(z))), 0
     else: x, z, rot = round(float(x), 4), round(float(z), 4), (int(round(int(rot) / 90)) * 90) % 360
     oth = [b for b in list(d["buildings"]) + list(extra) if b.get("id") != ignore]
@@ -113,6 +118,14 @@ def check_place(d, t, x, z, rot=0, ignore=None, extra=()):
     if any(r[0] < LO - EPS or r[1] > HI + EPS or r[2] < LO - EPS or r[3] > HI + EPS for r in R): raise ValueError("خارج از نقشه")
     if pond_world(x * CELL, z * CELL) if t in GRID_TYPES else any(pond_world(px, pz) for r in R for px in (r[0], (r[0] + r[1]) / 2, r[1]) for pz in (r[2], (r[2] + r[3]) / 2, r[3])):
         raise ValueError("اینجا برکه است")
+    # برخورد با مسیرهای هندسی v2 (تماس لبه‌به‌لبه مجاز — poly_vs_rect همین را رعایت می‌کند)
+    inf = infra_load(infra_view(d))
+    for eid in inf["edges"]:
+        _, poly = edge_polys(inf, eid)
+        for r in R:
+            if poly_vs_rect(poly, (r[0], r[1], r[2], r[3])): raise ValueError("با جاده یا پیاده‌رو برخورد دارد")
+    for sid, s in inf["surfaces"].items():                # ساختمان روی سطح خاکی مجاز است (سطح پایه است) — فقط مسیرها مانع‌اند
+        pass
     near = [o for o in oth if abs(o["x"] - x) <= 2 and abs(o["z"] - z) <= 2]
     for o in near:
         if any(_hit(a, c) for a in R for c in rects_of(o, tiles)): raise ValueError("با ساختمان دیگری برخورد دارد")
@@ -183,10 +196,12 @@ def apply_delta(d, delta):
 
 # ───────── خروجی عمومی و تغییر ─────────
 def view(d):
+    from srv_infra import infra_view
     return {"rev": d["rev"], "country": d["country"], "stats": d["stats"], "capacity": capacity(d),
             "buildings": d["buildings"], "events": d["events"][:20], "catalog": CATALOG, "cost": COST, "day": DAY,
             "tier": [n for at, n in TIERS if d["stats"]["subs"] >= at][-1], "tiers": [n for _, n in TIERS],
             "citizens": d["citizens"], "bot": runtime["bot_user"], "chat": d["chat"][-12:], "env": d["env"], "tz": TZ_NAME,
+            "infrastructure": infra_view(d),
             "goals": [{"at": a, "key": k, "title": t, "value": d["story"]["values"].get(k)} for a, k, t in GOALS]}
 
 

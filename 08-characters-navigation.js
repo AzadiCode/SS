@@ -11,20 +11,26 @@ function setCost(X,Z,hx,hz,v,force){for(let j=ci(Z-hz);j<=ci(Z+hz);j++)for(let i
 function rebuildNav(w){nav.fill(0);cost.fill(1.5);homes=[];mkts=[];farms=[];treeSp=[];roadC=[];roadSet.clear();pathC=[];pathSet.clear();homeById.clear();occ.length=0;
 for(let j=0;j<NN;j++)for(let i=0;i<NN;i++){const x=cw(i),z=cw(j);if(Math.abs(x)>38.5||Math.abs(z)>38.5||pondM(x,z))nav[j*NN+i]=1}
 const trees=[],TL=fpTiles(w.buildings);let sx=0,sz=0,n=0;
-for(const b of w.buildings){const X=b.x*CELL,Z=b.z*CELL,a=b.rot*Math.PI/180,q=b.rot%180?1:0,fx=Math.sin(a),fz=Math.cos(a);const RR=fpRects(b,TL);for(const r of RR)occ.push(r);const bk=r=>blk(r[0]+.001,r[1]-.001,r[2]+.001,r[3]-.001);
+for(const b of w.buildings){const X=b.x*CELL,Z=b.z*CELL,a=b.rot*Math.PI/180,q=b.rot%180?1:0,fx=Math.sin(a),fz=Math.cos(a);const RR=fpRects(b);for(const r of RR)occ.push(r);const bk=r=>blk(r[0]+.001,r[1]-.001,r[2]+.001,r[3]-.001);
 if(b.type==='house'||b.type==='hq'){bk(RR[0]);const h={id:b.id,x:X,z:Z,fx,fz,hq:b.type==='hq'};homes.push(h);homeById.set(b.id,h)}
 else if(b.type==='market'){bk(RR[0]);mkts.push({x:X+fx*1.25,z:Z+fz*1.25,cx:X,cz:Z})}
 else if(b.type==='tree'){bk(RR[0]);trees.push([X,Z])}
 else if(b.type==='farm')farms.push({x:X,z:Z});
-else if(b.type==='road'){roadC.push({x:X,z:Z});roadSet.add(b.x+','+b.z)}
-else if(b.type==='path'){pathC.push({x:X,z:Z});pathSet.add(b.x+','+b.z)}
 if(b.type!=='tree'){sx+=X;sz+=Z;n++}}
+// ── هزینهٔ ناوبری از زیرساخت v2: جاده گران (ماشین)، پیاده‌رو/خاکی ارزان (راه رفتن)
+const inf=W&&W.infrastructure?infraLoad(W.infrastructure):GEO_EMPTY_INFRA();
+for(const e of inf.edges.values()){const A=inf.nodes.get(e.a),B=inf.nodes.get(e.b);if(!A||!B)continue;
+  const S=geoSamplePath([[A.x,A.z],[B.x,B.z]],'poly',.5),hw=(e.w||.6)/2;
+  const v=e.kind==='road'?ROADC:e.kind==='walk'?.5:.8;
+  for(const p of S)setCost(p.x,p.z,hw,hw,v,e.kind==='road');   // جاده force (ماشین‌رو)، بقیه min
+  if(e.kind==='road')for(const p of S)roadC.push({x:p.x,z:p.z});
+  else for(const p of S)pathC.push({x:p.x,z:p.z})}
+// کاشی‌های قدیمی (پیش از مهاجرت) هم هزینه‌گذاری شوند تا رفتار حفظ شود
+for(const b of w.buildings){if(b.type!=='road'&&b.type!=='path')continue;
+  const X=b.x*CELL,Z=b.z*CELL;setCost(X,Z,1,1,b.type==='road'?ROADC:.5,b.type==='road');
+  if(b.type==='road'){roadC.push({x:X,z:Z});roadSet.add(b.x+','+b.z)}else{pathC.push({x:X,z:Z});pathSet.add(b.x+','+b.z)}}
 regH=homes.filter(h=>!h.hq).sort((a,b)=>a.id-b.id);hqH=homes.find(h=>h.hq)||null;ctr=n?[sx/n,sz/n]:[0,0];let E=0;for(const b of w.buildings)if(b.type!=='tree')E=Math.max(E,Math.hypot(b.x*CELL-ctr[0],b.z*CELL-ctr[1]));
 RAD=Math.min(34,Math.max(8+2.6*Math.log2(1+((w.stats&&w.stats.pop)||1)),E+5)); // با رشد جمعیت، محدودهٔ حرکت بزرگ‌تر می‌شود
-for(const{x:X,z:Z}of roadC)setCost(X,Z,1,1,ROADC,1); // آسفالت: گران، برای ماشین‌هاست
-for(const{x:X,z:Z}of pathC){const cx=Math.round(X/CELL),cz=Math.round(Z/CELL),hw=PW/2,ln=1-hw;setCost(X,Z,hw,hw,.5);
-for(const[dx,dz]of D4){const k=(cx+dx)+','+(cz+dz);if(pathSet.has(k)||roadSet.has(k))setCost(X+dx*(hw+ln/2),Z+dz*(hw+ln/2),dx?ln/2:hw,dz?ln/2:hw,.5)}}
-for(const{x:X,z:Z}of roadC){const cx=Math.round(X/CELL),cz=Math.round(Z/CELL);for(const[dx,dz]of D4)if(pathSet.has((cx+dx)+','+(cz+dz)))setCost(X,Z,dx?1:PW/2,dz?1:PW/2,.7)} // محل رد شدن از خیابان
 for(const[X,Z]of trees)for(const[a,b]of[[.8,0],[-.8,0],[0,.8],[0,-.8]])if(walk(X+a,Z+b)){treeSp.push({x:X+a,z:Z+b,tx:X,tz:Z});break}
 refreshDeco()}
 function freeNear(cx,cz,R){for(let t=0;t<40;t++){const x=cx+(Math.random()-.5)*2*R,z=cz+(Math.random()-.5)*2*R;if(walk(x,z)&&dry(x,z))return[x,z]}for(let r=1;r<80;r++)for(let a=0;a<12;a++){const x=cx+Math.cos(a/12*6.283)*r*.5,z=cz+Math.sin(a/12*6.283)*r*.5;if(walk(x,z))return[x,z]}return[0,0]}

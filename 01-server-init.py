@@ -17,7 +17,7 @@ from flask import Flask
 def create_app():
     logging.basicConfig(level=logging.INFO)
     app = Flask(__name__, static_folder=None)                      # فایل‌های css/js را خود public.py (فقط .js/.css) سرو می‌کند
-    import srv_public, srv_auth, srv_telegram, srv_players, srv_admin   # هر بخش یک Blueprint است
-    for part in (srv_public, srv_auth, srv_telegram, srv_players, srv_admin):
+    import srv_public, srv_auth, srv_telegram, srv_players, srv_admin, srv_infra   # هر بخش یک Blueprint است
+    for part in (srv_public, srv_auth, srv_telegram, srv_players, srv_admin, srv_infra):
         app.register_blueprint(part.bp)
     return app

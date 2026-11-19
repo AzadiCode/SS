@@ -4,9 +4,12 @@ let bSig='';
 // سرور با هر tick اقتصادی rev را بالا می‌برد حتی وقتی ساختمانی عوض نشده؛ ناوبری (A*) و جاده‌ها فقط وقتی ساختمان‌ها یا جمعیت واقعاً عوض شدند بازسازی می‌شوند
 function sync(w){W=w;rev=w.rev;const ids=new Set(w.buildings.map(b=>b.id));
 for(const[id,g]of objs)if(!ids.has(id)){scene.remove(g);disposeObj(g);objs.delete(id)}
-for(const b of w.buildings){const g=objs.get(b.id);if(!g)addB(b,bpDelay(b.id));else if(g.userData.b.x!==b.x||g.userData.b.z!==b.z||g.userData.b.rot!==b.rot){g.position.set(b.x*CELL,0,b.z*CELL);if(b.type!=='road'&&b.type!=='path')g.rotation.y=b.rot*Math.PI/180;g.userData.b=b}}
+for(const b of w.buildings){const g=objs.get(b.id);if(!g)addB(b,bpDelay(b.id));else if(g.userData.b.x!==b.x||g.userData.b.z!==b.z||g.userData.b.rot!==b.rot){g.position.set(b.x*CELL,0,b.z*CELL);g.rotation.y=b.rot*Math.PI/180;g.userData.b=b}}
 plan.visible=!w.buildings.some(b=>b.type==='hq');
-{const sig=w.buildings.length+'|'+((w.stats&&w.stats.pop)||0)+'|'+w.buildings.map(b=>b.id+b.type+b.x+','+b.z+','+b.rot).join(';');if(sig!==bSig){bSig=sig;rebuildNav(w);roads(w)}}
+// زیرساخت v2 هم بخشی از امضای بازسازی است (جاده/پیاده‌رو/سطوح فقط وقتی عوض شدند دوباره ساخته می‌شوند — کش داخلی roads())
+{const isig=JSON.stringify(w.infrastructure||{v:0});
+const sig=w.buildings.length+'|'+((w.stats&&w.stats.pop)||0)+'|'+isig+'|'+w.buildings.map(b=>b.id+b.type+b.x+','+b.z+','+b.rot).join(';');
+if(sig!==bSig){bSig=sig;rebuildNav(w);roads(w)}}
 const s=w.stats;tgt.pop=s.pop;tgt.money=s.money/1e6;tgt.food=s.food;
 const ti=w.tiers.indexOf(w.tier);$('tn').textContent=w.tier;$('path').innerHTML=w.tiers.map((t,i)=>`<i class="${i<ti?'past':i===ti?'on':''}"></i>`).join('<u></u>');
 const g=w.goals.find(g=>s.subs<g.at),pend=w.goals.find(g=>s.subs>=g.at&&!g.value);

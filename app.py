@@ -12,6 +12,7 @@ PARTS = (  # (نام مستعار, فایل)
     ("srv_config",   "01-server-config.py"),
     ("srv_db",       "01-server-db.py"),
     ("srv_world",    "01-server-world.py"),
+    ("srv_infra",    "01-server-infra.py"),
     ("srv_auth",     "01-server-auth.py"),
     ("srv_telegram", "01-server-telegram.py"),
     ("srv_players",  "01-server-players.py"),

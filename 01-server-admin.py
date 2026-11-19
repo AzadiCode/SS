@@ -14,6 +14,7 @@ bp = Blueprint("admin", __name__)
 def add_building():
     j = request.get_json(silent=True) or {}; t = j.get("type")
     if t not in CATALOG: raise ValueError("نوع ساختمان نامعتبر")
+    if t in ("road", "path"): raise ValueError("جاده و پیاده‌رو با ابزار مسیر ساخته می‌شود (رسم خطی، نه کاشی)")   # سیستم قدیم بازنشسته شد ← /api/admin/infra
     def f(d):
         if t == "hq" and any(i["type"] == "hq" for i in d["buildings"]): raise ValueError("دفتر مدیرعامل فقط یکی است")
         cost = 0 if j.get("free") else COST[t]
@@ -61,6 +62,7 @@ def add_buildings_batch():
     def f(d):
         for i in items:
             if i.get("type") not in CATALOG: raise ValueError("نوع ساختمان نامعتبر")
+            if i["type"] in ("road", "path"): raise ValueError("جاده و پیاده‌رو با ابزار مسیر ساخته می‌شود (رسم خطی، نه کاشی)")   # قدیمی بازنشسته ← /api/admin/infra
         if sum(1 for i in items if i["type"] == "hq") + sum(1 for i in d["buildings"] if i["type"] == "hq") > 1: raise ValueError("دفتر مدیرعامل فقط یکی است")
         # جاده/پیاده‌رو اول تا چرخش خودکار خانه‌ها به آن‌ها درست حساب شود
         order = sorted(items, key=lambda i: 0 if i["type"] in ("road", "path") else 1)
