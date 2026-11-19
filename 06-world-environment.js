@@ -1,7 +1,7 @@
 // ═══ آسمان زنده: چرخهٔ شب‌وروز، ستاره، ماه، کرم شب‌تاب، توربین بادی، ساعت زنده، و envStep (به‌روزرسانی محیط در هر فریم). ═══
 'use strict';
 // ── آسمان زنده: ستاره، ماه، توربین بادی
-const KF=[[0,0x0e1a48,0x2f4b8c,0xaec4ff,0,.95,1.12],[5,0x14236a,0x3e5aa0,0xaec4ff,0,.95,1.1],[6.2,0x3a5a9a,0xf2a77a,0xffa066,1,.6,.95],[8,0x5f93cc,0xd5e0d0,0xffe2b8,1.7,.65,.92],[12,0x4f8fd0,0xc9dcd0,0xfff2dc,2.1,.8,.95],[16.5,0x5a8fc8,0xd9d6bf,0xffe0b0,1.8,.7,.93],[18.3,0x4a5a9a,0xf08a5a,0xff7f3f,1.1,.6,.95],[19.5,0x1c2d72,0x6a5a92,0xaec4ff,0,.95,1.08],[24,0x0e1a48,0x2f4b8c,0xaec4ff,0,.95,1.12]],_b=new THREE.Color(),cloudC=new THREE.Color(),cloudN=new THREE.Color(0x7380b0);
+const KF=[[0,0x0e1a48,0x2f4b8c,0xaec4ff,0,.50,.88],[5,0x14236a,0x3e5aa0,0xaec4ff,0,.50,.88],[6.2,0x3a5a9a,0xf2a77a,0xffa066,1,.6,.95],[8,0x5f93cc,0xd5e0d0,0xffe2b8,1.7,.65,.92],[12,0x4f8fd0,0xc9dcd0,0xfff2dc,2.1,.8,.95],[16.5,0x5a8fc8,0xd9d6bf,0xffe0b0,1.8,.7,.93],[18.3,0x4a5a9a,0xf08a5a,0xff7f3f,1.1,.6,.95],[19.5,0x1c2d72,0x6a5a92,0xaec4ff,0,.50,.88],[24,0x0e1a48,0x2f4b8c,0xaec4ff,0,.50,.88]],_b=new THREE.Color(),cloudC=new THREE.Color(),cloudN=new THREE.Color(0x7380b0);
 const stars=new THREE.Points((()=>{const g=new THREE.BufferGeometry(),p=[];for(let i=0;i<450;i++){const a=rnd()*6.283,e=.08+rnd()*1.2,r=235;p.push(Math.cos(a)*Math.cos(e)*r,Math.sin(e)*r,Math.sin(a)*Math.cos(e)*r)}g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));return g})(),new THREE.PointsMaterial({size:2.2,sizeAttenuation:false,color:0xffffff,transparent:true,opacity:0,depthWrite:false,fog:false}));scene.add(stars);
 const moonM=new THREE.Mesh(new THREE.SphereGeometry(5,16,12),new THREE.MeshBasicMaterial({color:0xf3f0e0,transparent:true,opacity:0,fog:false,depthWrite:false}));scene.add(moonM);
 const moonH=new THREE.Sprite(new THREE.SpriteMaterial({map:GRADT,color:0xbcd0ff,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,fog:false}));moonH.scale.set(60,60,1);scene.add(moonH);
@@ -14,7 +14,7 @@ function kf(h){let i=0;while(i<KF.length-2&&h>=KF[i+1][0])i++;const A=KF[i],B=KF
 function applyEnv(h){const k=kf(h);NT=Math.max(0,Math.min(1,1-k.si/1.4));const a=(h-6)/12*Math.PI,el=Math.abs(Math.sin(a)),u=sky.material.uniforms;
 sun.color.copy(k.sun);sun.intensity=k.si;sun.position.set(Math.cos(a)*38,Math.max(5,el*34),18-Math.sin(a)*10);
 u.s.value.set(Math.cos(a),Math.max(.04,el*.9),.3).normalize();u.gc.value.copy(k.sun);u.g.value=Math.min(1,k.si);u.a.value.copy(k.top);u.b.value.copy(k.hor);
-moonM.position.set(-Math.cos(a)*170,55+el*70,-60);moon.intensity=1.25*NT;moon.color.setHex(0xb8ccff);moonH.position.copy(moonM.position);moonH.material.opacity=.6*NT;moon.position.copy(moonM.position).multiplyScalar(.25);moonM.material.opacity=NT;stars.material.opacity=NT;
+moonM.position.set(-Math.cos(a)*170,55+el*70,-60);moon.intensity=.62*NT;moon.color.setHex(0xb8ccff);moonH.position.copy(moonM.position);moonH.material.opacity=.6*NT;moon.position.copy(moonM.position).multiplyScalar(.25);moonM.material.opacity=NT;stars.material.opacity=NT;
 hemi.intensity=k.hi;hemi.color.setHex(0xdfeaff).lerp(_b.setHex(0x8fa6f0),NT);hemi.groundColor.setHex(0x6f8a55).lerp(_b.setHex(0x3b5282),NT);scene.fog.color.copy(k.hor);R.toneMappingExposure=k.ex;
 GLOW.emissiveIntensity=.2+1.9*NT;LAMP.emissiveIntensity=.1+2.8*NT;LP.opacity=.95*NT;LHALO.opacity=.9*NT;HP.opacity=.75*NT;
 cloudC.setHex(0xf4f1ea).lerp(cloudN,NT);clouds.forEach(c=>c.children.forEach(m=>m.material.color.copy(cloudC)))}
