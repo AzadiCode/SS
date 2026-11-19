@@ -1,7 +1,7 @@
 // ═══ ماشین‌های ریز روی جاده‌ها. ═══
 'use strict';
 // ═══ ماشین‌های ریز: فقط وقتی جاده هست؛ تصادفی پیدا می‌شوند، می‌چرخند، جلوی آدم‌ها می‌ایستند، شب چراغ روشن می‌کنند ═══
-const cars=[],CC=[0xd94f3a,0xf0b13a,0x3f7f99,0x7cb342,0xf2ead6,0x94527f],HL=new THREE.MeshStandardMaterial({color:0xfff3c4,emissive:0xffe08a,emissiveIntensity:.2}),WH=new THREE.CylinderGeometry(.07,.07,.05,10),DIRS=[[1,0],[-1,0],[0,1],[0,-1]],LANE=.32;
+const cars=[],CC=[0xd94f3a,0xf0b13a,0x3f7f99,0x7cb342,0xf2ead6,0x94527f],HL=new THREE.MeshStandardMaterial({color:0xfff3c4,emissive:0xffe08a,emissiveIntensity:.2}),WH=new THREE.CylinderGeometry(.07,.07,.05,10),DIRS=[[1,0],[-1,0],[0,1],[0,-1]],LANE=.32;let spT=3;
 // ماشین‌ها روی بلوک‌های جاده (۸ سلول = ۲ واحد) حرکت می‌کنند، نه سلول‌به‌سلول؛ وگرنه با شبکهٔ ریز فاصلهٔ حرکت خیلی کوچک می‌شد.
 const RB=8,hasR=(bx,bz)=>roadBlk.has(bx+','+bz);
 function mkCar(){const g=new THREE.Group(),col=rr(CC);bx(g,.62,.13,.3,col,0,.05);bx(g,.32,.12,.26,col,-.05,.18);bx(g,.3,.07,.275,0x9fc4d6,-.05,.2);
