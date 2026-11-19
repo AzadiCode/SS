@@ -29,13 +29,20 @@ for(const[X,Z]of trees)for(const[a,b]of[[.8,0],[-.8,0],[0,.8],[0,-.8]])if(walk(X
 refreshDeco()}
 function freeNear(cx,cz,R){for(let t=0;t<40;t++){const x=cx+(Math.random()-.5)*2*R,z=cz+(Math.random()-.5)*2*R;if(walk(x,z)&&dry(x,z))return[x,z]}for(let r=1;r<80;r++)for(let a=0;a<12;a++){const x=cx+Math.cos(a/12*6.283)*r*.5,z=cz+Math.sin(a/12*6.283)*r*.5;if(walk(x,z))return[x,z]}return[0,0]}
 const D8=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]],hp=[],hf=[];
+// با شبکهٔ U تعداد گره‌ها چهار برابر نسخهٔ قبلی است؛ فقط گره‌های لمس‌شده در هر جست‌وجو مقداردهی می‌شوند.
+const pathSeen=new Uint32Array(NN*NN),PATH_NODE_BUDGET=MOB?2200:4800;let pathRun=0;
 function hpush(f,n){let i=hp.length;hp.push(n);hf.push(f);while(i){const p=(i-1)>>1;if(hf[p]<=f)break;hp[i]=hp[p];hf[i]=hf[p];i=p}hp[i]=n;hf[i]=f}
 function hpop(){const n=hp[0],ln=hp.pop(),lf=hf.pop();if(hp.length){let i=0;for(;;){let c=2*i+1;if(c>=hp.length)break;if(c+1<hp.length&&hf[c+1]<hf[c])c++;if(hf[c]>=lf)break;hp[i]=hp[c];hf[i]=hf[c];i=c}hp[i]=ln;hf[i]=lf}return n}
-function findPath(sx,sz,tx,tz){const s=ci(sz)*NN+ci(sx),t=ci(tz)*NN+ci(tx);if(nav[t]||nav[s])return null;if(s===t)return[];gs.fill(1e9);prv.fill(-1);hp.length=hf.length=0;gs[s]=0;prv[s]=s;
-const tX=t%NN,tZ=(t/NN)|0,H=(x,z)=>{const a=Math.abs(x-tX),b=Math.abs(z-tZ);return(Math.max(a,b)+.414*Math.min(a,b))*NS};hpush(H(s%NN,(s/NN)|0),s);let it=0;
-while(hp.length&&it++<14000){const c=hpop();if(c===t)break;const x=c%NN,z=(c/NN)|0,gc=gs[c];
-for(const[dx,dz]of D8){const nx=x+dx,nz=z+dz;if(nx<0||nz<0||nx>=NN||nz>=NN)continue;const n=nz*NN+nx;if(nav[n])continue;if(dx&&dz&&(nav[z*NN+nx]||nav[nz*NN+x]))continue;const ng=gc+cost[n]*(dx&&dz?1.414:1);if(ng<gs[n]){gs[n]=ng;prv[n]=c;hpush(ng+H(nx,nz),n)}}}
-if(prv[t]<0)return null;const raw=[];for(let c=t;c!==s;c=prv[c])raw.push([cw(c%NN),cw((c/NN)|0)]);raw.reverse();
+function findPath(sx,sz,tx,tz){
+const si=ci(sx),sj=ci(sz),ti=ci(tx),tj=ci(tz);
+if(si<0||sj<0||ti<0||tj<0||si>=NN||sj>=NN||ti>=NN||tj>=NN)return null;
+const s=sj*NN+si,t=tj*NN+ti;if(nav[t]||nav[s])return null;if(s===t)return[];
+pathRun=(pathRun+1)>>>0;if(!pathRun){pathSeen.fill(0);pathRun=1}const run=pathRun;
+hp.length=hf.length=0;pathSeen[s]=run;gs[s]=0;prv[s]=s;
+const tX=t%NN,tZ=(t/NN)|0,H=(x,z)=>{const a=Math.abs(x-tX),b=Math.abs(z-tZ);return(Math.max(a,b)+.414*Math.min(a,b))*NS};hpush(H(si,sj),s);let it=0;
+while(hp.length&&it++<PATH_NODE_BUDGET){const c=hpop();if(c===t)break;const x=c%NN,z=(c/NN)|0,gc=gs[c];
+for(const[dx,dz]of D8){const nx=x+dx,nz=z+dz;if(nx<0||nz<0||nx>=NN||nz>=NN)continue;const n=nz*NN+nx;if(nav[n])continue;if(dx&&dz&&(nav[z*NN+nx]||nav[nz*NN+x]))continue;const ng=gc+cost[n]*(dx&&dz?1.414:1);if(pathSeen[n]!==run||ng<gs[n]){pathSeen[n]=run;gs[n]=ng;prv[n]=c;hpush(ng+H(nx,nz),n)}}}
+if(pathSeen[t]!==run||prv[t]<0)return null;const raw=[];for(let c=t;c!==s;c=prv[c]){if(c<0||pathSeen[c]!==run)return null;raw.push([cw(c%NN),cw((c/NN)|0)])}raw.reverse();
 const out=[];for(let i=0;i<raw.length;i++){const a=raw[i-1]||[sx,sz],b=raw[i],n=raw[i+1];if(n&&Math.abs((b[0]-a[0])*(n[1]-b[1])-(b[1]-a[1])*(n[0]-b[0]))<1e-6)continue;out.push(b)}return out}
 // ═══ مالکیت خانه‌ها: دفتر مدیرعامل = بنیان‌گذار؛ بقیه به ترتیب یک خانه برای هر نفر (اگر خانه کم باشد، چند نفر مشترک)
 const homeFor=i=>i===0&&hqH?hqH:regH.length?regH[(i-(hqH?1:0))%regH.length]:null;

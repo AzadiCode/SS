@@ -64,7 +64,9 @@ if(wa&&wb){if(fA<.5||fB<.5)return}else{const S=wa?B:A,f=wa?fA:fB;if(f<.5||S.act|
 const p=.12+.3*(((A.tr&&A.tr.so)||.5)+((B.tr&&B.tr.so)||.5))/2;A.mc=B.mc=16+Math.random()*20;if(Math.random()>p)return;
 const gt=1.3+Math.random()*1.2;for(const [X,Y] of [[A,B],[B,A]])if(X.st==='walk'){X.st='greet';X.gt=gt;X.gp=Y}
 dgGreet(wa?A:B,wa?B:A)}
-function stepCits(dt,t){PB=Math.min(MOB?5:10,(MOB?2:4)+(cits.length/120|0));for(const c of cits){const g=c.g,S=c.st;
+function stepCits(dt,t){
+// A* روی شبکهٔ U پرهزینه‌تر از شبکهٔ قدیمی است؛ تعداد شروع مسیر در هر فریم محدود می‌شود.
+PB=MOB?1:2;for(const c of cits){const g=c.g,S=c.st;
 if(S==='inside'){if(!c.hs||!homeById.has(c.hs.id))leave(c);else if((c.tm-=dt)<=0){if(NT>.6&&Math.random()<.75)c.tm=15+Math.random()*30;else leave(c)}continue}
 if(S!=='enter'&&S!=='exit'&&!walk(g.position.x,g.position.z)){const p=freeNear(g.position.x,g.position.z,3);g.position.set(p[0],0,p[1]);c.path=[];c.st='stay';c.act='';c.tm=.3}
 if(S==='enter'){if(moveTo(c,c.dp[0],c.dp[1],c.sp*.85,dt,0)===1){c.hid=1;g.visible=false;c.st='inside';c.tm=NT>.55?25+Math.random()*50:5+Math.random()*14}}
