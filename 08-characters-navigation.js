@@ -4,8 +4,8 @@
 const NS=U,NN=360,NO=-45,nav=new Uint8Array(NN*NN),cost=new Float32Array(NN*NN),gs=new Float32Array(NN*NN),prv=new Int32Array(NN*NN);
 let regH=[],hqH=null,homes=[],mkts=[],farms=[],treeSp=[],roadC=[],pathC=[],ctr=[0,0],RAD=10;const roadSet=new Set(),pathSet=new Set(),homeById=new Map();
 const ci=v=>Math.floor((v-NO)/NS),cw=i=>NO+(i+.5)*NS,walk=(x,z)=>{const i=ci(x),j=ci(z);return i>=0&&j>=0&&i<NN&&j<NN&&!nav[j*NN+i]};
-const NAV_RIVER=[[-145,38],[-100,32],[-65,31],[-30,29],[5,25],[38,21],[70,17],[110,14],[145,18]];
-const pondM=(x,z)=>{for(let i=1;i<NAV_RIVER.length;i++){const a=NAV_RIVER[i-1],b=NAV_RIVER[i],dx=b[0]-a[0],dz=b[1]-a[1],u=Math.max(0,Math.min(1,((x-a[0])*dx+(z-a[1])*dz)/(dx*dx+dz*dz)));if(Math.hypot(x-a[0]-u*dx,z-a[1]-u*dz)<2.15)return true}return false}; // حریم رودخانه برای جلوگیری از عبور شهروند از آب
+const NAV_RIVER=[[-145,24],[-125,15],[-105,20],[-85,9],[-65,15],[-45,7],[-25,13],[-5,7],[15,14],[35,8],[55,2],[75,10],[95,4],[118,13],[145,6]];
+const pondM=(x,z)=>{for(let i=1;i<NAV_RIVER.length;i++){const a=NAV_RIVER[i-1],b=NAV_RIVER[i],dx=b[0]-a[0],dz=b[1]-a[1],u=Math.max(0,Math.min(1,((x-a[0])*dx+(z-a[1])*dz)/(dx*dx+dz*dz)));if(Math.hypot(x-a[0]-u*dx,z-a[1]-u*dz)<4.1)return true}return false}; // حریم رودخانه برای جلوگیری از عبور شهروند از آب
 function blk(x0,x1,z0,z1){for(let j=Math.max(0,ci(z0));j<=Math.min(NN-1,ci(z1));j++)for(let i=Math.max(0,ci(x0));i<=Math.min(NN-1,ci(x1));i++)nav[j*NN+i]=1}
 const PW=FOOT.road[0]*U*PATH_WIDTH_RATIO,ROADC=3.5,dry=(x,z)=>cost[ci(z)*NN+ci(x)]<3;
 function setCost(X,Z,hx,hz,v,force){for(let j=ci(Z-hz);j<=ci(Z+hz);j++)for(let i=ci(X-hx);i<=ci(X+hx);i++){if(i<0||j<0||i>=NN||j>=NN)continue;if(Math.abs(cw(i)-X)>hx||Math.abs(cw(j)-Z)>hz)continue;const k=j*NN+i;cost[k]=force?v:Math.min(cost[k],v)}}

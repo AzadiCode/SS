@@ -10,21 +10,21 @@ const gg=new THREE.PlaneGeometry(300,300,110,110);gg.rotateX(-Math.PI/2);{const 
 const ground=new THREE.Mesh(gg,new THREE.MeshStandardMaterial({map:tex,roughness:1}));ground.receiveShadow=true;scene.add(ground);
 const sky=new THREE.Mesh(new THREE.SphereGeometry(250,24,12),new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,fog:false,uniforms:{a:{value:new THREE.Color(0x6f9fc8)},b:{value:new THREE.Color(0xc9d6c4)},s:{value:new THREE.Vector3(0,1,0)},gc:{value:new THREE.Color(0xffe2b8)},g:{value:1}},vertexShader:'varying vec3 p;void main(){p=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:'uniform vec3 a,b,s,gc;uniform float g;varying vec3 p;void main(){vec3 c=mix(b,a,smoothstep(0.,.55,p.y));float d=max(dot(p,s),0.);c+=gc*(pow(d,6.)*.35+pow(d,90.)*1.2)*g;gl_FragColor=vec4(c,1.);}'}));scene.add(sky);
 let s=5;const rnd=()=>(s=(s*16807)%2147483647)/2147483647;
-// رودخانهٔ طبیعی: مسیر پرپیچ از غرب تا شرق نقشه؛ پهنای آب ۲ واحد (هم‌اندازهٔ جاده) و دو ساحل گِلی گل‌دار.
-const RIVER_PTS=[[-145,38],[-100,32],[-65,31],[-30,29],[5,25],[38,21],[70,17],[110,14],[145,18]];
-const inRiver=(x,z)=>{for(let i=1;i<RIVER_PTS.length;i++){const a=RIVER_PTS[i-1],b=RIVER_PTS[i],dx=b[0]-a[0],dz=b[1]-a[1],u=Math.max(0,Math.min(1,((x-a[0])*dx+(z-a[1])*dz)/(dx*dx+dz*dz))),qx=a[0]+u*dx,qz=a[1]+u*dz;if(Math.hypot(x-qx,z-qz)<2.15)return true}return false};
+// رودخانهٔ طبیعی: مسیر مارپیچی از غرب تا شرق نقشه؛ پهنای آب ۶ واحد (سه برابر جاده) با دو ساحل گِلی و گل‌دار.
+const RIVER_PTS=[[-145,24],[-125,15],[-105,20],[-85,9],[-65,15],[-45,7],[-25,13],[-5,7],[15,14],[35,8],[55,2],[75,10],[95,4],[118,13],[145,6]];
+const inRiver=(x,z)=>{for(let i=1;i<RIVER_PTS.length;i++){const a=RIVER_PTS[i-1],b=RIVER_PTS[i],dx=b[0]-a[0],dz=b[1]-a[1],u=Math.max(0,Math.min(1,((x-a[0])*dx+(z-a[1])*dz)/(dx*dx+dz*dz))),qx=a[0]+u*dx,qz=a[1]+u*dz;if(Math.hypot(x-qx,z-qz)<4.1)return true}return false};
 const riverCurve=new THREE.CatmullRomCurve3(RIVER_PTS.map(([x,z])=>new THREE.Vector3(x,0,z)),false,'catmullrom',.22),riverSamples=riverCurve.getPoints(320);
 function riverRibbon(inner,outer,mat,yoff=0){const pos=[],uv=[],idx=[];for(let i=0;i<riverSamples.length;i++){const p=riverSamples[i],a=riverSamples[Math.max(0,i-1)],b=riverSamples[Math.min(riverSamples.length-1,i+1)],dx=b.x-a.x,dz=b.z-a.z,l=Math.hypot(dx,dz)||1,nx=-dz/l,nz=dx/l;for(const d of [inner,outer]){const x=p.x+nx*d,z=p.z+nz*d;pos.push(x,hgt(x,z)+yoff,z);uv.push(i/riverSamples.length,d)}}for(let i=0;i<riverSamples.length-1;i++){const k=i*2;idx.push(k,k+1,k+2,k+1,k+3,k+2)}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(idx);g.computeVertexNormals();const m=new THREE.Mesh(g,mat);m.receiveShadow=true;scene.add(m);return m}
 const riverWaterMat=new THREE.MeshStandardMaterial({color:0x3d91a5,roughness:.2,metalness:.12,side:THREE.DoubleSide});
 const riverBankMat=new THREE.MeshStandardMaterial({color:0x9b8057,roughness:1,side:THREE.DoubleSide});
 const riverGrassMat=new THREE.MeshStandardMaterial({color:0x66864b,roughness:1,side:THREE.DoubleSide});
-riverRibbon(-1,1,riverWaterMat,.055);
-for(const side of [-1,1]){riverRibbon(side*1,side*1.72,riverBankMat,.025);riverRibbon(side*1.68,side*1.92,riverGrassMat,.018)}
+riverRibbon(-3,3,riverWaterMat,.055);
+for(const side of [-1,1]){riverRibbon(side*3,side*3.85,riverBankMat,.025);riverRibbon(side*3.78,side*4.18,riverGrassMat,.018)}
 // نوار باریکِ انعکاس روی آب، برای خواناتر شدن جریان رود از نمای دور
 const riverSheen=new THREE.MeshStandardMaterial({color:0x9ed5d8,roughness:.16,metalness:.08,transparent:true,opacity:.28,side:THREE.DoubleSide});riverRibbon(-.13,.13,riverSheen,.067);
 // گل‌های ریز و پراکنده روی حاشیهٔ گِلی رود؛ از داخل آب فاصله دارند و در امتداد پیچ‌ها ادامه پیدا می‌کنند.
 const riverBloom=new THREE.InstancedMesh(new THREE.SphereGeometry(.075,7,5),new THREE.MeshStandardMaterial({roughness:.72}),190),bloomObj=new THREE.Object3D();
-for(let i=0;i<190;i++){const u=(i+.5)/190,p=riverCurve.getPointAt(u),tan=riverCurve.getTangentAt(u),side=(i%2?1:-1),d=1.18+rnd()*.58,x=p.x-tan.z*side*d,z=p.z+tan.x*side*d;bloomObj.position.set(x,hgt(x,z)+.13,z);bloomObj.scale.set(.8+rnd()*.6,.65+rnd()*.5,.8+rnd()*.6);bloomObj.updateMatrix();riverBloom.setMatrixAt(i,bloomObj.matrix);riverBloom.setColorAt(i,new THREE.Color(['#f2e7a1','#f0d4d8','#f4eee0','#d8c1e8'][i%4]))}scene.add(riverBloom);
+for(let i=0;i<190;i++){const u=(i+.5)/190,p=riverCurve.getPointAt(u),tan=riverCurve.getTangentAt(u),side=(i%2?1:-1),d=3.22+rnd()*.62,x=p.x-tan.z*side*d,z=p.z+tan.x*side*d;bloomObj.position.set(x,hgt(x,z)+.13,z);bloomObj.scale.set(.8+rnd()*.6,.65+rnd()*.5,.8+rnd()*.6);bloomObj.updateMatrix();riverBloom.setMatrixAt(i,bloomObj.matrix);riverBloom.setColorAt(i,new THREE.Color(['#f2e7a1','#f0d4d8','#f4eee0','#d8c1e8'][i%4]))}scene.add(riverBloom);
 const inPond=(x,z)=>inRiver(x,z),occ=[]; // مستطیل‌های واقعی آیتم‌ها [x0,x1,z0,z1]
 const dm=new THREE.Object3D(),FP=[],fl=new THREE.InstancedMesh(new THREE.SphereGeometry(.08,6,5),new THREE.MeshStandardMaterial({roughness:.7}),260);
 for(let i=0;i<260;i++){FP.push([(rnd()-.5)*78,(rnd()-.5)*78]);fl.setColorAt(i,new THREE.Color(['#f3e9a6','#f4efe4','#e8a3b8','#b9a4e6'][i%4]))}scene.add(fl);

@@ -19,13 +19,13 @@ INFRA_COST = {"road": 100_000, "walk": 50_000, "dirt": 20_000}   # به ازای
 SURF_COST = 80_000                                               # به ازای هر متر مربع سطح خاکی
 
 
-RIVER_POINTS = [(-145, 38), (-100, 32), (-65, 31), (-30, 29), (5, 25), (38, 21), (70, 17), (110, 14), (145, 18)]
+RIVER_POINTS = [(-145, 24), (-125, 15), (-105, 20), (-85, 9), (-65, 15), (-45, 7), (-25, 13), (-5, 7), (15, 14), (35, 8), (55, 2), (75, 10), (95, 4), (118, 13), (145, 6)]
 def pond_world(x, z):
     for i in range(1, len(RIVER_POINTS)):
         ax, az = RIVER_POINTS[i - 1]; bx, bz = RIVER_POINTS[i]
         dx, dz = bx - ax, bz - az
         u = max(0.0, min(1.0, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz)))
-        if math.hypot(x - ax - u * dx, z - az - u * dz) < 2.15: return True
+        if math.hypot(x - ax - u * dx, z - az - u * dz) < 4.1: return True
     return False
 
 

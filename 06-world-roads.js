@@ -74,10 +74,20 @@ function setPathStyle(style){
  }
 }
 // تماس واقعیِ مستطیل‌های سلولی؛ تماس لبه‌ای مجاز است و گوشه‌تماس اتصال نمی‌سازد.
+// تشخیص گذرگاه از تماس واقعیِ footprint و نیز تلورانس یک خرده‌سلول؛
+// این کار وقتی پیاده‌رو در امتداد دو ضلع جاده کاشته شده باشد، خط‌کشی را از دست نمی‌دهد.
+function roadCrossingMask(road,paths){
+ const A=fpBounds(road);let mask=0;
+ for(const path of paths){const B=fpBounds(path),ovX=B.x0<=A.x1+1&&B.x1>=A.x0-1,ovZ=B.z0<=A.z1+1&&B.z1>=A.z0-1;
+  if(ovZ){if(B.x0>=A.x1+1&&B.x0<=A.x1+2)mask|=2;if(B.x1<=A.x0-1&&B.x1>=A.x0-2)mask|=8}
+  if(ovX){if(B.z0>=A.z1+1&&B.z0<=A.z1+2)mask|=4;if(B.z1<=A.z0-1&&B.z1>=A.z0-2)mask|=1}
+ }
+ return mask;
+}
 function roads(w){const blds=w.buildings,rs=blds.filter(b=>b.type==='road'),ps=blds.filter(b=>b.type==='path'),byType={road:new Map(),path:new Map()};
 const key=(x,z)=>x+','+z;for(const b of rs)byType.road.set(key(b.gx??b.x,b.gz??b.z),b);for(const b of ps)byType.path.set(key(b.gx??b.x,b.gz??b.z),b);
 const dirs=[[0,-1],[1,0],[0,1],[-1,0]],dims={road:FOOT.road[0],path:FOOT.path[0]},step=(a,b)=>(dims[a]+dims[b])/2;
 const maskFor=(b,types)=>{let m=0;const x=b.gx??b.x,z=b.gz??b.z;for(const t of types){const d=step(b.type,t),map=byType[t];for(let i=0;i<4;i++){const[dx,dz]=dirs[i],o=map.get(key(x+dx*d,z+dz*d));if(o&&fpTouchDir(b,o)>=0)m|=1<<i}}return m};
 const doorMask=new Map();for(const l of fpDoorLinks(blds)){const k=l.cx+','+l.cz;doorMask.set(k,(doorMask.get(k)||0)|(1<<l.d))}
-for(const b of rs){const g=objs.get(b.id);if(!g)continue;const m=maskFor(b,['road']);let cr=0;for(const p of ps){const d=fpTouchDir(b,p);if(d>=0)cr|=1<<d}const lamp=((b.x+b.z)%2+2)%2===0?1:0,k=m+'|'+cr+'|'+lamp;if(g.userData.k!==k){g.userData.k=k;roadMesh(g,m,lamp,cr)}}
+for(const b of rs){const g=objs.get(b.id);if(!g)continue;const m=maskFor(b,['road']),cr=roadCrossingMask(b,ps);const lamp=((b.x+b.z)%2+2)%2===0?1:0,k=m+'|'+cr+'|'+lamp;if(g.userData.k!==k){g.userData.k=k;roadMesh(g,m,lamp,cr)}}
 for(const b of ps){const g=objs.get(b.id);if(!g)continue;const k=b.x+','+b.z,m=maskFor(b,['path','road'])|(doorMask.get(k)||0),style=b.style==='dirt'?'dirt':b.style==='stone'?'stone':LEGACY_PATH_STYLE,sig=m+'|'+style;if(g.userData.k!==sig){g.userData.k=sig;pathMesh(g,m,b.id,style)}}}

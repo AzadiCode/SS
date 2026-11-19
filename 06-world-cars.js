@@ -42,10 +42,10 @@ function pickNext(c){
 function carStartTurn(c,incoming){
  const d=c.d,p0={x:c.g.position.x,z:c.g.position.z},p3=carLanePoint(c.node,d);
  if(incoming[0]===d[0]&&incoming[1]===d[1]){c.turn=null;return}
- // منحنی بزیهٔ مکعبی؛ مماس ابتدا/انتها با دو لاین هم‌جهت است و خودرو از وسط تقاطع برش نمی‌زند.
- const k=(incoming[0]===-d[0]&&incoming[1]===-d[1])?.34:.48;
+ // برای پیچ ۹۰ درجه، کنترل بزیه بر اساس شعاع لاین تنظیم می‌شود؛ نه یک قوس بزرگ و برش‌زننده.
+ const reverse=incoming[0]===-d[0]&&incoming[1]===-d[1],k=reverse?.18:LANE*.55228475;
  const p1={x:p0.x+incoming[0]*k,z:p0.z+incoming[1]*k},p2={x:p3.x-d[0]*k,z:p3.z-d[1]*k};
- let len=0,prev=p0;for(let i=1;i<=8;i++){const u=i/8,v=1-u,pt={x:v*v*v*p0.x+3*v*v*u*p1.x+3*v*u*u*p2.x+u*u*u*p3.x,z:v*v*v*p0.z+3*v*v*u*p1.z+3*v*u*u*p2.z+u*u*u*p3.z};len+=Math.hypot(pt.x-prev.x,pt.z-prev.z);prev=pt}
+ let len=0,prev=p0;for(let i=1;i<=12;i++){const u=i/12,v=1-u,pt={x:v*v*v*p0.x+3*v*v*u*p1.x+3*v*u*u*p2.x+u*u*u*p3.x,z:v*v*v*p0.z+3*v*v*u*p1.z+3*v*u*u*p2.z+u*u*u*p3.z};len+=Math.hypot(pt.x-prev.x,pt.z-prev.z);prev=pt}
  c.turn={p0,p1,p2,p3,u:0,len:Math.max(.08,len)};
 }
 function carSpawnClear(x,z){for(const o of cars){if(o.out)continue;if(Math.hypot(o.g.position.x-x,o.g.position.z-z)<.92)return false}return true}
@@ -62,10 +62,16 @@ function carBezier(turn,u){const v=1-u,p=turn.p0,a=turn.p1,b=turn.p2,q=turn.p3;
  const dx=3*v*v*(a.x-p.x)+6*v*u*(b.x-a.x)+3*u*u*(q.x-b.x),dz=3*v*v*(a.z-p.z)+6*v*u*(b.z-a.z)+3*u*u*(q.z-b.z);
  return{x,z,dx,dz}}
 // سرعت تطبیقی: فاصلهٔ امن در همان لاین حفظ می‌شود؛ ترافیک لاین مقابل سد راه نیست.
-function carSafeSpeed(c,dx,dz){let speed=c.sp;
- for(const o of cars){if(o===c||o.out)continue;const rx=o.g.position.x-c.g.position.x,rz=o.g.position.z-c.g.position.z,dist=Math.hypot(rx,rz);if(dist<.58&&o.id<c.id)speed=0;
+function carSafeSpeed(c,dx,dz){
+ let speed=c.sp;
+ for(const o of cars){
+  if(o===c||o.out)continue;
+  const rx=o.g.position.x-c.g.position.x,rz=o.g.position.z-c.g.position.z,dist=Math.hypot(rx,rz);
   const ahead=rx*dx+rz*dz,lateral=Math.abs(rx*dz-rz*dx);
-  if(ahead>.04&&ahead<1.35&&lateral<.235)speed=Math.min(speed,Math.max(0,(ahead-.72)*2.35));
+  // فاصلهٔ طولیِ کافی برای خودرو جلویی؛ خودروهای لاین مقابل مزاحم محسوب نمی‌شوند.
+  if(ahead>.02&&ahead<2.35&&lateral<.32)speed=Math.min(speed,Math.max(0,(ahead-1.02)*2.6));
+  // اولویت عبور پایدار برای جلوگیری از قفل متقابل در نزدیکی تقاطع.
+  if(dist<.40&&o.id<c.id)speed=0;
  }
  return speed;
 }
@@ -84,9 +90,13 @@ function stepCars(dt,t){
   if(c.turn){const q=carBezier(c.turn,c.turn.u),mag=Math.hypot(q.dx,q.dz)||1;vx=q.dx/mag;vz=q.dz/mag}
   else{const dx=c.tx-g.position.x,dz=c.tz-g.position.z;dist=Math.hypot(dx,dz)||1;vx=dx/dist;vz=dz/dist}
   let desired=carSafeSpeed(c,vx,vz),redStop=false,maxMove=Infinity;
-  // چراغ تقاطع مقصد: قرمز و زرد یعنی توقف پیش از خط؛ حرکت در سبزِ محور مجاز.
-  if(!c.turn&&c.next&&c.next.neighbors.length>=3){const light=signalStatus(c.next,c.d,t);if(light!=='green'){redStop=true;maxMove=Math.max(0,dist-.82);desired=0}}
-  c.v+=(desired-c.v)*Math.min(1,dt*5);let move=Math.max(0,c.v)*dt;if(redStop)move=Math.min(move,maxMove);
+  // مرکز خودرو در توقف باید حدود ۱٫۱۰ واحد پیش از مرکز تقاطع بماند؛ دماغه پشت خط توقف می‌ایستد.
+  if(!c.turn&&c.next&&c.next.neighbors.length>=3){
+   const light=signalStatus(c.next,c.d,t);
+   if(light!=='green'){redStop=true;maxMove=Math.max(0,dist-1.10);desired=0}
+  }
+  c.v+=(desired-c.v)*Math.min(1,dt*7);let move=Math.max(0,c.v)*dt;
+  if(redStop){move=Math.min(move,maxMove);if(maxMove<=.002)c.v=0}
   if(c.turn){const tr=c.turn;tr.u=Math.min(1,tr.u+move/tr.len);const q=carBezier(tr,tr.u);g.position.x=q.x;g.position.z=q.z;
    if(tr.u>=1){g.position.x=tr.p3.x;g.position.z=tr.p3.z;c.turn=null;}
    const a=Math.atan2(-q.dz,q.dx);let da=Math.atan2(Math.sin(a-c.hd),Math.cos(a-c.hd));c.hd+=da*Math.min(1,dt*10);

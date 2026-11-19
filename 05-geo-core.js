@@ -7,8 +7,8 @@
 // ── ثابت‌های دنیا (باید با 01-server-config.py یکی باشد)
 const GEO_SIZE=20,GEO_CELL=2,GEO_LO=-GEO_SIZE*GEO_CELL-1,GEO_HI=GEO_SIZE*GEO_CELL-1,GEO_EPS=1e-3;
 const GEO_MAP=[[GEO_LO,GEO_HI],[GEO_LO,GEO_HI]]; // [x0,x1],[z0,z1]
-const GEO_RIVER=[[-145,38],[-100,32],[-65,31],[-30,29],[5,25],[38,21],[70,17],[110,14],[145,18]];
-const GEO_POND=(x,z)=>{for(let i=1;i<GEO_RIVER.length;i++){const a=GEO_RIVER[i-1],b=GEO_RIVER[i],dx=b[0]-a[0],dz=b[1]-a[1],u=Math.max(0,Math.min(1,((x-a[0])*dx+(z-a[1])*dz)/(dx*dx+dz*dz)));if(Math.hypot(x-a[0]-u*dx,z-a[1]-u*dz)<2.15)return true}return false};
+const GEO_RIVER=[[-145,24],[-125,15],[-105,20],[-85,9],[-65,15],[-45,7],[-25,13],[-5,7],[15,14],[35,8],[55,2],[75,10],[95,4],[118,13],[145,6]];
+const GEO_POND=(x,z)=>{for(let i=1;i<GEO_RIVER.length;i++){const a=GEO_RIVER[i-1],b=GEO_RIVER[i],dx=b[0]-a[0],dz=b[1]-a[1],u=Math.max(0,Math.min(1,((x-a[0])*dx+(z-a[1])*dz)/(dx*dx+dz*dz)));if(Math.hypot(x-a[0]-u*dx,z-a[1]-u*dz)<4.1)return true}return false};
 // انواع مسیر: road=آسفالت (ماشین) · walk=پیاده‌رو · dirt=مسیر خاکی
 const GEO_KINDS=['road','walk','dirt'];
 const GEO_DEF={road:{w:2,total:2,asphalt:1.3,y:.075,cost:3.5},walk:{w:.6,y:.062,cost:.5},dirt:{w:.6,y:.05,cost:.8}};
