@@ -35,12 +35,21 @@ const GAME_FILES=[
   '05-core-main',
 ];
 
-const load=name=>new Promise((ok,bad)=>{
-  const s=document.createElement('script');
-  s.src='/'+name+'.js';
-  s.onload=ok;
-  s.onerror=()=>bad(new Error('فایل بارگذاری نشد: '+name));
-  document.head.appendChild(s);
-});
-
-try{for(const f of GAME_FILES) await load(f)}catch(e){const m=document.getElementById('ldm');if(m){m.textContent='خطا در بارگذاری: '+e.message+' — صفحه را رفرش کن';m.className='on'}throw e}
+// دریافت موازی فایل‌ها، اجرای ترتیبی برای حفظ وابستگی‌های سراسری
+try{
+  const sources=await Promise.all(GAME_FILES.map(async name=>{
+    const r=await fetch('/'+name+'.js',{cache:'no-store'});
+    if(!r.ok)throw new Error('فایل بارگذاری نشد: '+name+' ('+r.status+')');
+    return await r.text();
+  }));
+  for(let i=0;i<GAME_FILES.length;i++){
+    const s=document.createElement('script');
+    s.textContent=sources[i]+'\\n//# sourceURL=/'+GAME_FILES[i]+'.js';
+    document.head.appendChild(s);
+  }
+}catch(e){
+  console.error('[TribeWorld boot]',e);
+  const m=document.getElementById('ldm');
+  if(m){m.textContent='خطا در بارگذاری: '+e.message;m.className='on'}
+  throw e;
+}

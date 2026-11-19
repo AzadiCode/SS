@@ -16,8 +16,9 @@ function framePart(name,fn){
 }
 
 async function startGame(){
-if(document.fonts&&document.fonts.load)try{await Promise.race([Promise.all([document.fonts.load('800 104px Vazirmatn'),document.fonts.load('800 32px Vazirmatn')]),new Promise(r=>setTimeout(r,1500))])}catch(e){} // فونت فارسی (وزن ۸۰۰) برای متن پلاکِ خونه‌ها
-await poll();joinMe();setInterval(poll,3000);localStorage.seen?$('cap').style.display='none':say(0);
+// فونت‌ها در پس‌زمینه آماده می‌شوند؛ شروع رندر منتظر دانلود فونت نمی‌ماند.
+if(document.fonts&&document.fonts.load)Promise.all([document.fonts.load('800 104px Vazirmatn'),document.fonts.load('800 32px Vazirmatn')]).catch(()=>{});
+joinMe();setInterval(poll,3000);localStorage.seen?$('cap').style.display='none':say(0);
 const ck=new THREE.Clock(),START=new THREE.Vector3(46,52,56);let intro=0,ldDone=0,ldF=0;ctl.enabled=false;
 R.setAnimationLoop(()=>{
  let dt=0,t=0;
@@ -38,5 +39,7 @@ R.setAnimationLoop(()=>{
  framePart('recorder-compositor',()=>{if(RCOMP)RCOMP()});
  framePart('loading-indicator',()=>{if(W&&!ldDone&&++ldF>2){ldDone=1;const l=$('ld');if(l){l.classList.add('out');setTimeout(()=>l.remove(),900)}}});
 });
+ // درخواست اولیهٔ دنیا پس از راه‌اندازی حلقهٔ رندر؛ رابط و صحنه هنگام بیدارشدن سرور فریز نمی‌مانند.
+ poll();
 }
 startGame();
