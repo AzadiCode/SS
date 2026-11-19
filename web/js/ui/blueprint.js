@@ -35,6 +35,7 @@ function bpMask(t,x,z){const same=b=>b.type==='road'||b.type==='path';
 // بدون این، شبحِ کنارِ خانه با m=0 و cr=.4 (دیسک کوچک) رندر می‌شود ولی واقعی با بیتِ در → cr=PTW/2 (پر).
 // ساختمان‌های واقعی (W.buildings) و صفِ چیده‌شده (BP.items) هر دو برای محاسبهٔ در به‌حساب می‌آیند.
 function bpPathMask(x,z){const LN=1-PW/2;const L=[LN,LN,LN,LN];let bl=0,m=bpMask('path',x,z);
+  // LN فقط برای امضای کش است؛ pathMesh برای بازوی معمولی به مرز سلول می‌رود و L فقط برای بازوی در استفاده می‌شود
   const di=(dx,dz)=>dz<0?0:dx>0?1:dz>0?2:3;
   const blds=[...W.buildings,...BP.items.filter(i=>i.type==='house'||i.type==='hq'||i.type==='farm'||i.type==='market')];
   for(const b of blds){const t=b.type,th=(b.rot||0)*Math.PI/180;
@@ -43,15 +44,21 @@ function bpPathMask(x,z){const LN=1-PW/2;const L=[LN,LN,LN,LN];let bl=0,m=bpMask
     else if(t==='farm'||t==='market'){for(const[nx,nz]of[[0,-1],[1,0],[0,1],[-1,0]]){if(b.x+nx===x&&b.z+nz===z){const ex=t==='farm'?.95:(((nx!==0)===((Math.round((b.rot||0)/90)%2+2)%2===0))?1:.7);const d=di(-nx,-nz);m|=1<<d;L[d]=Math.max(.3,1.5-ex);bl|=1<<d}}}}
   return{m,L,bl}}
 // قالب شبح: type/rot/mask + links (فقط پیاده‌رو: {m,L,bl} از bpPathMask). کش با کلیدِ امضای کامل.
-function bpTemplate(type,rot,mask,links){const key=type+'|'+rot+'|'+mask+(links?'|'+links.L.join(',')+'|'+links.bl:'');
+// lamp (فقط جاده): پریتیِ چراغِ همان سلول — تا شبح دقیقاً مثل جادهٔ نهایی چراغ‌دار/بی‌چراغ باشد.
+function bpTemplate(type,rot,mask,links,lamp=0){const key=type+'|'+rot+'|'+mask+(links?'|'+links.L.join(',')+'|'+links.bl:'')+'|'+lamp;
   if(BP._tpl.has(key))return BP._tpl.get(key);
   const g=new THREE.Group();
-  if(type==='road'){roadMesh(g,mask,0);g.userData.tile=1}
+  if(type==='road'){roadMesh(g,mask,lamp);g.userData.tile=1}
   else if(type==='path'){const lk=links||{m:mask,L:[1-PW/2,1-PW/2,1-PW/2,1-PW/2],bl:0};pathMesh(g,lk.m,1234,lk.L,lk.bl,0,0);g.userData.tile=1}
   else{build[type]?.(g,{id:type==='tree'||type==='hq'?7:1234+(rot/90|0),x:0,z:0,rot});if(type!=='tree'&&type!=='hq')plaqueless(g)}
   // ادغام کل مدل به یک مش شفاف + ذخیرهٔ bbox برای خط دور
+  g.updateMatrixWorld(true);   // گروه در صحنه نیست؛ بدون این، ماتریس‌های فرزندان stale می‌مانند و هندسه جای غلط ادغام می‌شود
+  // نرمال‌سازی صفات هندسه‌ها قبل از ادغام: همه باید position+normal+color داشته باشند و uv نداشته باشند
+  // (قطعات vcGeo رنگ رأس دارند؛ قطعات خام مثل صفحهٔ هالهٔ چراغ فقط position/normal/uv) — وگرنه mergeGeometries null برمی‌گرداند.
   const geos=[];g.traverse(c=>{if(c.isMesh&&c.geometry){let ge=c.geometry.clone();ge.applyMatrix4(c.matrixWorld);if(ge.index)ge=ge.toNonIndexed();
-    for(const a of Object.keys(ge.attributes))if(!['position','normal','uv'].includes(a))ge.deleteAttribute(a);geos.push(ge)}});
+    for(const a of Object.keys(ge.attributes))if(a!=='position'&&a!=='normal')ge.deleteAttribute(a);
+    if(!ge.attributes.color){const n=ge.attributes.position.count,ca=new Float32Array(n*3);ge.setAttribute('color',new THREE.BufferAttribute(ca,3))}
+    geos.push(ge)}});
   const out=new THREE.Group();
   if(geos.length){const me=new THREE.Mesh(mergeGeometries(geos,false),BP_HOL);me.renderOrder=5;out.add(me);
     const box=new THREE.Box3().setFromObject(me),sz=box.getSize(new THREE.Vector3()),ct=box.getCenter(new THREE.Vector3());
@@ -65,18 +72,21 @@ function bpTemplate(type,rot,mask,links){const key=type+'|'+rot+'|'+mask+(links?
   const ring=new THREE.Mesh(BP_GEO,new THREE.MeshBasicMaterial({color:BP_OK,transparent:true,opacity:.9,depthWrite:false,side:THREE.DoubleSide}));
   ring.rotation.x=-Math.PI/2;ring.position.y=.06;out.add(ring);out.userData.ring=ring;
   BP._tpl.set(key,out);return out}
-// حذف پلاک شمارهٔ خانه از شبح (عنصر نامربوط به پیش‌نمایش)
-function plaqueless(g){for(const c of[...g.children])if(c.isMesh&&c.material&&(c.material.map===GRADT))g.remove(c)}
+// حذف پلاک شمارهٔ خانه از شبح (عنصر نامربوط به پیش‌نمایش).
+// فقط صفحهٔ پلاک (texture کشِ _PLQ) حذف می‌شود؛ هالهٔ نورِ در (GRADT) جزو ظاهر واقعی ساختمان است و می‌ماند
+// تا ابعاد شبح با ساختمان نهایی یکسان بماند.
+function plaqueless(g){for(const c of[...g.children])if(c.isMesh&&c.material&&c.material.map&&_PLQ.has(c.material.map))g.remove(c)}
 // کلون امن قالب شبح: ring و کاشی اعتبار را از روی هندسهٔ مشخص پیدا می‌کند (clone در three.js userData را کپی سطحی می‌دهد)
-function bpClone(type,rot,mask,links){const src=bpTemplate(type,rot,mask,links),g=src.clone(true);
+function bpClone(type,rot,mask,links,lamp=0){const src=bpTemplate(type,rot,mask,links,lamp),g=src.clone(true);
   const ring=g.children.find(c=>c.geometry===BP_GEO),tile=g.children.find(c=>c.geometry===BP_PGEO);
   if(ring)ring.material=ring.material.clone();if(tile)tile.material=tile.material.clone();   // متریال جدا تا رنگ هر شبح مستقل باشد
-  g.userData={ring,tileMesh:tile,k:mask+(links?'|'+links.L.join(',')+'|'+links.bl:'')};return g}
+  g.userData={ring,tileMesh:tile,k:mask+(links?'|'+links.L.join(',')+'|'+links.bl:'')+'|'+lamp};return g}
 
 // ── ساخت/به‌روزرسانی یک آیتم صف: مدل شبح + حلقه + کاشی اعتبار
 function bpMake(it){const links=it.type==='path'?bpPathMask(it.x,it.z):null;
+  const lamp=it.type==='road'?(((it.x+it.z)%2+2)%2===0?1:0):0;   // چراغ جاده = پریتی سلول، مثل roads()
   const mask=links?links.m:(it.type==='road'?bpMask(it.type,it.x,it.z):0);
-  const g=bpClone(it.type,it.rot,mask,links);
+  const g=bpClone(it.type,it.rot,mask,links,lamp);
   g.userData.it=it;
   g.position.set(it.x*CELL,0,it.z*CELL);
   if(it.type!=='road'&&it.type!=='path')g.rotation.y=it.rot*Math.PI/180;
@@ -107,11 +117,12 @@ function bpRemesh(changed){if(changed.type!=='road'&&changed.type!=='path')retur
   const near=[changed,...BP.items.filter(it=>(it.type==='road'||it.type==='path')&&Math.abs(it.x-changed.x)<=1&&Math.abs(it.z-changed.z)<=1)];
   for(const it of near){
     const links=it.type==='path'?bpPathMask(it.x,it.z):null;
+    const lamp=it.type==='road'?(((it.x+it.z)%2+2)%2===0?1:0):0;
     const m=links?links.m:bpMask(it.type,it.x,it.z);
-    const sig=m+(links?'|'+links.L.join(',')+'|'+links.bl:'');
+    const sig=m+(links?'|'+links.L.join(',')+'|'+links.bl:'')+'|'+lamp;
     if(it.g&&it.g.userData.k!==sig){
       scene.remove(it.g);disposeObj(it.g);
-      const g=bpClone(it.type,it.rot,m,links);g.userData.it=it;
+      const g=bpClone(it.type,it.rot,m,links,lamp);g.userData.it=it;
       g.position.set(it.x*CELL,0,it.z*CELL);scene.add(g);it.g=g;bpPaint(it)}}}
 // ── ردیف پیوستهٔ جاده/پیاده‌رو: خط برِزن‌هام بین دو نقطه — هیچ سلولی در مسیر جا نمی‌ماند
 function bpStroke(x0,z0,x1,z1){const pts=[],n=Math.max(Math.abs(x1-x0),Math.abs(z1-z0));
@@ -126,9 +137,10 @@ function bpLine(c){if(!c){if(BP.line){scene.remove(BP.line);disposeObj(BP.line);
 function bpFloat(c){const isTile=BP.type==='road'||BP.type==='path';
   // جاده/پیاده‌رو: ماسک/لینک با حرکتِ سلول عوض می‌شود ⇒ مشِ شبح را بازسازی کن تا اتصال زنده دیده شود
   if(isTile&&BP.ghost){const links=BP.type==='path'?bpPathMask(c[0],c[1]):null;
-    const m=links?links.m:bpMask(BP.type,c[0],c[1]);const sig=m+(links?'|'+links.L.join(',')+'|'+links.bl:'');
+    const lamp=BP.type==='road'?(((c[0]+c[1])%2+2)%2===0?1:0):0;
+    const m=links?links.m:bpMask(BP.type,c[0],c[1]);const sig=m+(links?'|'+links.L.join(',')+'|'+links.bl:'')+'|'+lamp;
     if(BP.ghost.userData.k!==sig){scene.remove(BP.ghost);disposeObj(BP.ghost);
-      BP.ghost=bpClone(BP.type,BP.rot,m,links);scene.add(BP.ghost)}}
+      BP.ghost=bpClone(BP.type,BP.rot,m,links,lamp);scene.add(BP.ghost)}}
   else if(!BP.ghost){const g=bpClone(BP.type,BP.rot,0);BP.ghost=g;scene.add(BP.ghost)}
   const val=bpVal(BP.type,c[0],c[1]),ok=val===true;
   BP.ghost.position.set(c[0]*CELL,0,c[1]*CELL);
@@ -150,7 +162,10 @@ function bpStart(){if(!T)return;BP.on=true;BP.rot=0;BP.sel=null;bpBar();
 function bpEnd(){BP.on=false;BP.sel=null;BP.dragIt=null;BP.down=null;
   for(const it of BP.items)if(it.g){scene.remove(it.g);disposeObj(it.g);it.g=null}
   BP.items=[];bpGhostType();bpLine(null);bpBar();
-  $('bph').style.display='none';$('bpq').style.display='none';if(admOn)$('adm').style.display='flex'}
+  $('bph').style.display='none';$('bpq').style.display='none';if(admOn)$('adm').style.display='flex';
+  // همگام‌سازی مود: اگر همچنان مود build روشن است خاموشش کن (پالت، هایلایت دکمه) — وگرنه دفعهٔ بعد
+  // دکمهٔ 🏗️ toggle می‌کند و هیچ اتفاقی نمی‌افتد (ورود دوباره به ساخت از کار می‌افتد).
+  if(mode==='build')setMode('')}
 // ── تیک: ساخت همه (اتمیک سمت سرور) — stagger زمان انیمیشن هر ساختمان را BP._stag می‌دهد ← sync.js/main.js
 async function bpCommit(){const n=BP.items.length;if(!n||BP.busy)return;
   const bad=BP.items.filter(i=>!i.ok);if(bad.length){toast(cpx(bad.length)+' مورد نامعتبر است — سبز شود یا حذفش کن');

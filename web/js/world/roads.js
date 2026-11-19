@@ -15,26 +15,35 @@ if(lamp){const bl=new THREE.Mesh(LBG,LAMP);bl.position.set(.82,1.12,.82);g.add(b
 // ── پیاده‌رو: مسیر خاکیِ باریکِ «رد پایی»؛ نوارِ پیوسته از دیسک‌های خاکیِ نامنظم + رد پا + سنگ‌ریزه.
 // خاکی/طبیعی (نه کاشی): پالت قهوه‌ای، لبه‌های ناهموار، ساییدگی و سنگ‌ریزه.
 // ضد پرپر: دیسک‌ها با ارتفاع واقعی (.045/.06) و کفِ تخت روی زمین، بدون سطحِ هم‌مرزِ هم‌سطح.
-// پارامترها: m=بیتمسک اتصال چهار جهت، L=طول بازوی هر جهت، bl=بیتمسک درِ ساختمان.
-// PTW = عرض بصریِ کاشی پیاده‌رو؛ باید سلولِ ۲×۲ (CELL=2) را پر کند تا هم‌پوشانی بصری با همسایه/خانه بی‌درز شود
-// (قبلاً ۰٫۵۵ بود ⇒ فقط ۲۸٪ سلول پر می‌شد ⇒ گاپ چمنی بین کاشی‌ها و فاصله از خانه). اکنون ≈۹۰٪ سلول.
-const PTW=1.8,PT_DIRT=[0xb09366,0xaa8f63,0xb59a6c],PT_EDGE=0x8d8c55,PT_WORN=0x9b8058,PT_FOOT=0x8f744c,PT_PBG=new THREE.IcosahedronGeometry(.03,0),PT_PBC=[0x8f8a80,0x7d786e,0xa39d90],PT_CYL=new THREE.CylinderGeometry(1,1,1,10,1),PT_M=new THREE.Matrix4(),PT_Q=new THREE.Quaternion(),PT_P=new THREE.Vector3(),PT_S=new THREE.Vector3(),PT_E=new THREE.Euler();
+// پارامترها: m=بیتمسک اتصال چهار جهت، L=طول بازوی هر جهت (فاصلهٔ لبه تا هدف)، bl=بیتمسک درِ ساختمان.
+// PTW = عرض بصری پیاده‌رو. آسفالت جاده = ۱٫۳ ⇒ نصفش ≈ ۰٫۶۵؛ پیاده‌رو باریک‌تر: ۰٫۶ (هرگز ≥ جاده نشود).
+// فوت‌پرینتِ گریدِ پیاده‌رو همان ۱ سلول است؛ PTW فقط «عرض بصری» است و سلول اضافی رزرو نمی‌شود.
+// بازوها دقیقاً تا ۰٫۹۶ سلول بعد می‌روند (مرز سلول = ۱) ⇒ به دیسکِ مرکزیِ همسایه می‌چسبند بی‌آنکه همپوشانیِ
+// هم‌ارتفاع (z-fight) بسازند: دیسک انتهاییِ هر کاشی جیتِر/انحراف صفر و شعاعِ کامل دارد و در مرز می‌نشیند.
+const PTW=.6,PT_DIRT=[0xb09366,0xaa8f63,0xb59a6c],PT_EDGE=0x8d8c55,PT_WORN=0x9b8058,PT_FOOT=0x8f744c,PT_PBG=new THREE.IcosahedronGeometry(.03,0),PT_PBC=[0x8f8a80,0x7d786e,0xa39d90],PT_CYL=new THREE.CylinderGeometry(1,1,1,10,1),PT_M=new THREE.Matrix4(),PT_Q=new THREE.Quaternion(),PT_P=new THREE.Vector3(),PT_S=new THREE.Vector3(),PT_E=new THREE.Euler();
 function pathMesh(g,m,id,L,bl=0,gx=0,gz=0){clearKids(g);
-const hw=PW/2,base=[],edge=[],worn=[],foot=[];let sd=(id*9301+49297)%233280;const r=()=>(sd=(sd*9301+49297)%233280)/233280;
+const base=[],edge=[],worn=[],foot=[];let sd=(id*9301+49297)%233280;const r=()=>(sd=(sd*9301+49297)%233280)/233280;
 // دیسکِ استوانه‌ای (بیضی با شعاع‌های rx/rz و چرخش ry) — کفِ تخت روی زمین (y=0) ⇒ بدون z-fight
 const disc=(arr,x,z,rx,rz,h,ry=0)=>{PT_P.set(x,h/2,z);PT_S.set(rx,h,rz);PT_Q.setFromEuler(PT_E.set(0,ry,0));PT_M.compose(PT_P,PT_Q,PT_S);arr.push(PT_CYL.clone().applyMatrix4(PT_M))};
 const B=[1,2,4,8],DX=[0,1,0,-1],DZ=[-1,0,1,0],any=B.some(b=>m&b);
-// مرکز: لبهٔ محو + دیسکِ خاک
-const cr=any?PTW/2+.03:.4;disc(edge,0,0,cr+.06,cr+.06,.045);disc(base,0,0,cr,cr,.06);
-// بازوها: زنجیرهٔ دیسک‌های خاکی با انحراف ملایم؛ دو سرِ نوار بدون انحراف تا به همسایه بی‌درز بچسبد
-B.forEach((bit,i)=>{if(!(m&bit))return;const l=hw+L[i],n=Math.max(2,Math.ceil(l/.2)),ax=DX[i]!==0;
-for(let k=1;k<=n;k++){const t=k/n,d=t*l,j=(r()-.5)*.11*Math.sin(Math.PI*t),rad=PTW/2*(.92+r()*.22),px=ax?DX[i]*d:j,pz=ax?j:DZ[i]*d;
-disc(edge,px,pz,rad+.06,rad+.06,.045);disc(base,px,pz,rad,rad,.06);
-if(r()<.55)disc(worn,px+(ax?0:(r()-.5)*.2),pz+(ax?(r()-.5)*.2:0),.07+r()*.07,.05+r()*.06,.065,r()*3)}
-// جلوی در: دیسک گشادتر (حیاطِ ورودی)
-if(bl&bit){disc(edge,DX[i]*(l-.06),DZ[i]*(l-.06),.44,.44,.045);disc(base,DX[i]*(l-.06),DZ[i]*(l-.06),.38,.38,.06)}
+// مرکز: لبهٔ محو + دیسکِ خاک (همیشه دیسک مرکزی؛ بازوها به آن می‌چسبند)
+const cr=any?PTW/2+.03:.34;disc(edge,0,0,cr+.05,cr+.05,.045);disc(base,0,0,cr,cr,.06);
+// بازوها: زنجیرهٔ دیسک‌های خاکی با انحراف ملایم در میانه.
+// • بازوی معمولی (همسایهٔ مسیر): تا «مرز سلول منهای ε» می‌رود (CELL/2−.01) ⇒ دیسک انتهایی دقیقاً به دیسکِ
+//   انتهاییِ کاشیِ همسایه می‌چسبد بی‌آنکه همپوشانیِ هم‌ارتفاع بین دو مشِ جدا (z-fight/فلیکر) بسازد.
+// • بازوی درِ ساختمان (bl): مثل قبل تا دیوارِ ساختمان می‌رود (PW/2+L) — داخل سلولِ ساختمان است که
+//   مسیر دیگری نیست ⇒ تداخل بصری ندارد و خاک تا خودِ در می‌رسد.
+B.forEach((bit,i)=>{if(!(m&bit))return;const door=bl&bit,l=door?PW/2+L[i]:CELL/2-.01,n=Math.max(2,Math.ceil(l/.2)),ax=DX[i]!==0;
+for(let k=1;k<=n;k++){const t=k/n,d=t*l,last=k===n,
+j=last?0:(r()-.5)*.1*Math.sin(Math.PI*t),      // انتهای بازو: صاف، بدون انحراف
+rad=last?PTW/2:(PTW/2)*(.9+r()*.25),           // دیسک انتهایی: شعاع کامل پیاده‌رو
+px=ax?DX[i]*d:j,pz=ax?j:DZ[i]*d;
+disc(edge,px,pz,rad+.05,rad+.05,.045);disc(base,px,pz,rad,rad,.06);
+if(!last&&r()<.55)disc(worn,px+(ax?0:(r()-.5)*.16),pz+(ax?(r()-.5)*.16:0),.06+r()*.06,.045+r()*.05,.065,r()*3)}
+// جلوی در: دیسک گشادتر (حیاطِ ورودی) — تا نزدیک دیوار ساختمان
+if(door){const dd=Math.max(PTW,l-.45);disc(edge,DX[i]*dd,DZ[i]*dd,.42,.42,.045);disc(base,DX[i]*dd,DZ[i]*dd,.36,.36,.06)}
 // رد پاها: جفت‌بیضی‌های کم‌رنگ چپ/راست در امتداد مسیر
-for(let d=.35,s=1;d<l-.1;d+=.34,s=-s){const px=ax?DX[i]*d:s*.07,pz=ax?s*.07:DZ[i]*d;disc(foot,px,pz,ax?.085:.045,ax?.045:.085,.062,(r()-.5)*.4)}});
+for(let d=.3,s=1;d<l-.08;d+=.3,s=-s){const px=ax?DX[i]*d:s*.06,pz=ax?s*.06:DZ[i]*d;disc(foot,px,pz,ax?.075:.04,ax?.04:.075,.062,(r()-.5)*.4)}});
 // ادغامِ همهٔ دیسک‌ها (لبه، خاک، ساییدگی، رد پا) + دو سنگ‌ریزه ← فقط یک مش
 const all=[];const mk=(arr,c)=>{for(const x of arr)all.push(vcGeo(x,c))};
 mk(edge,PT_EDGE);mk(base,PT_DIRT[((id%3)+3)%3]);mk(worn,PT_WORN);mk(foot,PT_FOOT);
