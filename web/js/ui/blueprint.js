@@ -96,7 +96,10 @@ function bpPaint(it){if(!it.g)return;const val=bpVal(it.type,it.x,it.z,it),ring=
   it.ok=val===true;it.err=val===true?'':val;
   ring.material.color.setHex(it===BP.sel?BP_GOLD:it.ok?BP_OK:BP_BAD);
   it.g.userData.tileMesh.material.color.setHex(it.ok?BP_OK:BP_BAD);
-  it.g.userData.tileMesh.material.opacity=it.ok?.5:.65}
+  it.g.userData.tileMesh.material.opacity=it.ok?.5:.65;
+  // اشغالِ سلول توسط ساختمان واقعی: هندسهٔ شبح داخل ساختمان می‌رود و بریدگی می‌سازد → فقط حلقه بماند
+  const occupied=val==='اشغال است';
+  it.g.children.forEach(ch=>{if(ch!==ring)ch.visible=!occupied})}
 // چیدن/حذف/جابه‌جایی
 function bpAdd(x,z){if(BP.items.length>=400)return toast('حداکثر ۴۰۰ مورد در یک نقشه');
   if(bpVal(BP.type,x,z)!==true)return false;
@@ -147,6 +150,14 @@ function bpFloat(c){const isTile=BP.type==='road'||BP.type==='path';
   if(!isTile)BP.ghost.rotation.y=BP.rot*Math.PI/180;
   BP.ghost.userData.ring.material.color.setHex(ok?BP_OK:BP_BAD);
   BP.ghost.userData.tileMesh.material.color.setHex(ok?BP_OK:BP_BAD);
+  // سلولِ «اشغال» (ساختمان واقعی همان‌جاست): مدل/کاشی شبح داخل هندسهٔ ساختمان می‌رود و مثل بریدگی
+  // دیده می‌شود (باگ کاشی صورتیِ ویدیو). فقط حلقهٔ قرمز می‌ماند — و بالای بامِ ساختمانِ موجود می‌رود
+  // تا زیر پی دفن نشود و پیامِ روشنِ «اینجا پر است» جلوی چشم باشد.
+  const occupied=val==='اشغال است'||val==='تداخل با پیش‌نمایش';
+  const occ=occupied&&W.buildings.find(b=>b.x===c[0]&&b.z===c[1]);
+  const top=occ&&objs.get(occ.id)?(()=>{const bx=new THREE.Box3().setFromObject(objs.get(occ.id));return Math.max(.12,bx.max.y+.25)})():.06;
+  BP.ghost.userData.ring.position.y=top;
+  BP.ghost.children.forEach(ch=>{if(ch!==BP.ghost.userData.ring)ch.visible=!occupied});
   BP.ghost.visible=true;BP.ok=ok}
 function bpGhostType(){if(!BP.ghost)return;
   scene.remove(BP.ghost);disposeObj(BP.ghost);BP.ghost=null}
@@ -157,9 +168,9 @@ function bpBar(){const b=$('bpb');if(!b)return;b.style.display=BP.on?'flex':'non
   $('bpn').innerHTML='نقشهٔ ساخت: '+cpx(n)+' مورد'+(bad?' · <b style="color:#ff8d80">'+cpx(bad)+' نامعتبر</b>':'')+(cost&&!$('fr').checked?' · '+fa(cost/1e6,1)+' م':'');
   $('bpi').textContent=BP.sel?'انتخاب: '+cpx(BP.items.indexOf(BP.sel)+1)+' · '+(W.catalog?.[BP.sel.type]||BP.sel.type):'';
   $('bpok').style.opacity=n&&!bad&&!BP.busy?1:.35}
-function bpStart(){if(!T)return;BP.on=true;BP.rot=0;BP.sel=null;bpBar();
+function bpStart(){if(!T)return;BP.on=true;BP.rot=0;BP.sel=null;BP.pid=null;bpBar();
   $('bph').style.display='block';$('adm').style.display='none';$('pal').style.display='flex'}
-function bpEnd(){BP.on=false;BP.sel=null;BP.dragIt=null;BP.down=null;
+function bpEnd(){BP.on=false;BP.sel=null;BP.dragIt=null;BP.down=null;BP.pid=null;
   for(const it of BP.items)if(it.g){scene.remove(it.g);disposeObj(it.g);it.g=null}
   BP.items=[];bpGhostType();bpLine(null);bpBar();
   $('bph').style.display='none';$('bpq').style.display='none';if(admOn)$('adm').style.display='flex';

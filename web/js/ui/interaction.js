@@ -48,15 +48,21 @@ else if(T&&mode==='del'){if(confirm('حذف شود؟'))api('/api/admin/building/
 else if(!mode){if(!openHouse(h.g)){closeHouse();toast(bInfo(h.b)+(h.b.type==='house'?' · برای دیدن داخل خانه بیشتر زوم کن':''));ownerHi(h.b)}}}else if(!mode)closeHouse()}
 R.domElement.addEventListener('pointerdown',e=>{dn={x:e.clientX,y:e.clientY,t:performance.now()};if(!T||!mode)return;
 if(mode==='move'){const h=pickAt(e);if(h.b){drag={g:h.g,b:h.b,c:[h.b.x,h.b.z]};ctl.enabled=false;cur.visible=true;cur.position.set(h.b.x*CELL,.12,h.b.z*CELL);cur.material.color.setHex(0x3ddc97)}}
-else if(mode==='build'){if(BP.down)BP.down.x=e.clientX,BP.down.y=e.clientY;bpDown(e)}},true);
+else if(mode==='build'){
+  if(BP.pid!=null&&e.pointerId!==BP.pid)return;               // چندلمسی: انگشت دوم نباید استروک ساخت را خراب کند
+  BP.pid=e.pointerId;                                          // فقط اولین انگشت صاحب جلسهٔ ساخت است
+  if(BP.down)BP.down.x=e.clientX,BP.down.y=e.clientY;bpDown(e)}},true);
 addEventListener('pointermove',e=>{if(drag){const c=cellOf(e);if(c){drag.c=c;drag.g.position.set(c[0]*CELL,.35,c[1]*CELL);cur.position.set(c[0]*CELL,.12,c[1]*CELL);cur.material.color.setHex(cellOk(c[0],c[1],drag.b.id)?0x3ddc97:0xff5a4c)}}
 else if(mode==='build'&&BP.down){if(BP.down){BP.down.x=e.clientX;BP.down.y=e.clientY}bpDrag(e)}});
-addEventListener('pointercancel',e=>{dn=null;drag=null;ctl.enabled=true;if(BP.on){BP.down=null;BP.dragIt=null;if(BP.ghost)BP.ghost.visible=false;bpLine(null)}});
+addEventListener('pointercancel',e=>{dn=null;drag=null;ctl.enabled=true;if(BP.on){BP.down=null;BP.dragIt=null;BP.pid=null;if(BP.ghost)BP.ghost.visible=false;bpLine(null)}});
 addEventListener('pointerup',async e=>{const was=dn;dn=null;
 if(drag){const d=drag,b=d.b;drag=null;ctl.enabled=true;cur.visible=false;d.g.position.y=0;const[x,z]=d.c;
 if((x!==b.x||z!==b.z)&&cellOk(x,z,b.id)){const ox=b.x,oz=b.z;b.x=x;b.z=z;try{await api('/api/admin/building/'+b.id,'PUT',{x,z,rot:b.rot});toast('✅ جابه‌جا و ذخیره شد')}catch(_){b.x=ox;b.z=oz;d.g.position.set(ox*CELL,0,oz*CELL)}}
 else d.g.position.set(b.x*CELL,0,b.z*CELL);return}
-if(mode==='build'){const d=BP.down;BP.down=null;ctl.enabled=true;
+if(mode==='build'){
+  if(BP.pid!=null&&e.pointerId!==BP.pid)return;               // رهاشدنِ انگشت دوم ≠ پایان ساخت؛ فقط صاحب جلسه تمامش می‌کند
+  BP.pid=null;
+  const d=BP.down;BP.down=null;ctl.enabled=true;
   if(d){
     if(BP.dragIt){                                        // پایان درگ آیتم صف
       const moved=d.moved>8;
