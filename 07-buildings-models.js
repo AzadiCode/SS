@@ -41,7 +41,7 @@ function plaque(g,num){
 const build={
 house(g,b){const k=b.id,wc=WALL[k%4],rc=ROOF[(k>>2)%4],rd=new THREE.Color(rc).multiplyScalar(.78).getHex(),TB=0x6b4326,TD=0x4a3022,SH=AWN[k%4];
 // پایه، کف چوبی (از بالا دیده می‌شود وقتی سقف باز است) و پله
-bx(g,1.96,.03,1.96,0x88aa66);bx(g,1.5,.14,1.3,0x8d877b);bx(g,1.14,.03,.94,0xb98a5a,0,.14);bx(g,.46,.04,.18,0xa59d8c,0,.14,.58);
+bx(g,2,.06,2,0xb9b3a4);bx(g,1.5,.14,1.3,0x8d877b);bx(g,1.14,.03,.94,0xb98a5a,0,.14);bx(g,.46,.04,.18,0xa59d8c,0,.14,.58);
 // دیوارهای توخالی (گروه جدا: در نمای داخل کوتاه می‌شود) + ستون‌های گوشه، در، پنجره با کرکره و گلدان
 const wl=new THREE.Group();wl.position.y=.14;g.add(wl);
 bx(wl,1.2,.8,.07,wc,0,0,-.465);bx(wl,1.2,.8,.07,wc,0,0,.465);bx(wl,.07,.8,.86,wc,-.565,0,0);bx(wl,.07,.8,.86,wc,.565,0,0);
@@ -58,16 +58,16 @@ bx(ro,.12,.06,1.54,rd,0,.57,0);gable(ro,1.2,.6,.06,wc,0).position.z=.44;gable(ro
 bx(ro,.16,.66,.16,0x8b8378,.42,-.1,-.2);bx(ro,.22,.05,.22,0x5f5a52,.42,.56,-.2);
 Object.assign(g.userData,{roof:ro,walls:wl,ry:.94,rl:1.7});bake(ro);bake(wl);bake(g);
 const hg=NORAY(new THREE.Mesh(HPG,HP));hg.rotation.x=-Math.PI/2;hg.position.set(0,.16,.95);g.add(hg);plaque(g,fa(b.id))},
-farm(g){bx(g,1.96,.03,1.96,0x88aa66);bx(g,1.9,.06,1.9,0x6e4a30);for(let i=-2;i<=2;i++){bx(g,1.6,.1,.2,0x5a3d28,0,.06,i*.34);for(let j=-3;j<=3;j++)ball(g,.1,[0x86b84e,0xa6c24a,0x6fa648][(i+j+9)%3],j*.24,.2,i*.34,0)}
+farm(g){bx(g,2,.06,2,0x6e4a30);for(let i=-2;i<=2;i++){bx(g,1.6,.1,.2,0x5a3d28,0,.06,i*.34);for(let j=-3;j<=3;j++)ball(g,.1,[0x86b84e,0xa6c24a,0x6fa648][(i+j+9)%3],j*.24,.2,i*.34,0)}
 cyl(g,.03,.03,.6,0x6b4a2b,.8,.06,.8,5);bx(g,.4,.04,.04,0x6b4a2b,.8,.5,.8);ball(g,.07,0xe3c78a,.8,.7,.8,0);cyl(g,.1,.1,.03,0x8a6a45,.8,.74,.8,8);bakeVC(g)},
-market(g){bx(g,1.96,.03,1.96,0x88aa66);bx(g,1.96,.06,1.4,0xb9ae96);for(let i=-1;i<=1;i++){const x=i*.66;bx(g,.55,.4,.45,0x9a6b3f,x,.06);
+market(g){bx(g,2,.06,2,0xb9ae96);for(let i=-1;i<=1;i++){const x=i*.66;bx(g,.55,.4,.45,0x9a6b3f,x,.06);
 bx(g,.32,.06,.6,AWN[i+1],x-.16,.62);bx(g,.32,.06,.6,0xf2ead6,x+.16,.62);[-.26,.26].forEach(a=>[-.22,.22].forEach(c=>bx(g,.04,.56,.04,0x6b4a2b,x+a,.06,c)));
 for(let j=-1;j<=1;j++)ball(g,.07,[0xd94f3a,0xf0b13a,0x7cb342][(i+j+3)%3],x+j*.14,.53,0,0)}bakeVC(g)},
 road(g){roadMesh(g,0,0)},
 path(g,b){pathMesh(g,0,b.id,[.5,.5,.5,.5],0,b.x,b.z)},
 hq(g){
 const ST=M(0xcfc9ba,.95),WL=M(0xe9e3d4,.85),DK=M(0x2c323a,.55),WD=M(0x8a5a35,.7),RF=M(0xf3efe6,.6),LW=M(0x7fa46a,1),PL=M(0x2f7a4a,.9),GO=M(0xd9b45a,.35),PT=M(0xe9e2cf,.95);
-hb(g,1.96,.03,1.96,M(0x88aa66),0,0,0);hb(g,1.9,.08,1.84,ST,0,0,.05);hb(g,1.76,.02,1.7,LW,0,.08,.05);
+hb(g,2,.06,2,M(0xb9b3a4),0,0,0);hb(g,1.9,.08,1.84,ST,0,0,.05);hb(g,1.76,.02,1.7,LW,0,.08,.05);
 hb(g,1.54,.06,1.04,DK,0,.1,-.25);hb(g,1.44,.02,.94,M(0x6f7b86,.9),0,.16,-.25);
 // طبقهٔ همکف توخالی (گروه W0: در نمای داخل کوتاه می‌شود) + شیشه‌ها و در
 const W0=new THREE.Group();W0.position.y=.16;g.add(W0);
