@@ -3,7 +3,7 @@
 // · bpStroke (ردیف پیوستهٔ بدون گپ) · bpCommit (تأیید اتمیک + زمان‌بندی stagger ← 05-core-main.js).
 // سرور: POST /api/admin/buildings/batch (اتمیک) ← 01-server-admin.py ═══
 'use strict';
-const BP={on:false,manualRot:false,items:[],type:'house',rot:0,sel:null,dragIt:null,down:null,ghost:null,line:null,busy:false,_tpl:new Map(),_stag:new Map()};
+const BP={on:false,manualRot:false,items:[],type:'house',rot:0,sel:null,dragIt:null,down:null,ghost:null,line:null,busy:false,_batch:false,_tpl:new Map(),_stag:new Map()};
 const BP_OK=0x3ddc97,BP_BAD=0xff5a4c,BP_GOLD=0xffc247;
 const BP_GEO=new THREE.RingGeometry(.74,.94,4,1,Math.PI/4),BP_PGEO=new THREE.PlaneGeometry(1,1);
 // شبح = مدل واقعیِ ادغام‌شده در یک متریال شفاف مشترک؛ عمق‌نویسی خاموش تا از هم پشت هم هم دیده شوند
@@ -31,10 +31,19 @@ function bpMask(t,x,z){let m=0;const candidate={type:t,x,z,gx:x,gz:z,rot:0},all=
   for(const b of all){if(t==='road'?b.type!=='road':(b.type!=='road'&&b.type!=='path'))continue;
     const d=fpTouchDir(candidate,b);if(d>=0)m|=1<<d}
   return m}
+// چرخش خودکار خانه/دفتر؛ فاصله تا مستطیل مسیر با محاسبهٔ بازه‌ها، بدون ساختن آرایهٔ همهٔ سلول‌ها.
+function bpAutoRot(type,x,z,rot,others){if(type!=='house'&&type!=='hq')return rot;
+ const dirs=[[0,1,0],[1,0,90],[0,-1,180],[-1,0,270]],gap=(v,a,b)=>v<a?a-v:v>b?v-b:0,span=(a0,a1,b0,b1)=>Math.max(0,b0-a1,a0-b1);let best=Infinity,angle=rot;
+ for(const[dx,dz,turn]of dirs){const B=fpBounds({type,gx:x,gz:z,x,z,rot:turn});let edge,dist=Infinity;
+  if(dz>0)edge=['z',B.z1+1];else if(dz<0)edge=['z',B.z0-1];else if(dx>0)edge=['x',B.x1+1];else edge=['x',B.x0-1];
+  for(const o of others){if(o.type!=='road'&&o.type!=='path')continue;const R=fpBounds(o);let d;
+   if(edge[0]==='z')d=gap(edge[1],R.z0,R.z1)+span(B.x0,B.x1,R.x0,R.x1);
+   else d=gap(edge[1],R.x0,R.x1)+span(B.z0,B.z1,R.z0,R.z1);
+   if(d<dist)dist=d;if(dist===0)break}
+  if(dist<best){best=dist;angle=turn}}
+ return best<Infinity?angle:rot}
 // ماسک پیاده‌رو از تماس واقعیِ مسیرها + ضلعِ ورودیِ ساختمان به دست می‌آید.
-function bpPathMask(x,z){const candidate={type:'path',x,z,gx:x,gz:z,rot:0},all=W.buildings.concat(BP.items,candidate);let m=bpMask('path',x,z);
-  for(const l of fpDoorLinks(all))if(l.cx===x&&l.cz===z)m|=1<<l.d;
-  return{m}}
+function bpPathMask(x,z){const candidate={type:'path',x,z,gx:x,gz:z,rot:0},all=W.buildings.concat(BP.items);return{m:bpMask('path',x,z)|fpDoorMaskForPath(candidate,all)}}
 // قالب شبح: type/rot/mask + ماسک اتصال واقعی؛ هندسهٔ پیاده‌رو داخل footprint خودش محدود می‌ماند.
 // lamp (فقط جاده): پریتیِ چراغِ همان سلول — تا شبح دقیقاً مثل جادهٔ نهایی چراغ‌دار/بی‌چراغ باشد.
 function bpTemplate(type,rot,mask,links,lamp=0){const key=type+'|'+rot+'|'+mask+'|'+lamp;
@@ -79,14 +88,14 @@ function bpClone(type,rot,mask,links,lamp=0){const src=bpTemplate(type,rot,mask,
   g.userData={ring,tileMesh:tile,k:mask+'|'+lamp};return g}
 
 // ── ساخت/به‌روزرسانی یک آیتم صف: مدل شبح + حلقه + کاشی اعتبار
-function bpMake(it){const links=it.type==='path'?bpPathMask(it.x,it.z):null;
+function bpMake(it,paint=true){const links=it.type==='path'&&!BP._batch?bpPathMask(it.x,it.z):null;
   const lamp=it.type==='road'?(((it.x+it.z)%2+2)%2===0?1:0):0;   // چراغ جاده = پریتی سلول، مثل roads()
   const mask=links?links.m:(it.type==='road'?bpMask(it.type,it.x,it.z):0);
   const g=bpClone(it.type,it.rot,mask,links,lamp);
   g.userData.it=it;
   g.position.set(it.x*U,0,it.z*U);
   if(it.type!=='road'&&it.type!=='path')g.rotation.y=it.rot*Math.PI/180;
-  scene.add(g);it.g=g;bpPaint(it);return g}
+  scene.add(g);it.g=g;if(paint)bpPaint(it);return g}
 // رنگ حالت: سبز=معتبر · قرمز=نامعتبر · طلایی=انتخاب‌شده
 function bpPaint(it){if(!it.g)return;const val=bpVal(it.type,it.x,it.z,it,it.rot),ring=it.g.userData.ring;
   it.ok=val===true;it.err=val===true?'':val;
@@ -101,7 +110,7 @@ function bpAdd(x,z){if(BP.items.length>=400)return toast('حداکثر ۴۰۰ م
   const ar=(BP.type==='house'||BP.type==='hq')&&!BP.manualRot,others=W.buildings.concat(BP.items),rot=(BP.type==='road'||BP.type==='path')?0:ar?bpAutoRot(BP.type,x,z,BP.rot,others):BP.rot;
   if(bpVal(BP.type,x,z,null,rot)!==true)return false;
   const it={type:BP.type,x,z,rot,ar};
-  bpMake(it);BP.items.push(it);bpRemesh(it);bpAfterChange();return true}
+  bpMake(it,!BP._batch);BP.items.push(it);if(!BP._batch){bpRemesh(it);bpAfterChange()}return true}
 function bpRemove(it){if(!it)return;if(it.g){scene.remove(it.g);disposeObj(it.g);it.g=null}
   BP.items.splice(BP.items.indexOf(it),1);if(BP.sel===it)BP.sel=null;
   bpRemesh(it);bpAfterChange()}
@@ -113,7 +122,8 @@ function bpRot(it){if(it.type==='road'||it.type==='path')return;
   const old={...it};it.rot=(it.rot+90)%360;it.ar=false;it.g.rotation.y=it.rot*Math.PI/180;bpRemesh(it,old);bpPaint(it)}
 function bpAfterChange(){const all=W.buildings.concat(BP.items);let reoriented=false;
   for(const it of BP.items){if(it.ar){const rot=bpAutoRot(it.type,it.x,it.z,it.rot,all.filter(o=>o!==it));if(rot!==it.rot){it.rot=rot;reoriented=true;if(it.g)it.g.rotation.y=rot*Math.PI/180}}}
-  if(reoriented)for(const it of BP.items)if(it.type==='path')bpRemesh(it);
+  if(reoriented)bpRemeshAll();
+  // اعتبار آیتم‌ها فقط یک‌بار پس از هر عملیات/دسته بازبینی می‌شود؛ نه بعد از تک‌تک قطعات stroke.
   for(const it of BP.items)bpPaint(it);bpBar()}
 // ── اتصال زندهٔ کاشی‌ها: با هر تغییر، ماسک همسایگیِ همهٔ کاشی‌های مجاور دوباره ساخته می‌شود (مسیر پیوسته همیشه درست)
 function bpRemesh(changed,old=changed){
@@ -127,10 +137,14 @@ function bpRemesh(changed,old=changed){
     if(it.g&&it.g.userData.k!==sig){scene.remove(it.g);disposeObj(it.g);
       const g=bpClone(it.type,it.rot,m,links,lamp);g.userData.it=it;
       g.position.set(it.x*U,0,it.z*U);scene.add(g);it.g=g;bpPaint(it)}}}
-// ── ردیف پیوستهٔ جاده/پیاده‌رو: خط برِزن‌هام بین دو نقطه — هیچ سلولی در مسیر جا نمی‌ماند
+// بازسازی دسته‌ای ماسک مسیرها؛ از اسکن تکراریِ صف برای هر قطعه جلوگیری می‌کند.
+function bpRemeshAll(){for(const it of BP.items){if(it.type!=='road'&&it.type!=='path')continue;const links=it.type==='path'?bpPathMask(it.x,it.z):null,lamp=it.type==='road'?(((it.x+it.z)%2+2)%2===0?1:0):0,m=links?links.m:bpMask(it.type,it.x,it.z),sig=m+'|'+lamp;
+  if(it.g&&it.g.userData.k!==sig){scene.remove(it.g);disposeObj(it.g);const g=bpClone(it.type,it.rot,m,links,lamp);g.userData.it=it;g.position.set(it.x*U,0,it.z*U);scene.add(g);it.g=g}}}
+// ── ردیف پیوستهٔ جاده/پیاده‌رو: افزودن دسته‌ای و فقط یک بازسازی اتصال/اعتبارسنجی در پایان.
 function bpStroke(x0,z0,x1,z1){const pts=[[x0,z0]],step=BP.type==='path'?FOOT.path[0]:GRID;let nx=Math.round((x1-x0)/step),nz=Math.round((z1-z0)/step),x=x0,z=z0;
   while(nx||nz){if(Math.abs(nx)>=Math.abs(nz)&&nx){x+=Math.sign(nx)*step;nx-=Math.sign(nx)}else if(nz){z+=Math.sign(nz)*step;nz-=Math.sign(nz)}pts.push([x,z])}
-  let added=0;for(const[xp,zp]of pts)if(bpAdd(xp,zp))added++;return added}
+  let added=0;BP._batch=true;try{for(const[xp,zp]of pts)if(bpAdd(xp,zp))added++}finally{BP._batch=false}
+  if(added){bpRemeshAll();bpAfterChange()}return added}
 // ── خط راهنمای کشیدن
 function bpLine(c){if(!c){if(BP.line){scene.remove(BP.line);disposeObj(BP.line);BP.line=null}return}
   if(!BP.line){BP.line=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xffe0a0,transparent:true,opacity:.8}));BP.line.position.y=.1;scene.add(BP.line)}

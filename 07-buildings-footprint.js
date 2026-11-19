@@ -34,6 +34,7 @@ function fpSnap(type,rot,wx,wz,others){const gx0=Math.round(wx/U),gz0=Math.round
   cand.sort((a,b)=>(a[0]-gx0)**2+(a[1]-gz0)**2-((b[0]-gx0)**2+(b[1]-gz0)**2));
   for(const[gx,gz]of cand)if(fpCheck(type,gx,gz,rot,others)===true)return[gx,gz]}
  return[gx0,gz0]}
+function fpDoorMaskForPath(path,blds){let mask=0;for(const b of blds){if(fpGrid(b.type))continue;const d=fpTouchDir(path,b);if(d<0)continue;const a=(b.rot||0)*Math.PI/180,allowed=(b.type==='house'||b.type==='hq')?fpDi(Math.round(Math.sin(a)),Math.round(Math.cos(a))):-1;if(allowed<0||(d+2)%4===allowed)mask|=1<<d}return mask}
 function fpDoorLinks(blds){const out=[],paths=blds.filter(b=>b.type==='path');
  for(const b of blds){if(fpGrid(b.type))continue;
   const a=(b.rot||0)*Math.PI/180,allowed=(b.type==='house'||b.type==='hq')?fpDi(Math.round(Math.sin(a)),Math.round(Math.cos(a))):-1;

@@ -35,9 +35,10 @@ for(let i=0;i<2;i++){const x=(r()-.5)*PTW*.22,z=(r()-.5)*PTW*.22;disc(x,z,.025,.
 for(let i=0;i<2;i++){const px=(r()-.5)*PTW*.42,pz=(r()-.5)*PTW*.42,ry0=r()*3,ge=PT_PBG.clone();ge.scale(.65,.32,.65);ge.rotateY(ry0);ge.translate(px,.068,pz);all.push(vcGeo(ge,PT_PBC[i%3]))}
 g.add(vcMesh(all,VCP,false,true))}
 // تماس واقعیِ مستطیل‌های سلولی؛ تماس لبه‌ای مجاز است و گوشه‌تماس اتصال نمی‌سازد.
-function roads(w){const blds=w.buildings,rs=blds.filter(b=>b.type==='road'),ps=blds.filter(b=>b.type==='path');
-const roadMask=b=>{let m=0;for(const o of rs)if(o!==b){const d=fpTouchDir(b,o);if(d>=0)m|=1<<d}return m};
-const pathMask=b=>{let m=0;for(const o of [...ps,...rs])if(o!==b){const d=fpTouchDir(b,o);if(d>=0)m|=1<<d}return m};
+function roads(w){const blds=w.buildings,rs=blds.filter(b=>b.type==='road'),ps=blds.filter(b=>b.type==='path'),byType={road:new Map(),path:new Map()};
+const key=(x,z)=>x+','+z;for(const b of rs)byType.road.set(key(b.gx??b.x,b.gz??b.z),b);for(const b of ps)byType.path.set(key(b.gx??b.x,b.gz??b.z),b);
+const dirs=[[0,-1],[1,0],[0,1],[-1,0]],dims={road:FOOT.road[0],path:FOOT.path[0]},step=(a,b)=>(dims[a]+dims[b])/2;
+const maskFor=(b,types)=>{let m=0;const x=b.gx??b.x,z=b.gz??b.z;for(const t of types){const d=step(b.type,t),map=byType[t];for(let i=0;i<4;i++){const[dx,dz]=dirs[i],o=map.get(key(x+dx*d,z+dz*d));if(o&&fpTouchDir(b,o)>=0)m|=1<<i}}return m};
 const doorMask=new Map();for(const l of fpDoorLinks(blds)){const k=l.cx+','+l.cz;doorMask.set(k,(doorMask.get(k)||0)|(1<<l.d))}
-for(const b of rs){const g=objs.get(b.id);if(!g)continue;const m=roadMask(b),pm=ps.reduce((v,p)=>{const d=fpTouchDir(b,p);return d<0?v:v|(1<<d)},0),cr=((pm&1)&&(pm&4)?1:0)|((pm&2)&&(pm&8)?2:0),lamp=((b.x+b.z)%2+2)%2===0?1:0,k=m+'|'+cr+'|'+lamp;if(g.userData.k!==k){g.userData.k=k;roadMesh(g,m,lamp,cr)}}
-for(const b of ps){const g=objs.get(b.id);if(!g)continue;const k=b.x+','+b.z,m=pathMask(b)|(doorMask.get(k)||0);if(g.userData.k!==m){g.userData.k=m;pathMesh(g,m,b.id)}}}
+for(const b of rs){const g=objs.get(b.id);if(!g)continue;const m=maskFor(b,['road']),pm=maskFor(b,['path']),cr=((pm&1)&&(pm&4)?1:0)|((pm&2)&&(pm&8)?2:0),lamp=((b.x+b.z)%2+2)%2===0?1:0,k=m+'|'+cr+'|'+lamp;if(g.userData.k!==k){g.userData.k=k;roadMesh(g,m,lamp,cr)}}
+for(const b of ps){const g=objs.get(b.id);if(!g)continue;const k=b.x+','+b.z,m=maskFor(b,['path','road'])|(doorMask.get(k)||0);if(g.userData.k!==m){g.userData.k=m;pathMesh(g,m,b.id)}}}
