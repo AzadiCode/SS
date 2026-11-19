@@ -16,15 +16,17 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 WEB = ROOT                                                 # همهٔ فایل‌ها (html/css/js) کنار هم در همین پوشه‌اند
 
 # ───────── اقتصاد و نقشه ─────────
-SIZE = 160                                                 # نیم‌اندازهٔ نقشه به «سلول» (۱۶۰ سلول × CELL = ۴۰ واحد دنیا، مثل قبل)
-CELL = .25                                                 # اندازهٔ هر سلول به واحد دنیا. ریزتر کنی = جزئیات بیشتر، بدون عوض‌کردن بقیهٔ کد.
-# ردپای هر آیتم به «تعداد سلول» (عدد صحیح): (عرض, عمق). مختصات ساختمان‌ها هم به سلول‌اند (عدد صحیح)؛ x*CELL = مرکز دنیا.
-# باید با FOOT در 07-buildings-footprint.js یکی باشد. چرخش ۹۰° عرض و عمق را جابه‌جا می‌کند.
-# پیاده‌رو همیشه یک‌چهارمِ عرض جاده است (۲ = ۸/۴) تا با لبهٔ خیابان و ساختمان‌ها هم‌تراز شود.
-FOOT = {"house": (6, 5), "hq": (8, 7), "farm": (8, 8), "market": (8, 6),
-        "tree": (2, 2), "road": (8, 8), "path": (8, 8)}
-PATH_W = .5                                                # عرض بصری پیاده‌رو به واحد دنیا (مربع مرکزی پیاده‌رو)؛ = ۲×CELL، یک‌چهارم جاده
-GRID_TYPES = ("road", "path")                              # آیتم‌های شبکه‌ای (تأثیری بر برخورد ندارند؛ فقط برای tiles_of)
+SIZE = 20
+CELL = 2
+GRID = 8
+U = CELL / GRID
+# Footprint sizes are integer sub-cells (width, depth); all placements use gx/gz.
+PATH_WIDTH_RATIO = 1 / 4
+FOOT = {"house": (6, 6), "hq": (8, 8), "farm": (8, 8), "market": (8, 6),
+        "tree": (2, 2), "road": (8, 8)}
+_PATH_CELLS = max(1, round(FOOT["road"][0] * PATH_WIDTH_RATIO))
+FOOT["path"] = (_PATH_CELLS, _PATH_CELLS)
+GRID_TYPES = ("road", "path")
 FOOD_PRICE, FOOD_PER_PERSON, FARM_YIELD, MARKET_INCOME = 20000, 0.5, 10, 200000
 
 CATALOG = {"house": "خانه", "farm": "مزرعه", "market": "بازار", "road": "جاده", "path": "پیاده‌رو", "tree": "درخت", "hq": "دفتر مدیرعامل"}

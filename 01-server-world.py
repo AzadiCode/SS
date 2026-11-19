@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """منطق دنیا: ساخت اولیه، مهاجرت دیتابیس، اقتصاد (tick)، هدف‌ها، رویدادها و خروجی عمومی (view)."""
-import time, random
+import time, random, math
 from datetime import datetime, timezone
-from srv_config import (SIZE, CELL, FOOT, GRID_TYPES, PATH_W, DAY, FOOD_PRICE, FOOD_PER_PERSON, FARM_YIELD, MARKET_INCOME, TZ_NAME,
+from srv_config import (SIZE, CELL, GRID, U, FOOT, GRID_TYPES, DAY, FOOD_PRICE, FOOD_PER_PERSON, FARM_YIELD, MARKET_INCOME, TZ_NAME,
                      CATALOG, COST, TIERS, GOALS, RES, runtime)
 from srv_db import lock, fetch, save
 
@@ -10,19 +10,22 @@ from srv_db import lock, fetch, save
 def now_iso(): return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def in_pond(x, z): return ((x * CELL + 17) / 8.6) ** 2 + ((z * CELL + 17) / 6) ** 2 < 1.15   # برکه؛ سلول → مختصات دنیا (×CELL)
+def _cell_round(v): return int(math.floor(float(v) + .5))
+
+
+def in_pond(gx, gz): return pond_world(gx * U, gz * U)
 
 
 # ───────── ساخت و مهاجرت ─────────
 def seed():
     rnd, b = random.Random(7), []
     while len(b) < 110:
-        x, z = rnd.randint(-SIZE, SIZE - 1), rnd.randint(-SIZE, SIZE - 1)
-        if (-80 < x < 88 and -56 < z < 56) or in_pond(x, z) or any(i["x"] == x and i["z"] == z for i in b): continue
-        b.append({"id": len(b) + 1, "type": "tree", "x": x, "z": z, "rot": rnd.choice([0, 90, 180, 270])})
+        x, z = rnd.randint(-SIZE, SIZE - 1) * GRID, rnd.randint(-SIZE, SIZE - 1) * GRID
+        if (-10 * GRID < x < 11 * GRID and -7 * GRID < z < 7 * GRID) or in_pond(x, z) or any(i["x"] == x and i["z"] == z for i in b): continue
+        b.append({"id": len(b) + 1, "type": "tree", "x": x, "z": z, "gx": x, "gz": z, "rot": rnd.choice([0, 90, 180, 270])})
     d = {"_id": "main", "rev": 1, "last": time.time(), "country": {"name": "قبیله", "gov": ""},
             "stats": {"pop": 1, "money": 10_000_000, "food": 0.0, "subs": 0}, "story": {"reached": [], "values": {}},
-            "buildings": b, "events": [{"t": now_iso(), "text": "یک زمین خالی، یک بنیان‌گذار و ۱۰ میلیون تومان. قبیله از اینجا شروع می‌شود."}], "next_id": len(b) + 1, **extras()}
+            "buildings": b, "_grid_v2": True, "events": [{"t": now_iso(), "text": "یک زمین خالی، یک بنیان‌گذار و ۱۰ میلیون تومان. قبیله از اینجا شروع می‌شود."}], "next_id": len(b) + 1, **extras()}
     ensure_hq(d)
     return d
 
@@ -30,11 +33,27 @@ def seed():
 def extras(): return {"citizens": {}, "players": {}, "chat": [], "chat_id": 0, "env": {"mode": "live", "hour": 12.0}, "hq_made": False}
 
 
-def migrate(d):                                           # افزودن فیلدهای جدید به دیتابیس قدیمی
-    ch = False
+def migrate(d):
+    """Idempotent migration from legacy house-unit floats to integer sub-cells."""
+    changed = False
     for k, v in extras().items():
-        if k not in d: d[k] = v; ch = True
-    return ch
+        if k not in d:
+            d[k] = v
+            changed = True
+    if not d.get("_grid_v2"):
+        for b in d.get("buildings", []):
+            gx = _cell_round(float(b.get("x", 0)) * GRID)
+            gz = _cell_round(float(b.get("z", 0)) * GRID)
+            b.update(gx=gx, gz=gz, x=gx, z=gz)
+        d["_grid_v2"] = True
+        changed = True
+    else:
+        for b in d.get("buildings", []):
+            gx, gz = _cell_round(b.get("gx", b.get("x", 0))), _cell_round(b.get("gz", b.get("z", 0)))
+            if b.get("gx") != gx or b.get("gz") != gz or b.get("x") != gx or b.get("z") != gz:
+                changed = True
+            b.update(gx=gx, gz=gz, x=gx, z=gz)
+    return changed
 
 
 def ensure_hq(d):                                         # دفتر مدیرعامل: یک‌بار به‌صورت خودکار کنار مرکز ساخته می‌شود (بعدش با پنل جابه‌جا/حذف می‌شود)
@@ -42,97 +61,140 @@ def ensure_hq(d):                                         # دفتر مدیرع�
     d["hq_made"] = True
     if any(b["type"] == "hq" for b in d["buildings"]): return True
     notree = {**d, "buildings": [b for b in d["buildings"] if b["type"] != "tree"]}
-    for r in range(0, 64):
+    for r in range(0, 8 * GRID):
         for x in range(-r, r + 1):
             for z in range(-r, r + 1):
                 if max(abs(x), abs(z)) != r: continue
                 try: check_place(notree, "hq", x, z)
                 except ValueError: continue
-                tiles = tiles_of(d["buildings"]); cand = {"type": "hq", "x": x, "z": z, "rot": 0}; R = rects_of(cand, tiles)
-                d["buildings"] = [b for b in d["buildings"] if not (b["type"] == "tree" and any(_hit(a, c) for a in R for c in rects_of(b, tiles)))]
+                tiles = tiles_of(d["buildings"]); cand = {"type": "hq", "x": x, "z": z, "gx": x, "gz": z, "rot": 0}; R = set().union(*rects_of(cand, tiles))
+                d["buildings"] = [b for b in d["buildings"] if not (b["type"] == "tree" and R.intersection(set().union(*rects_of(b, tiles))))]
                 d["buildings"].append({"id": d["next_id"], **cand}); d["next_id"] += 1
                 return True
     return True
 
 
-def fix_pond(d):                                          # ساختمان‌های قدیمیِ روی برکه جابه‌جا/حذف می‌شوند
+def fix_pond(d):
+    """Move/remove items if any occupied sub-cell intersects the pond."""
     ch = False
     for b in list(d["buildings"]):
-        if in_pond(b["x"], b["z"]):
-            ch = True
-            if b["type"] == "tree": d["buildings"].remove(b)
-            else: b["x"], b["z"] = free_cell(d, b["type"], b["id"])
+        cells = set().union(*rects_of(b, tiles_of(d["buildings"])))
+        if not any(pond_world((cx + .5) * U, (cz + .5) * U) for cx, cz in cells):
+            continue
+        ch = True
+        if b["type"] == "tree":
+            d["buildings"].remove(b)
+        else:
+            b["x"], b["z"] = free_cell(d, b["type"], b["id"])
+            b["gx"], b["gz"] = b["x"], b["z"]
     return ch
 
 
 def load():
     d = fetch()
     if not d: d = seed(); save(d)
-    elif fix_pond(d) | migrate(d) | ensure_hq(d): save(d)
+    elif migrate(d) | fix_pond(d) | ensure_hq(d): save(d)
     return d
 
 
-# ───────── نقشه و ردپای واقعی ─────────
-EPS = 1e-3                                                 # لبه‌به‌لبه (تماس) برخورد نیست
-LO, HI = -SIZE * CELL - CELL / 2, SIZE * CELL - CELL / 2    # مرز واقعی نقشه (واحد دنیا)؛ مرکز سلولِ لبه
+# ───────── شبکهٔ صحیحِ خرده‌سلولی ─────────
+LO, HI = -SIZE * GRID, SIZE * GRID - 1
 _D4 = ((1, 0), (-1, 0), (0, 1), (0, -1))
 
 
-def pond_world(X, Z): return ((X + 17) / 8.6) ** 2 + ((Z + 17) / 6) ** 2 < 1.15
+def pond_world(X, Z):
+    return ((X + 17) / 8.6) ** 2 + ((Z + 17) / 6) ** 2 < 1.15
 
 
-def tiles_of(blds): return {(b["x"], b["z"]) for b in blds if b["type"] in GRID_TYPES}
+def tiles_of(blds):
+    return {(int(b.get("gx", b["x"])), int(b.get("gz", b["z"]))) for b in blds if b["type"] == "path"}
 
 
-def _dim(t, rot):
-    """اندازهٔ آیتم (w, dp) به سلول، با درنظرگرفتن چرخش ۹۰° که عرض و عمق را جابه‌جا می‌کند."""
-    w, dp = FOOT[t] if t in FOOT else FOOT["tree"]
-    return (dp, w) if int(rot) % 180 else (w, dp)
+def _dims(t, rot=0):
+    w, h = FOOT[t]
+    return (h, w) if t not in GRID_TYPES and int(rot or 0) % 180 else (w, h)
 
 
-def rects_of(b, tiles):
-    """مستطیل واقعی یک آیتم (x0,x1,z0,z1) به واحد دنیا. پیاده‌رو = مربع مرکزی + بازو به همسایه‌های مسیر.
-    همهٔ آیتم‌ها روی شبکه‌اند؛ مختصات x,z عدد صحیح (سلول)، مرکز دنیا = (x+0.5)*CELL نیست، بلکه x*CELL (مرکز سلول)؛
-    برای سادگی و سازگاری با مدل‌ها، مرکز سلول = x*CELL و مستطیل از مرکز ± w/2 است."""
-    t = b["type"]; x, z = b["x"] * CELL, b["z"] * CELL
-    if t == "path":
-        h = PATH_W / 2; R = [(x - h, x + h, z - h, z + h)]
-        for dx, dz in _D4:
-            if (b["x"] + dx, b["z"] + dz) in tiles:
-                if dx: R.append((x if dx > 0 else x - CELL, x + CELL if dx > 0 else x, z - h, z + h))
-                else:  R.append((x - h, x + h, z if dz > 0 else z - CELL, z + CELL if dz > 0 else z))
-        return R
-    w, dp = _dim(t, b.get("rot", 0))
-    return [(x - w * CELL / 2, x + w * CELL / 2, z - dp * CELL / 2, z + dp * CELL / 2)]
+def _base_cells(gx, gz, w, h):
+    x0, z0 = int(gx) - w // 2, int(gz) - h // 2
+    return {(x, z) for x in range(x0, x0 + w) for z in range(z0, z0 + h)}
 
 
-def _hit(a, b): return min(a[1], b[1]) - max(a[0], b[0]) > EPS and min(a[3], b[3]) - max(a[2], b[2]) > EPS
+def rects_of(b, tiles=None):
+    gx, gz, t = int(b.get("gx", b["x"])), int(b.get("gz", b["z"])), b["type"]
+    w, h = _dims(t, b.get("rot", 0))
+    core = _base_cells(gx, gz, w, h)
+    if t != "path" or not tiles:
+        return [core]
+    parts = [core]
+    for dx, dz in _D4:
+        if (gx + dx * GRID, gz + dz * GRID) in tiles:
+            pw, ph = FOOT["path"]
+            if dx:
+                xr = range(gx + pw - pw // 2, gx + GRID - pw // 2) if dx > 0 else range(gx - GRID + pw - pw // 2, gx - pw // 2)
+                parts.append({(x, z) for x in xr for z in range(gz - ph // 2, gz - ph // 2 + ph)})
+            else:
+                zr = range(gz + ph - ph // 2, gz + GRID - ph // 2) if dz > 0 else range(gz - GRID + ph - ph // 2, gz - ph // 2)
+                parts.append({(x, z) for x in range(gx - pw // 2, gx - pw // 2 + pw) for z in zr})
+    return parts
+
+
+def _occupied(blds):
+    tiles, occ = tiles_of(blds), {}
+    for b in blds:
+        for part in rects_of(b, tiles):
+            for cell in part:
+                occ.setdefault(cell, b)
+    return occ
 
 
 def check_place(d, t, x, z, rot=0, ignore=None, extra=()):
-    """اعتبارسنجی روی شبکهٔ سلولی: همهٔ آیتم‌ها عدد صحیح‌اند. داخل نقشه، نه روی برکه، بدون هم‌پوشانی واقعی.
-    لبه‌به‌لبه (تماس) مجاز است. خروجی: (x, z, rot) نرمال‌شده."""
-    x, z, rot = int(round(float(x))), int(round(float(z))), (int(round(int(rot) / 90)) * 90) % 360
-    oth = [b for b in list(d["buildings"]) + list(extra) if b.get("id") != ignore]
-    tiles = tiles_of(oth); tiles.add((x, z))
-    cand = {"type": t, "x": x, "z": z, "rot": rot}; R = rects_of(cand, tiles)
-    if any(r[0] < LO - EPS or r[1] > HI + EPS or r[2] < LO - EPS or r[3] > HI + EPS for r in R): raise ValueError("خارج از نقشه")
-    if any(pond_world(px, pz) for r in R for px in (r[0], (r[0] + r[1]) / 2, r[1]) for pz in (r[2], (r[2] + r[3]) / 2, r[3])):
+    gx, gz = _cell_round(x), _cell_round(z)
+    rot = 0 if t in GRID_TYPES else (int(round(int(rot or 0) / 90)) * 90) % 360
+    others = [b for b in list(d["buildings"]) + list(extra) if b.get("id") != ignore]
+    tiles = tiles_of(others)
+    if t == "path":
+        tiles.add((gx, gz))
+    cand = {"type": t, "gx": gx, "gz": gz, "x": gx, "z": gz, "rot": rot}
+    cells = set().union(*rects_of(cand, tiles))
+    if any(cx < LO or cx > HI or cz < LO or cz > HI for cx, cz in cells):
+        raise ValueError("خارج از نقشه")
+    if any(pond_world((cx + .5) * U, (cz + .5) * U) for cx, cz in cells):
         raise ValueError("اینجا برکه است")
-    near = [o for o in oth if abs(o["x"] - x) <= 4 and abs(o["z"] - z) <= 4]
-    for o in near:
-        if any(_hit(a, c) for a in R for c in rects_of(o, tiles)): raise ValueError("با ساختمان دیگری برخورد دارد")
-    return x, z, rot
+    if t == "path":
+        occ = {}
+        other_tiles = tiles_of(others)
+        for ob in others:
+            parts = rects_of(ob, other_tiles)
+            use = [parts[0]] if ob["type"] == "path" else parts
+            for part in use:
+                for cell in part:
+                    occ.setdefault(cell, ob)
+    else:
+        occ = _occupied(others)
+    if cells.intersection(occ):
+        raise ValueError("با ساختمان دیگری برخورد دارد")
+    if t == "path":
+        for n in others:
+            if n["type"] != "path":
+                continue
+            old = set().union(*rects_of(n, tiles_of(others)))
+            new = set().union(*rects_of(n, tiles | {(gx, gz)}))
+            if (new - old).intersection(occ):
+                raise ValueError("با ساختمان دیگری برخورد دارد")
+    return gx, gz, rot
 
 
 def free_cell(d, t, ignore=None):
-    for r in range(0, SIZE * 2):
-        for x in range(-r, r + 1):
-            for z in range(-r, r + 1):
-                if max(abs(x), abs(z)) == r and -SIZE <= x < SIZE and -SIZE <= z < SIZE:
-                    try: check_place(d, t, x, z, 0, ignore)
-                    except ValueError: continue
-                    return x, z
+    for r in range(0, SIZE * GRID * 2):
+        for gx in range(-r, r + 1):
+            for gz in range(-r, r + 1):
+                if max(abs(gx), abs(gz)) == r and LO <= gx <= HI and LO <= gz <= HI:
+                    try:
+                        check_place(d, t, gx, gz, 0, ignore)
+                    except ValueError:
+                        continue
+                    return gx, gz
     raise ValueError("جایی خالی نیست")
 
 

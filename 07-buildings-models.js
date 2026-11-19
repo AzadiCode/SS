@@ -64,7 +64,7 @@ market(g){bx(g,2,.06,1.4,0xb9ae96);for(let i=-1;i<=1;i++){const x=i*.66;bx(g,.55
 bx(g,.32,.06,.6,AWN[i+1],x-.16,.62);bx(g,.32,.06,.6,0xf2ead6,x+.16,.62);[-.26,.26].forEach(a=>[-.22,.22].forEach(c=>bx(g,.04,.56,.04,0x6b4a2b,x+a,.06,c)));
 for(let j=-1;j<=1;j++)ball(g,.07,[0xd94f3a,0xf0b13a,0x7cb342][(i+j+3)%3],x+j*.14,.53,0,0)}bakeVC(g)},
 road(g){roadMesh(g,0,0)},
-path(g,b){pathMesh(g,0,b.id)},
+path(g,b){pathMesh(g,0,b.id,[.5,.5,.5,.5],0,b.x,b.z)},
 hq(g){
 const ST=M(0xcfc9ba,.95),WL=M(0xe9e3d4,.85),DK=M(0x2c323a,.55),WD=M(0x8a5a35,.7),RF=M(0xf3efe6,.6),LW=M(0x7fa46a,1),PL=M(0x2f7a4a,.9),GO=M(0xd9b45a,.35),PT=M(0xe9e2cf,.95);
 hb(g,1.9,.08,1.84,ST,0,0,.05);hb(g,1.76,.02,1.7,LW,0,.08,.05);
@@ -99,4 +99,4 @@ const gl=NORAY(new THREE.Mesh(HQGG,HQG));gl.rotation.x=-Math.PI/2;gl.position.se
 tree(g,b){const k=b.id,sr=((k*9301+49297)%233280)/233280,s=.9+sr*.7,v=k%3;g.userData.sw=sr*6;cyl(g,.09*s,.13*s,.7*s,0x6e4c32,0,0,0,6);
 if(v===1)[[.8,.62],[1.25,.46],[1.62,.3]].forEach(([y,r])=>{const m=new THREE.Mesh(new THREE.ConeGeometry(r*s,.62*s,7),F(0x3f7a4a));m.position.y=y*s;add(g,m)});
 else[[0,1.05,0,.62],[.25,.85,.1,.42],[-.22,.9,-.1,.4]].forEach(([a,y,c,r],i)=>ball(g,r*s,v?[0x6a9f4f,0x7aae55,0x5e9448][i]:[0x4f8f4a,0x5f9f55,0x3f7d45][i],a*s,y*s,c*s));bakeVC(g)}};
-function addB(b,delay=0){const g=new THREE.Group();build[b.type]?.(g,b);g.position.set(b.x*CELL,0,b.z*CELL);g.rotation.y=(b.type==='road'||b.type==='path')?0:b.rot*Math.PI/180;g.scale.setScalar(delay>0?0:.01);Object.assign(g.userData,{b,t:delay>0?-delay:0});scene.add(g);objs.set(b.id,g)}
+function addB(b,delay=0){const g=new THREE.Group();build[b.type]?.(g,b);g.position.set(b.x*U,0,b.z*U);g.rotation.y=(b.type==='road'||b.type==='path')?0:b.rot*Math.PI/180;g.scale.setScalar(delay>0?0:.01);Object.assign(g.userData,{b,t:delay>0?-delay:0});scene.add(g);objs.set(b.id,g)}

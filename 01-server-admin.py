@@ -3,8 +3,8 @@
 رأی‌گیری، اتفاق داستانی، نام آدم‌ها، پیام بالای سر، و زمان دنیا. (ورود مدیر ← auth.py | فهرست آنلاین‌ها ← players.py)"""
 from flask import Blueprint, request, jsonify
 from srv_auth import admin_only
-from srv_config import CATALOG, COST, RULES, GOALS
-from srv_world import mutate, free_cell, check_place, log_event, apply_delta
+from srv_config import CATALOG, COST, RULES, GOALS, FOOT, U, GRID_TYPES
+from srv_world import mutate, free_cell, check_place, log_event, apply_delta, rects_of, tiles_of
 
 bp = Blueprint("admin", __name__)
 
@@ -19,32 +19,42 @@ def add_building():
         cost = 0 if j.get("free") else COST[t]
         if d["stats"]["money"] < cost: raise ValueError("پول خزانه کافی نیست")
         x, z = (float(j["x"]), float(j["z"])) if j.get("x") not in (None, "") and j.get("z") not in (None, "") else free_cell(d, t)
-        x, z, rot = check_place(d, t, x, z, auto_rot(d, t, x, z, j.get("rot")))
-        b = {"id": d["next_id"], "type": t, "x": x, "z": z, "rot": rot}
+        x, z, rot = check_place(d, t, x, z, auto_rot(d, t, x, z, j.get("rot"), auto=bool(j.get("ar"))))
+        b = {"id": d["next_id"], "type": t, "x": x, "z": z, "gx": x, "gz": z, "rot": rot}
         d["next_id"] += 1; d["buildings"].append(b); d["stats"]["money"] -= cost
         if t != "tree": log_event(d, f"{CATALOG[t]} ساخته شد" + (f" (−{cost/1e6:g} میلیون تومان)." if cost else "."))
         return b
     return jsonify(building=mutate(f))
 
 
-def auto_rot(d, t, x, z, rot=None, extra=()):
-    """چرخش ساختمان: اگر کاربر rot داده همان؛ وگرنه درِ خانه/دفتر خودکار رو به نزدیک‌ترین جاده/پیاده‌رو
-    می‌ایستد (نه تصادفی) تا پیاده‌روی اتصالِ درِ خانه بدون فاصله ساخته شود.
-    rot=0 یعنی در به +z، rot=90 به +x، rot=180 به −z، rot=270 به −x.
-    برای هر چرخش، فاصلهٔ منهتنِ «سلولِ جلوی در» تا نزدیک‌ترین جاده را می‌سنجیم و کمینه را برمی‌داریم."""
+def auto_rot(d, t, x, z, rot=None, extra=(), auto=False):
+    """Orient house/HQ toward the closest adjacent occupied road/path cell."""
     r = int(rot or 0) % 360
-    if t not in ("house", "hq") or rot is not None:
+    if t not in ("house", "hq") or (rot is not None and not auto):
         return r
-    roads = [i for i in list(d["buildings"]) + list(extra) if i["type"] in ("road", "path")]
+    roads = [b for b in list(d["buildings"]) + list(extra) if b["type"] in ("road", "path")]
     if not roads:
         return r
     dirs = {0: (0, 1), 90: (1, 0), 180: (0, -1), 270: (-1, 0)}
-    best = None  # (فاصله, rot)
-    for rot_, (ddx, ddz) in dirs.items():
-        fx, fz = x + ddx, z + ddz
-        dist = min(abs(i["x"] - round(fx)) + abs(i["z"] - round(fz)) for i in roads)
+    best = None
+    for angle, (dx, dz) in dirs.items():
+        w, h = FOOT[t]
+        if angle % 180: w, h = h, w
+        if dx:
+            gx = x + (w // 2 if dx > 0 else -(w // 2 + 1))
+            edge = [(gx, z + q) for q in range(-(h // 2), h - h // 2)]
+        else:
+            gz = z + (h // 2 if dz > 0 else -(h // 2 + 1))
+            edge = [(x + q, gz) for q in range(-(w // 2), w - w // 2)]
+        dist = 10**9
+        road_tiles = tiles_of(roads)
+        for road in roads:
+            cells = set().union(*rects_of(road, road_tiles))
+            for ex, ez in edge:
+                if cells:
+                    dist = min(dist, min(abs(ex-cx)+abs(ez-cz) for cx,cz in cells))
         if best is None or dist < best[0]:
-            best = (dist, rot_)
+            best = (dist, angle)
     return best[1] if best else r
 
 
@@ -67,8 +77,8 @@ def add_buildings_batch():
         made = []
         for k, i in enumerate(order):                      # همه یا هیچ: روی فهرست جدا کار می‌کنیم و آخر یکجا اعمال می‌شود
             t = i["type"]
-            x, z, rot = check_place(d, t, i["x"], i["z"], auto_rot(d, t, float(i["x"]), float(i["z"]), i.get("rot"), made), None, made)
-            made.append({"id": d["next_id"] + k, "type": t, "x": x, "z": z, "rot": rot})
+            x, z, rot = check_place(d, t, i["x"], i["z"], auto_rot(d, t, float(i["x"]), float(i["z"]), i.get("rot"), made, bool(i.get("ar"))), None, made)
+            made.append({"id": d["next_id"] + k, "type": t, "x": x, "z": z, "gx": x, "gz": z, "rot": rot})
         total = 0 if free else sum(COST[b["type"]] for b in made)
         if d["stats"]["money"] < total: raise ValueError("پول خزانه کافی نیست")
         d["next_id"] += len(made); d["buildings"].extend(made); d["stats"]["money"] -= total
@@ -98,6 +108,7 @@ def move_building(bid):
         b = next((i for i in d["buildings"] if i["id"] == bid), None)
         if not b: raise ValueError("پیدا نشد")
         b["x"], b["z"], b["rot"] = check_place(d, b["type"], j["x"], j["z"], j["rot"] if "rot" in j else b.get("rot", 0), bid)
+        b["gx"], b["gz"] = b["x"], b["z"]
     mutate(f); return jsonify(ok=True)
 
 
