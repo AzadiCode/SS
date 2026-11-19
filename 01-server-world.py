@@ -99,9 +99,6 @@ def load():
 
 # ───────── شبکهٔ صحیحِ خرده‌سلولی ─────────
 LO, HI = -SIZE * GRID, SIZE * GRID - 1
-_D4 = ((1, 0), (-1, 0), (0, 1), (0, -1))
-
-
 def pond_world(X, Z):
     return ((X + 17) / 8.6) ** 2 + ((Z + 17) / 6) ** 2 < 1.15
 
@@ -121,30 +118,18 @@ def _base_cells(gx, gz, w, h):
 
 
 def rects_of(b, tiles=None):
+    """Return the exact occupied sub-cells. Paths own only their declared core footprint;
+    edge-to-edge connections are visual/navigation links, never extra footprint."""
     gx, gz, t = int(b.get("gx", b["x"])), int(b.get("gz", b["z"])), b["type"]
     w, h = _dims(t, b.get("rot", 0))
-    core = _base_cells(gx, gz, w, h)
-    if t != "path" or not tiles:
-        return [core]
-    parts = [core]
-    for dx, dz in _D4:
-        if (gx + dx * GRID, gz + dz * GRID) in tiles:
-            pw, ph = FOOT["path"]
-            if dx:
-                xr = range(gx + pw - pw // 2, gx + GRID - pw // 2) if dx > 0 else range(gx - GRID + pw - pw // 2, gx - pw // 2)
-                parts.append({(x, z) for x in xr for z in range(gz - ph // 2, gz - ph // 2 + ph)})
-            else:
-                zr = range(gz + ph - ph // 2, gz + GRID - ph // 2) if dz > 0 else range(gz - GRID + ph - ph // 2, gz - ph // 2)
-                parts.append({(x, z) for x in range(gx - pw // 2, gx - pw // 2 + pw) for z in zr})
-    return parts
+    return [_base_cells(gx, gz, w, h)]
 
 
 def _occupied(blds):
-    tiles, occ = tiles_of(blds), {}
+    occ = {}
     for b in blds:
-        for part in rects_of(b, tiles):
-            for cell in part:
-                occ.setdefault(cell, b)
+        for cell in rects_of(b)[0]:
+            occ.setdefault(cell, b)
     return occ
 
 
@@ -152,36 +137,15 @@ def check_place(d, t, x, z, rot=0, ignore=None, extra=()):
     gx, gz = _cell_round(x), _cell_round(z)
     rot = 0 if t in GRID_TYPES else (int(round(int(rot or 0) / 90)) * 90) % 360
     others = [b for b in list(d["buildings"]) + list(extra) if b.get("id") != ignore]
-    tiles = tiles_of(others)
-    if t == "path":
-        tiles.add((gx, gz))
     cand = {"type": t, "gx": gx, "gz": gz, "x": gx, "z": gz, "rot": rot}
-    cells = set().union(*rects_of(cand, tiles))
+    cells = rects_of(cand)[0]
     if any(cx < LO or cx > HI or cz < LO or cz > HI for cx, cz in cells):
         raise ValueError("خارج از نقشه")
     if any(pond_world((cx + .5) * U, (cz + .5) * U) for cx, cz in cells):
         raise ValueError("اینجا برکه است")
-    if t == "path":
-        occ = {}
-        other_tiles = tiles_of(others)
-        for ob in others:
-            parts = rects_of(ob, other_tiles)
-            use = [parts[0]] if ob["type"] == "path" else parts
-            for part in use:
-                for cell in part:
-                    occ.setdefault(cell, ob)
-    else:
-        occ = _occupied(others)
+    occ = _occupied(others)
     if cells.intersection(occ):
         raise ValueError("با ساختمان دیگری برخورد دارد")
-    if t == "path":
-        for n in others:
-            if n["type"] != "path":
-                continue
-            old = set().union(*rects_of(n, tiles_of(others)))
-            new = set().union(*rects_of(n, tiles | {(gx, gz)}))
-            if (new - old).intersection(occ):
-                raise ValueError("با ساختمان دیگری برخورد دارد")
     return gx, gz, rot
 
 

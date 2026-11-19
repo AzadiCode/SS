@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """تنظیمات و ثابت‌های بازی — اگر می‌خوای قیمت، قانون یا آستانه‌ای را عوض کنی، اینجاست."""
-import os
+import os, math
 
 # ───────── متغیرهای محیطی (در Render تنظیم می‌شوند) ─────────
 MONGO_URI  = os.environ.get("MONGO_URI", "").strip()      # خالی = حافظه‌ی موقت
@@ -24,7 +24,7 @@ U = CELL / GRID
 PATH_WIDTH_RATIO = 1 / 4
 FOOT = {"house": (6, 6), "hq": (8, 8), "farm": (8, 8), "market": (8, 6),
         "tree": (2, 2), "road": (8, 8)}
-_PATH_CELLS = max(1, round(FOOT["road"][0] * PATH_WIDTH_RATIO))
+_PATH_CELLS = max(1, math.ceil(FOOT["road"][0] * PATH_WIDTH_RATIO))
 FOOT["path"] = (_PATH_CELLS, _PATH_CELLS)
 GRID_TYPES = ("road", "path")
 FOOD_PRICE, FOOD_PER_PERSON, FARM_YIELD, MARKET_INCOME = 20000, 0.5, 10, 200000
