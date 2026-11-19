@@ -66,11 +66,21 @@ function bpTemplate(type,rot,mask,links,lamp=0){const key=type+'|'+rot+'|'+mask+
     eg.position.copy(ct);out.add(eg);out.userData.box={sz,ct}}
   geos.forEach(x=>x.dispose());
   // کاشی زمینی (جاده/پیاده‌رو): صفحهٔ رنگی زیر مدل که سبز/قرمز را نشان می‌دهد
+  // اندازهٔ کاشی = اندازهٔ واقعیِ چیزِ ساخته‌شده (نه کل سلول ۲×۲!): پیاده‌رو به پهنای نوار واقعی (PTW) در جهتِ
+  // عرضی و امتداد کامل سلول در جهتِ مسیر؛ جاده به پهنای آسفالت (۱٫۳). قبلاً هر دو کل سلول بودند و یک
+  // «فرش بزرگ» زیر انگشت می‌افتاد که با پرش سلولی، حس شبکه/شطرنجی شدن وسط محله می‌داد.
+  // جهت مسیر از خودِ ماسک: شرق/غرب (bit 1/3) ⇒ نوار افقی، شمال/جنوب (bit 0/2) ⇒ نوار عمودی.
+  const horiz=(mask&2)||(mask&8),vert=(mask&1)||(mask&4),tw=type==='path'?PTW+.1:1.3,tl=CELL-.06;
   const tile=new THREE.Mesh(BP_PGEO,BP_TILE.clone());tile.rotation.x=-Math.PI/2;tile.position.y=.02;
-  if(type==='road'||type==='path'){tile.scale.set(2,2,1)}else{const b=out.userData.box;tile.scale.set(Math.min(2,b?b.sz.x+.5:2),Math.min(2,b?b.sz.z+.5:2),1)}
+  if(type==='road'||type==='path'){tile.scale.set(horiz&&!vert?tl:tw,vert&&!horiz?tl:tw,1)}   // هر دو جهت = تقاطع ⇒ مربع کوچک tw
+  else{const b=out.userData.box;tile.scale.set(Math.min(2,b?b.sz.x+.5:2),Math.min(2,b?b.sz.z+.5:2),1)}
   out.add(tile);out.userData.tileMesh=tile;
+  // حلقهٔ نشانگر هم به اندازهٔ خودِ کاشی جمع شود (نه قطر ثابت بزرگ)
   const ring=new THREE.Mesh(BP_GEO,new THREE.MeshBasicMaterial({color:BP_OK,transparent:true,opacity:.9,depthWrite:false,side:THREE.DoubleSide}));
-  ring.rotation.x=-Math.PI/2;ring.position.y=.06;out.add(ring);out.userData.ring=ring;
+  ring.rotation.x=-Math.PI/2;ring.position.y=.06;
+  const rs=(type==='road'||type==='path')?tw*1.15:1;
+  if(rs!==1)ring.scale.set(rs,rs,1);
+  out.add(ring);out.userData.ring=ring;
   BP._tpl.set(key,out);return out}
 // حذف پلاک شمارهٔ خانه از شبح (عنصر نامربوط به پیش‌نمایش).
 // فقط صفحهٔ پلاک (texture کشِ _PLQ) حذف می‌شود؛ هالهٔ نورِ در (GRADT) جزو ظاهر واقعی ساختمان است و می‌ماند

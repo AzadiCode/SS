@@ -26,6 +26,10 @@ const base=[],edge=[],worn=[],foot=[];let sd=(id*9301+49297)%233280;const r=()=>
 // دیسکِ استوانه‌ای (بیضی با شعاع‌های rx/rz و چرخش ry) — کفِ تخت روی زمین (y=0) ⇒ بدون z-fight
 const disc=(arr,x,z,rx,rz,h,ry=0)=>{PT_P.set(x,h/2,z);PT_S.set(rx,h,rz);PT_Q.setFromEuler(PT_E.set(0,ry,0));PT_M.compose(PT_P,PT_Q,PT_S);arr.push(PT_CYL.clone().applyMatrix4(PT_M))};
 const B=[1,2,4,8],DX=[0,1,0,-1],DZ=[-1,0,1,0],any=B.some(b=>m&b);
+// بسترِ کامل سلول (مثل بستر جاده که ۲×۲ کامل است): کل سلول با خاکِ روشنِ فشرده پر می‌شود و
+// نوار پیاده‌رویِ تیره‌تر (PTW) روی آن می‌نشیند ⇒ دیگر هیچ چمنی «داخل ردیف پیاده‌رو» دیده نمی‌شود
+// (قبلاً فقط دیسک ۰٫۶ وسط سلول ۲ بود و ۷۰٪ سلول چمن بود — همان گپ‌های سبزی که کاربر علامت زد).
+if(any)disc(base,0,0,CELL/2-.02,CELL/2-.02,.055);
 // مرکز: لبهٔ محو + دیسکِ خاک (همیشه دیسک مرکزی؛ بازوها به آن می‌چسبند)
 const cr=any?PTW/2+.03:.34;disc(edge,0,0,cr+.05,cr+.05,.045);disc(base,0,0,cr,cr,.06);
 // بازوها: زنجیرهٔ دیسک‌های خاکی با انحراف ملایم در میانه.
@@ -34,11 +38,12 @@ const cr=any?PTW/2+.03:.34;disc(edge,0,0,cr+.05,cr+.05,.045);disc(base,0,0,cr,cr
 // • بازوی درِ ساختمان (bl): مثل قبل تا دیوارِ ساختمان می‌رود (PW/2+L) — داخل سلولِ ساختمان است که
 //   مسیر دیگری نیست ⇒ تداخل بصری ندارد و خاک تا خودِ در می‌رسد.
 B.forEach((bit,i)=>{if(!(m&bit))return;const door=bl&bit,l=door?PW/2+L[i]:CELL/2-.01,n=Math.max(2,Math.ceil(l/.2)),ax=DX[i]!==0;
+// بازوی پیوسته: همهٔ دیسک‌ها شعاعِ کامل PTW/2 و بدون انحراف عرضی ⇒ دو لبهٔ موازی و صاف؛
+// دیسک‌ها هر ۰٫۲ با شعاع ۰٫۳ روی هم می‌افتند ⇒ هیچ سوراخ/موجی در امتداد مسیر نمی‌ماند
+// (قبلاً شعاع متغیر + jitter بود و نوار «تکه‌تکه/موج‌دار» دیده می‌شد — باگ گزارش‌شده).
 for(let k=1;k<=n;k++){const t=k/n,d=t*l,last=k===n,
-j=last?0:(r()-.5)*.1*Math.sin(Math.PI*t),      // انتهای بازو: صاف، بدون انحراف
-rad=last?PTW/2:(PTW/2)*(.9+r()*.25),           // دیسک انتهایی: شعاع کامل پیاده‌رو
-px=ax?DX[i]*d:j,pz=ax?j:DZ[i]*d;
-disc(edge,px,pz,rad+.05,rad+.05,.045);disc(base,px,pz,rad,rad,.06);
+px=ax?DX[i]*d:0,pz=ax?0:DZ[i]*d;
+disc(edge,px,pz,PTW/2+.05,PTW/2+.05,.045);disc(base,px,pz,PTW/2,PTW/2,.06);
 if(!last&&r()<.55)disc(worn,px+(ax?0:(r()-.5)*.16),pz+(ax?(r()-.5)*.16:0),.06+r()*.06,.045+r()*.05,.065,r()*3)}
 // جلوی در: دیسک گشادتر (حیاطِ ورودی) — تا نزدیک دیوار ساختمان
 if(door){const dd=Math.max(PTW,l-.45);disc(edge,DX[i]*dd,DZ[i]*dd,.42,.42,.045);disc(base,DX[i]*dd,DZ[i]*dd,.36,.36,.06)}
@@ -46,7 +51,7 @@ if(door){const dd=Math.max(PTW,l-.45);disc(edge,DX[i]*dd,DZ[i]*dd,.42,.42,.045);
 for(let d=.3,s=1;d<l-.08;d+=.3,s=-s){const px=ax?DX[i]*d:s*.06,pz=ax?s*.06:DZ[i]*d;disc(foot,px,pz,ax?.075:.04,ax?.04:.075,.062,(r()-.5)*.4)}});
 // ادغامِ همهٔ دیسک‌ها (لبه، خاک، ساییدگی، رد پا) + دو سنگ‌ریزه ← فقط یک مش
 const all=[];const mk=(arr,c)=>{for(const x of arr)all.push(vcGeo(x,c))};
-mk(edge,PT_EDGE);mk(base,PT_DIRT[((id%3)+3)%3]);mk(worn,PT_WORN);mk(foot,PT_FOOT);
+mk(edge,PT_EDGE);mk(base,PT_DIRT[0]);mk(worn,PT_WORN);mk(foot,PT_FOOT);   // رنگ خاک یکسان برای همهٔ کاشی‌ها ⇒ نوار یکدست، بدون تکه‌تکه شدنِ سه‌رنگ
 for(let i=0;i<2;i++){const px=(r()-.5)*.6,pz=(r()-.5)*.6,ry=r()*3,ge=PT_PBG.clone();ge.scale(1,.5,1);ge.rotateY(ry);ge.translate(px,.035,pz);all.push(vcGeo(ge,PT_PBC[i%3]))}
 g.add(vcMesh(all,VCP,false,true))}
 function roads(w){const rs=new Set(),ps=new Set();for(const b of w.buildings){if(b.type==='road')rs.add(b.x+','+b.z);else if(b.type==='path')ps.add(b.x+','+b.z)}
