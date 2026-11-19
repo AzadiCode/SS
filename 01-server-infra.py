@@ -19,7 +19,14 @@ INFRA_COST = {"road": 100_000, "walk": 50_000, "dirt": 20_000}   # به ازای
 SURF_COST = 80_000                                               # به ازای هر متر مربع سطح خاکی
 
 
-def pond_world(x, z): return ((x + 17) / 8.6) ** 2 + ((z + 17) / 6) ** 2 < 1.15
+RIVER_POINTS = [(-145, 38), (-100, 32), (-65, 31), (-30, 29), (5, 25), (38, 21), (70, 17), (110, 14), (145, 18)]
+def pond_world(x, z):
+    for i in range(1, len(RIVER_POINTS)):
+        ax, az = RIVER_POINTS[i - 1]; bx, bz = RIVER_POINTS[i]
+        dx, dz = bx - ax, bz - az
+        u = max(0.0, min(1.0, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz)))
+        if math.hypot(x - ax - u * dx, z - az - u * dz) < 2.15: return True
+    return False
 
 
 def r4(v): return round(float(v), 4)
@@ -266,7 +273,7 @@ def validate_edge(inf, eid, rects, pond=pond_world):
     if x0 < GEO_LO - GEO_EPS or x1 > GEO_HI + GEO_EPS or z0 < GEO_LO - GEO_EPS or z1 > GEO_HI + GEO_EPS:
         errs.append("خارج از نقشه")
     for p in S:
-        if pond(p["x"], p["z"]): errs.append("روی برکه"); break
+        if pond(p["x"], p["z"]): errs.append("روی حریم رودخانه"); break
     for r in rects:
         if poly_vs_rect(poly, r): errs.append("برخورد با ساختمان"); break
     for oid, o in inf["edges"].items():
@@ -287,7 +294,7 @@ def validate_surface(inf, sid, pond=pond_world):
     if x0 < GEO_LO - GEO_EPS or x1 > GEO_HI + GEO_EPS or z0 < GEO_LO - GEO_EPS or z1 > GEO_HI + GEO_EPS:
         errs.append("خارج از نقشه")
     for p in P:
-        if pond(p[0], p[1]): errs.append("روی برکه"); break
+        if pond(p[0], p[1]): errs.append("روی حریم رودخانه"); break
     return errs
 
 

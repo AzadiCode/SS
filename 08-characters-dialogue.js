@@ -17,7 +17,7 @@ night:['خوابم میاد','شب قشنگیه','ستاره‌ها رو ببی�
 farm:['محصول امسال خوبه','خاک امروز نرمه','کاش بارون بیاد','سبزی‌ها دارن بزرگ می‌شن'],
 market:['بازار امروز شلوغه','همه‌چی تازه‌ست','کاش بازار بزرگ‌تر بشه','قیمت‌ها بد نیست'],
 home:['خونه‌م قشنگه','خونه بهترین جاست','کاش یه باغچه هم داشتم'],
-pond:['آب برکه چه آرومه','صدای آب آرامش می‌ده','ماهی هم داره؟'],
+river:['صدای رودخونه چقدر آرامش‌بخشه','آب رود از کنار شهر رد می‌شه','کنار رود چه منظرهٔ قشنگیه'],
 tree:['زیر درخت خنکه','چه درخت بلندی','برگ‌ها چه قشنگ تکون می‌خورن'],
 path:['پیاده‌روی خوبه','این مسیر خاکی دلنشینه','قدم زدن حال می‌ده'],
 road:['ماشین میاد، مواظب باشم','باید زود از خیابون رد شم','خیابون شلوغه...'],
@@ -28,7 +28,7 @@ alone:['چه آرومه...','خلوت قشنگیه'],
 morning_farm:['صبح زود مزرعه بهترینه','شبنم هنوز روی برگ‌هاست'],
 morning_market:['بازار تازه باز شده'],
 noon_tree:['ظهر زیر درخت می‌چسبه'],
-evening_pond:['غروب برکه طلاییه'],
+evening_river:['غروب روی آب رودخونه قشنگه'],
 night_path:['شب‌ها پیاده‌رو آرومه'],
 night_home:['خونه شب‌ها گرمه'],
 night_road:['شب با ماشین‌ها باید مواظب بود'],
@@ -39,12 +39,12 @@ gr:['سلام!','مرسی، تو خوبی؟','خوبم!','هاها، سلام','
 shop:['ممنون!','تازه‌ست','عالیه!','یکی از اینا لطفاً','قیمتش خوبه'],
 farmw:['یه کم دیگه کار مونده','خاک امروز نرمه','کار مزرعه سخته ولی می‌چسبه'],
 sitl:['چه آرامشی','اینجا خنکه','چه نسیمی'],
-viewl:['چه منظره‌ای!','برکه چه قشنگه'],
+viewl:['چه منظره‌ای!','رودخونه چه قشنگه'],
 own:['اینجا خونهٔ منه!','خونه‌م همینه','بفرمایید تو!'],
 ownq:['دفتر منه','اینجا دفتر کاره'],
 tap:['سلام!','خوش اومدی','من اینجام!','خوبی؟','به‌به!'],
 tap_morning:['صبح بخیر!'],tap_dawn:['صبح بخیر!'],tap_noon:['خسته نباشی!'],tap_evening:['عصر بخیر!'],tap_night:['شب بخیر!','این وقت شب؟!'],
-tap_farm:['دارم کار می‌کنم!'],tap_market:['بفرما، بازار اینجاست!'],tap_pond:['برکه رو دیدی؟'],
+tap_farm:['دارم کار می‌کنم!'],tap_market:['بفرما، بازار اینجاست!'],tap_pond:['رودخونه رو دیدی؟'],
 ev_build:['یه ساختمون جدید!','داره قشنگ‌تر می‌شه','چه کار خوبی'],
 ev_house:['خونهٔ جدید! کاش مال من بود','جای بیشتر برای همه'],
 ev_farm:['مزرعهٔ جدید یعنی غذای بیشتر!','عجب! مزرعه ساختن'],
@@ -65,7 +65,7 @@ const DC=[
 {t:['evening','night'],l:['دیر وقته، نمی‌خوای بخوابی؟','چرا، همین الان می‌رم','شب بخیر {n}!']},
 {t:['dawn','morning'],l:['صبح بخیر! امروز چه برنامه‌ای داری؟','می‌رم مزرعه، تو چی؟','منم میام یه کم کمکت کنم']},
 {t:['noon'],l:['چقدر گرمه!','بیا بریم زیر سایه','آره، یه کم استراحت کنیم']},
-{t:['pond'],l:['برکه امروز چه آرومه','آره، دلم می‌خواد کنارش بشینم','بیا بریم']},
+{t:['river'],l:['رودخونه امروز چه آرومه','آره، دلم می‌خواد کنارش قدم بزنم','بیا بریم']},
 {t:['path'],l:['این پیاده‌رو خاکی خوبه','آره، دیگه لازم نیست از خیابون رد شیم','راحت‌تر شده']},
 {t:['road'],l:['مواظب ماشین‌ها باش','آره، یه لحظه صبر کن رد بشن','بفرما، رد شو']},
 {t:['crowd'],l:['چقدر شلوغه!','آره، بریم یه جای خلوت‌تر','موافقم']},
@@ -78,7 +78,7 @@ const DC=[
 function dgSlot(){return H<5?'night':H<7.5?'dawn':H<11.5?'morning':H<14.5?'noon':H<17.5?'afternoon':H<20?'evening':'night'}
 function dgZone(c){const x=c.g.position.x,z=c.g.position.z,D=(a,b)=>Math.hypot(a-x,b-z);
 if(farms.some(f=>D(f.x,f.z)<2.4))return'farm';if(mkts.some(m=>D(m.cx,m.cz)<3))return'market';if(homes.some(h=>D(h.x,h.z)<2.3))return'home';
-if(((x+17)/11.5)**2+((z+17)/8.5)**2<1)return'pond';const k=Math.round(x/CELL)+','+Math.round(z/CELL);if(pathSet.has(k))return'path';if(roadSet.has(k))return'road';
+const RP=[[-145,38],[-100,32],[-65,31],[-30,29],[5,25],[38,21],[70,17],[110,14],[145,18]];for(let i=1;i<RP.length;i++){const a=RP[i-1],b=RP[i],dx=b[0]-a[0],dz=b[1]-a[1],u=Math.max(0,Math.min(1,((x-a[0])*dx+(z-a[1])*dz)/(dx*dx+dz*dz)));if(Math.hypot(x-a[0]-u*dx,z-a[1]-u*dz)<3.3)return'river'}const k=Math.round(x/CELL)+','+Math.round(z/CELL);if(pathSet.has(k))return'path';if(roadSet.has(k))return'road';
 if(treeSp.some(s=>D(s.x,s.z)<1.2))return'tree';return'open'}
 function dgTags(c){const s=(W&&W.stats)||{},pop=s.pop||1,fd=s.food||0,sl=dgSlot(),z=dgZone(c),n=crowd(c.g.position.x,c.g.position.z),t=['any',sl,z,sl+'_'+z,pop<30?'small':pop<150?'mid':'big'];
 t.push(n>=4?'crowd':n<=1?'alone':'any');if(fd<pop*.5)t.push('hungry');else if(fd>pop*6)t.push('plenty');return t}
@@ -87,9 +87,9 @@ for(const t of tags){const a=DL[t];if(!a)continue;const ok=a.filter(s=>!R.includ
 if(!pool.length)return null;const s=pk(pool)[1];R.push(s);if(R.length>mx)R.shift();c.ll=s;return s}
 function dgSay(c,tags,ms=3200,ring='a'){const s=dgLine(tags,c,ring);if(!s)return;bubble(c,s,ms);c.ls=dgNow()}
 const dgVis=c=>{tv.copy(c.g.position);tv.project(cam);return tv.z<1&&Math.abs(tv.x)<1.05&&Math.abs(tv.y)<1.05&&cam.position.distanceTo(c.g.position)<60};
-// حرف زدن خودبه‌خودی: کم، فقط از بین آدم‌هایی که دیده می‌شوند، با ترجیح جاهای جالب (مزرعه، بازار، برکه...)
+// حرف زدن خودبه‌خودی: کم، فقط از بین آدم‌هایی که دیده می‌شوند، با ترجیح جاهای جالب (مزرعه، بازار، رودخانه...)
 function dgAmb(){if(document.hidden)return;let on=0;for(const c of cits)if(c._el&&c._el.querySelector('.bb'))on++;if(on>=2||Math.random()<.35)return;
-const now=dgNow(),WT={farm:3,market:3,pond:2.5,tree:2.5,path:1.6,home:1.4,road:1.2},pool=[];
+const now=dgNow(),WT={farm:3,market:3,river:2.5,tree:2.5,path:1.6,home:1.4,road:1.2},pool=[];
 for(const c of cits){if(c.hid||c.act==='chat'||c.st==='enter'||c.st==='exit'||c.st==='greet'||(c._el&&c._el.querySelector('.bb'))||now-(c.ls||0)<50||!dgVis(c))continue;pool.push([WT[dgZone(c)]||.8,c])}
 if(!pool.length)return;const c=pk(pool)[1];dgSay(c,dgTags(c),3400)}
 // گفتگوی دو نفره: ۳ جملهٔ مرتبط با موقعیت، نه حرف بی‌پایان

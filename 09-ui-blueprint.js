@@ -12,7 +12,8 @@ const BP_EDGE=new THREE.LineBasicMaterial({color:0xeaffff,transparent:true,opaci
 const BP_TILE=new THREE.MeshBasicMaterial({color:BP_OK,transparent:true,opacity:.5,depthWrite:false});
 // ── لایه‌ها: خانه/مزرعه/بازار/درخت/hq = لایهٔ ساختمان؛ جاده = لایهٔ خودش؛ پیاده‌رو روی زمینِ باز قابل‌همزیست با لایهٔ جاده نیست
 const bpCompat=(a,b)=>a!==b;                                    // لایه‌های متفاوت همزیست؛ هم‌لایه = تداخل
-const bpInPond=(x,z)=>((x*U+17)/8.6)**2+((z*U+17)/6)**2<1.15;
+const BP_RIVER=[[-145,38],[-100,32],[-65,31],[-30,29],[5,25],[38,21],[70,17],[110,14],[145,18]];
+const bpInPond=(x,z)=>{const X=x*U,Z=z*U;for(let i=1;i<BP_RIVER.length;i++){const a=BP_RIVER[i-1],b=BP_RIVER[i],dx=b[0]-a[0],dz=b[1]-a[1],u=Math.max(0,Math.min(1,((X-a[0])*dx+(Z-a[1])*dz)/(dx*dx+dz*dz)));if(Math.hypot(X-a[0]-u*dx,Z-a[1]-u*dz)<2.15)return true}return false};
 const inMap=(x,z)=>x>=-20*GRID&&x<20*GRID&&z>=-20*GRID&&z<20*GRID;
 // ── اعتبارسنجی لایه‌دار: خروجی true یا دلیل خطا (رشته). مجاورت هرگز خطا نیست؛ فقط همپوشانیِ هم‌لایه، برکه و خارج نقشه.
 let bpHit=null;

@@ -14,7 +14,7 @@
 | ظاهر کارکترها | `08-characters-models.js` |
 | رفتار و حرکت کارکترها | `08-characters-behavior.js` · مسیریابی: `08-characters-navigation.js` |
 | حرف زدن کارکترها | `08-characters-dialogue.js` · نام/حباب: `08-characters-nametags.js` |
-| زمین، آسمان، برکه، درخت و کوه | `06-world-scenery.js` |
+| زمین، آسمان، رودخانه، درخت و کوه | `06-world-scenery.js` |
 | شب‌وروز، ستاره، ماه | `06-world-environment.js` |
 | جاده و پیاده‌رو / ماشین‌ها | `06-world-roads.js` / `06-world-cars.js` |
 | ساختمان‌ها و آیتم‌ها (مدل سه‌بعدی) | `07-buildings-models.js` |
