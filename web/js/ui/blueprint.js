@@ -30,11 +30,24 @@ function bpMask(t,x,z){const same=b=>b.type==='road'||b.type==='path';
   let m=0;for(let i=0;i<4;i++){const nx=x+BP_DIR[i][0],nz=z+BP_DIR[i][1],k=nx+','+nz;
   if(W.buildings.some(b=>b.x===nx&&b.z===nz&&same(b))||BP.items.some(it=>it.x===nx&&it.z===nz&&same(it)))m|=1<<i}
   return m}
-function bpTemplate(type,rot,mask){const key=type+'|'+rot+'|'+mask;
+// ماسک کاملِ پیاده‌رو = همسایه‌های مسیر (bpMask) + بازوهای درِ ساختمان‌های مجاور (آینهٔ roads().link)
+// تا شبحِ پیاده‌رو دقیقاً همان ماسک/طول‌بازو/بیتِ درِ کاشیِ نهایی را داشته باشد (پیش‌نمایش = نهایی).
+// بدون این، شبحِ کنارِ خانه با m=0 و cr=.4 (دیسک کوچک) رندر می‌شود ولی واقعی با بیتِ در → cr=PTW/2 (پر).
+// ساختمان‌های واقعی (W.buildings) و صفِ چیده‌شده (BP.items) هر دو برای محاسبهٔ در به‌حساب می‌آیند.
+function bpPathMask(x,z){const LN=1-PW/2;const L=[LN,LN,LN,LN];let bl=0,m=bpMask('path',x,z);
+  const di=(dx,dz)=>dz<0?0:dx>0?1:dz>0?2:3;
+  const blds=[...W.buildings,...BP.items.filter(i=>i.type==='house'||i.type==='hq'||i.type==='farm'||i.type==='market')];
+  for(const b of blds){const t=b.type,th=(b.rot||0)*Math.PI/180;
+    if(t==='house'||t==='hq'){const dx=Math.round(Math.sin(th)),dz=Math.round(Math.cos(th));
+      if((dx||dz)&&b.x+dx===x&&b.z+dz===z){const d=di(-dx,-dz);m|=1<<d;L[d]=t==='house'?.85:.53;bl|=1<<d}}
+    else if(t==='farm'||t==='market'){for(const[nx,nz]of[[0,-1],[1,0],[0,1],[-1,0]]){if(b.x+nx===x&&b.z+nz===z){const ex=t==='farm'?.95:(((nx!==0)===((Math.round((b.rot||0)/90)%2+2)%2===0))?1:.7);const d=di(-nx,-nz);m|=1<<d;L[d]=Math.max(.3,1.5-ex);bl|=1<<d}}}}
+  return{m,L,bl}}
+// قالب شبح: type/rot/mask + links (فقط پیاده‌رو: {m,L,bl} از bpPathMask). کش با کلیدِ امضای کامل.
+function bpTemplate(type,rot,mask,links){const key=type+'|'+rot+'|'+mask+(links?'|'+links.L.join(',')+'|'+links.bl:'');
   if(BP._tpl.has(key))return BP._tpl.get(key);
   const g=new THREE.Group();
   if(type==='road'){roadMesh(g,mask,0);g.userData.tile=1}
-  else if(type==='path'){pathMesh(g,7777+mask,[.5,.5,.5,.5].map(()=>1),0,0,0);g.userData.tile=1}
+  else if(type==='path'){const lk=links||{m:mask,L:[1-PW/2,1-PW/2,1-PW/2,1-PW/2],bl:0};pathMesh(g,lk.m,1234,lk.L,lk.bl,0,0);g.userData.tile=1}
   else{build[type]?.(g,{id:type==='tree'||type==='hq'?7:1234+(rot/90|0),x:0,z:0,rot});if(type!=='tree'&&type!=='hq')plaqueless(g)}
   // ادغام کل مدل به یک مش شفاف + ذخیرهٔ bbox برای خط دور
   const geos=[];g.traverse(c=>{if(c.isMesh&&c.geometry){let ge=c.geometry.clone();ge.applyMatrix4(c.matrixWorld);if(ge.index)ge=ge.toNonIndexed();
@@ -55,14 +68,15 @@ function bpTemplate(type,rot,mask){const key=type+'|'+rot+'|'+mask;
 // حذف پلاک شمارهٔ خانه از شبح (عنصر نامربوط به پیش‌نمایش)
 function plaqueless(g){for(const c of[...g.children])if(c.isMesh&&c.material&&(c.material.map===GRADT))g.remove(c)}
 // کلون امن قالب شبح: ring و کاشی اعتبار را از روی هندسهٔ مشخص پیدا می‌کند (clone در three.js userData را کپی سطحی می‌دهد)
-function bpClone(type,rot,mask){const src=bpTemplate(type,rot,mask),g=src.clone(true);
+function bpClone(type,rot,mask,links){const src=bpTemplate(type,rot,mask,links),g=src.clone(true);
   const ring=g.children.find(c=>c.geometry===BP_GEO),tile=g.children.find(c=>c.geometry===BP_PGEO);
   if(ring)ring.material=ring.material.clone();if(tile)tile.material=tile.material.clone();   // متریال جدا تا رنگ هر شبح مستقل باشد
-  g.userData={ring,tileMesh:tile,k:mask};return g}
+  g.userData={ring,tileMesh:tile,k:mask+(links?'|'+links.L.join(',')+'|'+links.bl:'')};return g}
 
 // ── ساخت/به‌روزرسانی یک آیتم صف: مدل شبح + حلقه + کاشی اعتبار
-function bpMake(it){const mask=(it.type==='road'||it.type==='path')?bpMask(it.type,it.x,it.z):0;
-  const g=bpClone(it.type,it.rot,mask);
+function bpMake(it){const links=it.type==='path'?bpPathMask(it.x,it.z):null;
+  const mask=links?links.m:(it.type==='road'?bpMask(it.type,it.x,it.z):0);
+  const g=bpClone(it.type,it.rot,mask,links);
   g.userData.it=it;
   g.position.set(it.x*CELL,0,it.z*CELL);
   if(it.type!=='road'&&it.type!=='path')g.rotation.y=it.rot*Math.PI/180;
@@ -91,10 +105,13 @@ function bpAfterChange(){for(const it of BP.items)bpPaint(it);bpBar()}
 // ── اتصال زندهٔ کاشی‌ها: با هر تغییر، ماسک همسایگیِ همهٔ کاشی‌های مجاور دوباره ساخته می‌شود (مسیر پیوسته همیشه درست)
 function bpRemesh(changed){if(changed.type!=='road'&&changed.type!=='path')return;
   const near=[changed,...BP.items.filter(it=>(it.type==='road'||it.type==='path')&&Math.abs(it.x-changed.x)<=1&&Math.abs(it.z-changed.z)<=1)];
-  for(const it of near){const m=bpMask(it.type,it.x,it.z);
-    if(it.g&&it.g.userData.k!==m){
+  for(const it of near){
+    const links=it.type==='path'?bpPathMask(it.x,it.z):null;
+    const m=links?links.m:bpMask(it.type,it.x,it.z);
+    const sig=m+(links?'|'+links.L.join(',')+'|'+links.bl:'');
+    if(it.g&&it.g.userData.k!==sig){
       scene.remove(it.g);disposeObj(it.g);
-      const g=bpClone(it.type,it.rot,m);g.userData.it=it;
+      const g=bpClone(it.type,it.rot,m,links);g.userData.it=it;
       g.position.set(it.x*CELL,0,it.z*CELL);scene.add(g);it.g=g;bpPaint(it)}}}
 // ── ردیف پیوستهٔ جاده/پیاده‌رو: خط برِزن‌هام بین دو نقطه — هیچ سلولی در مسیر جا نمی‌ماند
 function bpStroke(x0,z0,x1,z1){const pts=[],n=Math.max(Math.abs(x1-x0),Math.abs(z1-z0));
@@ -106,10 +123,16 @@ function bpLine(c){if(!c){if(BP.line){scene.remove(BP.line);disposeObj(BP.line);
   if(!BP.line){BP.line=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xffe0a0,transparent:true,opacity:.8}));BP.line.position.y=.1;scene.add(BP.line)}
   BP.line.geometry.setFromPoints([new THREE.Vector3(BP.down.c[0]*CELL,0,BP.down.c[1]*CELL),new THREE.Vector3(c[0]*CELL,0,c[1]*CELL)])}
 // ── شبحِ شناور زیر انگشت (مدل واقعی؛ فقط وقتی درگِ جدید روی زمین است)
-function bpFloat(c){if(!BP.ghost){const g=bpClone(BP.type,BP.rot,0);BP.ghost=g;scene.add(BP.ghost)}
+function bpFloat(c){const isTile=BP.type==='road'||BP.type==='path';
+  // جاده/پیاده‌رو: ماسک/لینک با حرکتِ سلول عوض می‌شود ⇒ مشِ شبح را بازسازی کن تا اتصال زنده دیده شود
+  if(isTile&&BP.ghost){const links=BP.type==='path'?bpPathMask(c[0],c[1]):null;
+    const m=links?links.m:bpMask(BP.type,c[0],c[1]);const sig=m+(links?'|'+links.L.join(',')+'|'+links.bl:'');
+    if(BP.ghost.userData.k!==sig){scene.remove(BP.ghost);disposeObj(BP.ghost);
+      BP.ghost=bpClone(BP.type,BP.rot,m,links);scene.add(BP.ghost)}}
+  else if(!BP.ghost){const g=bpClone(BP.type,BP.rot,0);BP.ghost=g;scene.add(BP.ghost)}
   const val=bpVal(BP.type,c[0],c[1]),ok=val===true;
   BP.ghost.position.set(c[0]*CELL,0,c[1]*CELL);
-  if(BP.type!=='road'&&BP.type!=='path')BP.ghost.rotation.y=BP.rot*Math.PI/180;
+  if(!isTile)BP.ghost.rotation.y=BP.rot*Math.PI/180;
   BP.ghost.userData.ring.material.color.setHex(ok?BP_OK:BP_BAD);
   BP.ghost.userData.tileMesh.material.color.setHex(ok?BP_OK:BP_BAD);
   BP.ghost.visible=true;BP.ok=ok}

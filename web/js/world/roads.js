@@ -16,7 +16,9 @@ if(lamp){const bl=new THREE.Mesh(LBG,LAMP);bl.position.set(.82,1.12,.82);g.add(b
 // خاکی/طبیعی (نه کاشی): پالت قهوه‌ای، لبه‌های ناهموار، ساییدگی و سنگ‌ریزه.
 // ضد پرپر: دیسک‌ها با ارتفاع واقعی (.045/.06) و کفِ تخت روی زمین، بدون سطحِ هم‌مرزِ هم‌سطح.
 // پارامترها: m=بیتمسک اتصال چهار جهت، L=طول بازوی هر جهت، bl=بیتمسک درِ ساختمان.
-const PTW=.55,PT_DIRT=[0xb09366,0xaa8f63,0xb59a6c],PT_EDGE=0x8d8c55,PT_WORN=0x9b8058,PT_FOOT=0x8f744c,PT_PBG=new THREE.IcosahedronGeometry(.03,0),PT_PBC=[0x8f8a80,0x7d786e,0xa39d90],PT_CYL=new THREE.CylinderGeometry(1,1,1,10,1),PT_M=new THREE.Matrix4(),PT_Q=new THREE.Quaternion(),PT_P=new THREE.Vector3(),PT_S=new THREE.Vector3(),PT_E=new THREE.Euler();
+// PTW = عرض بصریِ کاشی پیاده‌رو؛ باید سلولِ ۲×۲ (CELL=2) را پر کند تا هم‌پوشانی بصری با همسایه/خانه بی‌درز شود
+// (قبلاً ۰٫۵۵ بود ⇒ فقط ۲۸٪ سلول پر می‌شد ⇒ گاپ چمنی بین کاشی‌ها و فاصله از خانه). اکنون ≈۹۰٪ سلول.
+const PTW=1.8,PT_DIRT=[0xb09366,0xaa8f63,0xb59a6c],PT_EDGE=0x8d8c55,PT_WORN=0x9b8058,PT_FOOT=0x8f744c,PT_PBG=new THREE.IcosahedronGeometry(.03,0),PT_PBC=[0x8f8a80,0x7d786e,0xa39d90],PT_CYL=new THREE.CylinderGeometry(1,1,1,10,1),PT_M=new THREE.Matrix4(),PT_Q=new THREE.Quaternion(),PT_P=new THREE.Vector3(),PT_S=new THREE.Vector3(),PT_E=new THREE.Euler();
 function pathMesh(g,m,id,L,bl=0,gx=0,gz=0){clearKids(g);
 const hw=PW/2,base=[],edge=[],worn=[],foot=[];let sd=(id*9301+49297)%233280;const r=()=>(sd=(sd*9301+49297)%233280)/233280;
 // دیسکِ استوانه‌ای (بیضی با شعاع‌های rx/rz و چرخش ry) — کفِ تخت روی زمین (y=0) ⇒ بدون z-fight
