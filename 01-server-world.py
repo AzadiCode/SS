@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """منطق دنیا: ساخت اولیه، مهاجرت دیتابیس، اقتصاد (tick)، هدف‌ها، رویدادها و خروجی عمومی (view)."""
-import time, random, math
+import time, random
 from datetime import datetime, timezone
-from srv_config import (SIZE, CELL, FOOT, GRID_TYPES, DAY, FOOD_PRICE, FOOD_PER_PERSON, FARM_YIELD, MARKET_INCOME, TZ_NAME,
+from srv_config import (SIZE, CELL, FOOT, GRID_TYPES, PATH_W, DAY, FOOD_PRICE, FOOD_PER_PERSON, FARM_YIELD, MARKET_INCOME, TZ_NAME,
                      CATALOG, COST, TIERS, GOALS, RES, runtime)
 from srv_db import lock, fetch, save
 
@@ -10,7 +10,7 @@ from srv_db import lock, fetch, save
 def now_iso(): return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def in_pond(x, z): return ((x * 2 + 17) / 8.6) ** 2 + ((z * 2 + 17) / 6) ** 2 < 1.15   # برکه؛ سلول‌ها → مختصات دنیا (×۲)
+def in_pond(x, z): return ((x * CELL + 17) / 8.6) ** 2 + ((z * CELL + 17) / 6) ** 2 < 1.15   # برکه؛ سلول → مختصات دنیا (×CELL)
 
 
 # ───────── ساخت و مهاجرت ─────────
@@ -18,7 +18,7 @@ def seed():
     rnd, b = random.Random(7), []
     while len(b) < 110:
         x, z = rnd.randint(-SIZE, SIZE - 1), rnd.randint(-SIZE, SIZE - 1)
-        if (-10 < x < 11 and -7 < z < 7) or in_pond(x, z) or any(i["x"] == x and i["z"] == z for i in b): continue
+        if (-80 < x < 88 and -56 < z < 56) or in_pond(x, z) or any(i["x"] == x and i["z"] == z for i in b): continue
         b.append({"id": len(b) + 1, "type": "tree", "x": x, "z": z, "rot": rnd.choice([0, 90, 180, 270])})
     d = {"_id": "main", "rev": 1, "last": time.time(), "country": {"name": "قبیله", "gov": ""},
             "stats": {"pop": 1, "money": 10_000_000, "food": 0.0, "subs": 0}, "story": {"reached": [], "values": {}},
@@ -27,15 +27,13 @@ def seed():
     return d
 
 
-def extras(): return {"citizens": {}, "players": {}, "chat": [], "chat_id": 0, "env": {"mode": "live", "hour": 12.0}, "hq_made": False, "infrastructure": None}
+def extras(): return {"citizens": {}, "players": {}, "chat": [], "chat_id": 0, "env": {"mode": "live", "hour": 12.0}, "hq_made": False}
 
 
 def migrate(d):                                           # افزودن فیلدهای جدید به دیتابیس قدیمی
     ch = False
     for k, v in extras().items():
         if k not in d: d[k] = v; ch = True
-    from srv_infra import infra_migrate                   # کاشی‌های قدیمی ← مسیرهای هندسی v2 (تکرارپذیر)
-    if infra_migrate(d): ch = True
     return ch
 
 
@@ -44,7 +42,7 @@ def ensure_hq(d):                                         # دفتر مدیرع�
     d["hq_made"] = True
     if any(b["type"] == "hq" for b in d["buildings"]): return True
     notree = {**d, "buildings": [b for b in d["buildings"] if b["type"] != "tree"]}
-    for r in range(0, 8):
+    for r in range(0, 64):
         for x in range(-r, r + 1):
             for z in range(-r, r + 1):
                 if max(abs(x), abs(z)) != r: continue
@@ -76,7 +74,7 @@ def load():
 
 # ───────── نقشه و ردپای واقعی ─────────
 EPS = 1e-3                                                 # لبه‌به‌لبه (تماس) برخورد نیست
-LO, HI = -SIZE * CELL - 1, SIZE * CELL - 1                 # مرز واقعی نقشه (واحد دنیا)
+LO, HI = -SIZE * CELL - CELL / 2, SIZE * CELL - CELL / 2    # مرز واقعی نقشه (واحد دنیا)؛ مرکز سلولِ لبه
 _D4 = ((1, 0), (-1, 0), (0, 1), (0, -1))
 
 
@@ -86,57 +84,44 @@ def pond_world(X, Z): return ((X + 17) / 8.6) ** 2 + ((Z + 17) / 6) ** 2 < 1.15
 def tiles_of(blds): return {(b["x"], b["z"]) for b in blds if b["type"] in GRID_TYPES}
 
 
+def _dim(t, rot):
+    """اندازهٔ آیتم (w, dp) به سلول، با درنظرگرفتن چرخش ۹۰° که عرض و عمق را جابه‌جا می‌کند."""
+    w, dp = FOOT[t] if t in FOOT else FOOT["tree"]
+    return (dp, w) if int(rot) % 180 else (w, dp)
+
+
 def rects_of(b, tiles):
-    """مستطیل‌های واقعی یک آیتم (x0,x1,z0,z1) به واحد دنیا. پیاده‌رو = مربع مرکزی + بازو به همسایه‌های مسیر."""
-    t = b["type"]; x, z = b["x"] * CELL, b["z"] * CELL; w, dp, ox, oz = FOOT[t]
+    """مستطیل واقعی یک آیتم (x0,x1,z0,z1) به واحد دنیا. پیاده‌رو = مربع مرکزی + بازو به همسایه‌های مسیر.
+    همهٔ آیتم‌ها روی شبکه‌اند؛ مختصات x,z عدد صحیح (سلول)، مرکز دنیا = (x+0.5)*CELL نیست، بلکه x*CELL (مرکز سلول)؛
+    برای سادگی و سازگاری با مدل‌ها، مرکز سلول = x*CELL و مستطیل از مرکز ± w/2 است."""
+    t = b["type"]; x, z = b["x"] * CELL, b["z"] * CELL
     if t == "path":
-        h = .33; R = [(x - h, x + h, z - h, z + h)]
+        h = PATH_W / 2; R = [(x - h, x + h, z - h, z + h)]
         for dx, dz in _D4:
             if (b["x"] + dx, b["z"] + dz) in tiles:
-                R.append(((x if dx > 0 else x - 1), (x + 1 if dx > 0 else x), z - .3, z + .3) if dx else (x - .3, x + .3, (z if dz > 0 else z - 1), (z + 1 if dz > 0 else z)))
+                if dx: R.append((x if dx > 0 else x - CELL, x + CELL if dx > 0 else x, z - h, z + h))
+                else:  R.append((x - h, x + h, z if dz > 0 else z - CELL, z + CELL if dz > 0 else z))
         return R
-    a = 0 if t in GRID_TYPES else math.radians(b.get("rot", 0)); s, c = round(math.sin(a)), round(math.cos(a))
-    cx, cz = x + ox * c + oz * s, z - ox * s + oz * c
-    if s: w, dp = dp, w
-    return [(cx - w / 2, cx + w / 2, cz - dp / 2, cz + dp / 2)]
+    w, dp = _dim(t, b.get("rot", 0))
+    return [(x - w * CELL / 2, x + w * CELL / 2, z - dp * CELL / 2, z + dp * CELL / 2)]
 
 
 def _hit(a, b): return min(a[1], b[1]) - max(a[0], b[0]) > EPS and min(a[3], b[3]) - max(a[2], b[2]) > EPS
 
 
 def check_place(d, t, x, z, rot=0, ignore=None, extra=()):
-    """اعتبارسنجی با شکل واقعی: داخل نقشه، نه روی برکه، بدون هم‌پوشانیِ واقعی با هیچ آیتمی. خروجی: (x, z, rot) نرمال‌شده.
-    زیرساخت v2: جاده/پیاده‌روی جدید (کاشی) پذیرفته نمی‌شود (باید از /api/admin/infra بیاید)؛
-    ساختمان هم نباید روی مسیرهای هندسی v2 بیفتد (برخورد واقعی چندضلعی-مستطیل)."""
-    from srv_infra import infra_view, infra_load, edge_polys, poly_vs_rect
-    if t in GRID_TYPES: x, z, rot = int(round(float(x))), int(round(float(z))), 0
-    else: x, z, rot = round(float(x), 4), round(float(z), 4), (int(round(int(rot) / 90)) * 90) % 360
+    """اعتبارسنجی روی شبکهٔ سلولی: همهٔ آیتم‌ها عدد صحیح‌اند. داخل نقشه، نه روی برکه، بدون هم‌پوشانی واقعی.
+    لبه‌به‌لبه (تماس) مجاز است. خروجی: (x, z, rot) نرمال‌شده."""
+    x, z, rot = int(round(float(x))), int(round(float(z))), (int(round(int(rot) / 90)) * 90) % 360
     oth = [b for b in list(d["buildings"]) + list(extra) if b.get("id") != ignore]
-    tiles = tiles_of(oth)
-    if t in GRID_TYPES: tiles.add((x, z))
+    tiles = tiles_of(oth); tiles.add((x, z))
     cand = {"type": t, "x": x, "z": z, "rot": rot}; R = rects_of(cand, tiles)
     if any(r[0] < LO - EPS or r[1] > HI + EPS or r[2] < LO - EPS or r[3] > HI + EPS for r in R): raise ValueError("خارج از نقشه")
-    if pond_world(x * CELL, z * CELL) if t in GRID_TYPES else any(pond_world(px, pz) for r in R for px in (r[0], (r[0] + r[1]) / 2, r[1]) for pz in (r[2], (r[2] + r[3]) / 2, r[3])):
+    if any(pond_world(px, pz) for r in R for px in (r[0], (r[0] + r[1]) / 2, r[1]) for pz in (r[2], (r[2] + r[3]) / 2, r[3])):
         raise ValueError("اینجا برکه است")
-    # برخورد با مسیرهای هندسی v2 (تماس لبه‌به‌لبه مجاز — poly_vs_rect همین را رعایت می‌کند)
-    inf = infra_load(infra_view(d))
-    for eid in inf["edges"]:
-        _, poly = edge_polys(inf, eid)
-        for r in R:
-            if poly_vs_rect(poly, (r[0], r[1], r[2], r[3])): raise ValueError("با جاده یا پیاده‌رو برخورد دارد")
-    for sid, s in inf["surfaces"].items():                # ساختمان روی سطح خاکی مجاز است (سطح پایه است) — فقط مسیرها مانع‌اند
-        pass
-    near = [o for o in oth if abs(o["x"] - x) <= 2 and abs(o["z"] - z) <= 2]
+    near = [o for o in oth if abs(o["x"] - x) <= 4 and abs(o["z"] - z) <= 4]
     for o in near:
         if any(_hit(a, c) for a in R for c in rects_of(o, tiles)): raise ValueError("با ساختمان دیگری برخورد دارد")
-    if t in GRID_TYPES:                                    # بازوی تازهٔ همسایه‌های مسیر هم نباید روی چیزی بیفتد
-        for dx, dz in _D4:
-            n = next((o for o in oth if o["type"] in GRID_TYPES and o["x"] == x + dx and o["z"] == z + dz), None)
-            if not n: continue
-            Rn = rects_of(n, tiles)
-            for o in oth:
-                if o is n or abs(o["x"] - n["x"]) > 2 or abs(o["z"] - n["z"]) > 2: continue
-                if any(_hit(a, c) for a in Rn for c in rects_of(o, tiles)): raise ValueError("با ساختمان دیگری برخورد دارد")
     return x, z, rot
 
 
@@ -196,12 +181,10 @@ def apply_delta(d, delta):
 
 # ───────── خروجی عمومی و تغییر ─────────
 def view(d):
-    from srv_infra import infra_view
     return {"rev": d["rev"], "country": d["country"], "stats": d["stats"], "capacity": capacity(d),
             "buildings": d["buildings"], "events": d["events"][:20], "catalog": CATALOG, "cost": COST, "day": DAY,
             "tier": [n for at, n in TIERS if d["stats"]["subs"] >= at][-1], "tiers": [n for _, n in TIERS],
             "citizens": d["citizens"], "bot": runtime["bot_user"], "chat": d["chat"][-12:], "env": d["env"], "tz": TZ_NAME,
-            "infrastructure": infra_view(d),
             "goals": [{"at": a, "key": k, "title": t, "value": d["story"]["values"].get(k)} for a, k, t in GOALS]}
 
 

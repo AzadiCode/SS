@@ -35,13 +35,3 @@
 #bql li i{font-style:normal;opacity:.6;font-size:9px;direction:ltr}
 #bql li span{margin-inline-start:auto;opacity:.7;padding:0 3px}
 #bql li span:hover{opacity:1;color:var(--ember)}
-/* ── گزینه‌های رسم مسیر/سطح (پالت ساخت) ── */
-#pal{gap:4px}
-#palopt{display:flex;flex-direction:column;gap:4px;margin-top:3px;padding-top:4px;border-top:1px solid var(--line)}
-#palopt label{font-size:9px;color:var(--cream);opacity:.9;display:flex;align-items:center;gap:4px;white-space:nowrap}
-#palopt label.c{opacity:1}
-#palopt input,#palopt select{padding:3px 4px;border-radius:4px;border:1px solid var(--line);background:#0b2426;color:var(--cream);font:inherit;font-size:9px;min-width:0}
-#palopt input[type=checkbox]{width:auto}
-#bpb #bpok2{background:var(--gold);color:#3a2500}
-#bpb #bpx2{background:var(--ember);color:#2a1100}
-#bpb #bpz,#bpb #bpy,#bpb #bpd{width:30px;height:30px;background:rgba(255,243,214,.12);color:var(--cream);font-size:13px}

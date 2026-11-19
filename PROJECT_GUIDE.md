@@ -1,20 +1,6 @@
 # PROJECT_GUIDE — Tribe World (جهان زنده قبیله)
 > این فایل «مغز پروژه» است. Claude: اول همین را بخوان، بعد **فقط** فایل‌های مربوط را باز کن.
 
-## ۰.۵) معماری زیرساخت v2 (بازطراحی ساخت‌وساز — ۲۰۲۶-۱۱-۱۹)
-جاده/پیاده‌رو/مسیر خاکی دیگر «کاشی ۲×۲» نیستند. مدل دادهٔ نسخه‌بندی‌شده **`infrastructure v2`** در سند `main`:
-```
-infrastructure = {v:2, next_id, nodes:{id:{x,z}}, edges:{id:{a,b,kind,style,w,ref}}, surfaces:{id:{pts,mat}}}
-```
-- `kind`: `road` (آسفالت، ماشین‌رو) | `walk` (پیاده‌رو) | `dirt` (مسیر خاکی) — مختصات **اعشاری دنیا** (نه سلول).
-- `style`: `poly` (خطی/زاویه‌دار) یا `curve` (Catmull-Rom). `w`: عرض قابل تنظین (۰٫۳ تا ۶).
-- **هستهٔ هندسی مشترک:** `05-geo-core.js` (فرانت، JS خالص بدون THREE) ↔ `01-server-infra.py` (سرور، پایتون) — همان توابع دو زبانه: `sample_path/stroke_poly/offset_band/poly_vs_*(...)`، Stroke با join هوشمند (Miter با MiterLimit + bevel/cap round)، Hub تقاطع، Earcut، Snap پنج‌حالته (free/grid/node/path/edge). **هر تغییر هندسه باید دوطرفه شود**؛ تست پاریته: `scripts/test-infra-parity.py`.
-- **رندر:** `06-world-roads.js` — هر یال یک مش پیوسته (بدنه+حاشیه+خط‌کشی در یک vcMesh)، کش با امضای `geoSigEdge`؛ فقط تغییر‌شده‌ها بازسازی می‌شوند. کاشی‌های قدیمی `road/path` در `buildings` می‌مانند (rollback) ولی رندر نمی‌شوند.
-- **API:** `POST /api/admin/infra` (اتمیک، با `mutate`) — `ops:[{op:'edge',kind,pts,style,w} | {op:'dels',edges} | {op:'surf',pts,mat} | {op:'delsurf',surfaces}]`. هزینه: طول×۱۰۰هزار (جاده) / مساحت×۸۰هزار (سطح).
-- **ممنوع:** ساخت `road/path` از API ساختمان‌ها (رد می‌شود)؛ سیستم قدیم بعد از مهاجرت فعال نیست.
-- **مهاجرت:** `infra_migrate` در `load()` سرور — کاشی‌های قدیمی را به گره/یال تبدیل می‌کند (تکرارپذیر، بدون حذف دادهٔ اصلی).
-- **رابط:** `09-ui-blueprint.js` — ابزار رسم نقطه‌به‌نقطه (تپ=نقطه، Enter=ساخت، ⌫=حذف نقطه، Ctrl+Z/Y)، انتخاب عرض/شکل/snap در پالت (`#palopt`). پیش‌نمایش از همان توابع نهایی ساخته می‌شود (Preview=Final).
-
 ## ۰) قوانین کار برای Claude (اجباری)
 1. فایل‌های مرتبط را از جدول بخش ۴ و ۵ پیدا کن؛ بقیهٔ پروژه را باز نکن. اگر مطمئن نیستی، `grep` بزن، نه خواندن کل فایل.
 2. تغییرات را مستقیم در فایل‌ها اعمال کن و فقط فایل‌های تغییرکرده را تحویل بده (یا diff). کل پروژه را دوباره نفرست. **ساختار تخت را حفظ کن:** همهٔ فایل‌ها در یک پوشه، با اسم `شماره-دسته-نام.پسوند` (بخش ۲)؛ زیرپوشه نساز.
@@ -55,7 +41,7 @@ infrastructure = {v:2, next_id, nodes:{id:{x,z}}, edges:{id:{a,b,kind,style,w,re
 | فایل | مسئولیت |
 |---|---|
 | `01-server-init.py` | `create_app()` (ثبت Blueprintها)؛ بدون استاتیک فلسک |
-| `01-server-config.py` | env، `SIZE`، `CATALOG`(نوع‌ها)، `COST`(قیمت‌ها)، `RULES`، `TIERS`، `GOALS`، اقتصاد (`FOOD_*`, `FARM_YIELD`, `MARKET_INCOME`) |
+| `01-server-config.py` | env، `SIZE`، `CELL`، `FOOT` (به سلول)، `PATH_W`، `CATALOG`(نوع‌ها)، `COST`(قیمت‌ها)، `RULES`، `TIERS`، `GOALS`، اقتصاد (`FOOD_*`, `FARM_YIELD`, `MARKET_INCOME`) |
 | `01-server-world.py` | منطق دنیا: `seed, migrate, ensure_hq, fix_pond, load, tick, check_place, rects_of, free_cell, capacity, apply_delta, check_goals, log_event, view, mutate`. **الگوی هر تغییر: `mutate(fn)`** (قفل←load←tick←fn←rev+1←save) |
 | `01-server-db.py` | `fetch/save` خام + `lock` |
 | `01-server-public.py` | `GET /api/world`, `/healthz`, `/`, `/admin` + سرو `.js`/`.css` ریشه (`/<name>`) |
@@ -64,7 +50,9 @@ infrastructure = {v:2, next_id, nodes:{id:{x,z}}, edges:{id:{a,b,kind,style,w,re
 | `01-server-players.py` | `/api/join, ping, leave, player/name`, `GET /api/admin/players`؛ تخصیص کارکتر (`assign_cid`) |
 | `01-server-telegram.py` | وب‌هوک `/tg/<tok>`، پیام خوش‌آمد (`welcome`)، `tg_setup`, `tg_uid` |
 
-**مدل داده (سند `main`):** `rev, country{name,gov}, stats{pop,money,food,subs}, buildings[{id,type,x,z,rot}] (x,z به واحد «خانه»؛ مکان واقعی = x*CELL؛ جاده/پیاده‌رو عدد صحیح، بقیه اعشاری) (`ar`=چرخش خودکار برای house/hq), events[], story{reached,values}, citizens{cid:{name}}, players, chat[], env{mode,hour}, hq_made, next_id`. فیلد جدید ← در `extras()` اضافه کن تا `migrate` به دیتابیس قدیمی برساند.
+**مدل داده (سند `main`):** `rev, country{name,gov}, stats{pop,money,food,subs}, buildings[{id,type,x,z,rot}] (x,z = مختصات سلول صحیح؛ مرکز دنیا = x*CELL؛ چرخش ۹۰° فقط عرض و عمق را جابه‌جا می‌کند) (`ar`=چرخش خودکار برای house/hq), events[], story{reached,values}, citizens{cid:{name}}, players, chat[], env{mode,hour}, hq_made, next_id`. فیلد جدید ← در `extras()` اضافه کن تا `migrate` به دیتابیس قدیمی برساند.
+
+> **توجه:** شبکه اکنون «سلولی ریز» است (CELL=0.25، SIZE=160 سلول در هر نیم‌جهت = همان ۴۰ واحد دنیا). پایگاه‌داده‌ی قدیمی با مختصات «خانهٔ قدیمی» (CELL=2) ناسازگار است؛ دیتابیس را پاک کن تا `seed()` دوباره اجرا شود.
 
 ## ۴) فرانت — نقشهٔ فایل‌ها (به ترتیب بارگذاری)
 | فایل | مسئولیت / کلیدواژه | نمادهای مهم |
@@ -75,12 +63,12 @@ infrastructure = {v:2, next_id, nodes:{id:{x,z}}, edges:{id:{a,b,kind,style,w,re
 | `05-core-materials.js` | متریال‌ها و ابزار ساخت سریع | `mats, add, bx, GRADT` |
 | `06-world-scenery.js` | زمین، آسمان، برکه، گل، سنگ، کوه، جنگل، ابر | `ground, sky, pond, clouds, refreshDeco` |
 | `07-buildings-models.js` | مدل ۳بعدی ساختمان‌ها و `addB` | `build{}, house, bake, plaque, wl, ro` |
-| `07-buildings-footprint.js` | **ردپای واقعی:** مستطیل هر آیتم، برخورد، snap لبه‌به‌لبه، اتصال پیاده‌رو به در، **پل‌زدن بصری فاصلهٔ جاده/پیاده‌رو تا ساختمان**، جاگیری مجدد بعد از چرخش | `FOOT, fpRects, fpCheck, fpSnap, fpDoorLinks, fpDim, fpBridgeOne, fpBridges, fpReseat` |
+| `07-buildings-footprint.js` | **ردپای واقعی (سلولی):** مستطیل هر آیتم، برخورد، snap به نزدیک‌ترین سلول صحیح. همهٔ آیتم‌ها روی شبکه‌اند؛ لبه‌به‌لبه مجاز است. | `FOOT, PATH_W, fpRects, fpCheck, fpSnap, fpDim` |
 | `08-characters-dialogue.js` | جمله‌ها `DL`، گفتگو `DC`، نام‌های پیش‌فرض `DEF` | `dgSay, dgConv, dgEvent` |
-| `06-world-roads.js` | جاده/پیاده‌رو متصل + چراغ + سکو/بازوی پل‌زدن (`ap` برای جاده، `ex` برای پیاده‌رو) | `roadMesh, pathMesh, roads` |
+| `06-world-roads.js` | جاده/پیاده‌رو متصل + چراغ خیابان + خط عابر. جاده = ۸×۸ سلول (۲ واحد دنیا)، پیاده‌رو هم ۸×۸ اما «عرض بصری»اش (PTW/PATH_W) یک‌چهارم جاده است. | `roadMesh, pathMesh, roads, PTW` |
 | `06-world-environment.js` | شب‌وروز، ستاره، ماه، کرم شب‌تاب، توربین، ساعت | `envStep, realHour, ffStep` |
 | `08-characters-nametags.js` | نام بالای سر، حباب، چت مدیر | `names, bubble, chatSync, tags` |
-| `09-ui-blueprint.js` | **مود نقشهٔ ساخت:** شبح، چیدن/درگ/چرخش، تأیید دسته‌ای، stagger، **کاشی سبز/قرمزِ اعتبار (اندازه‌اش باید با bbox واقعیِ مدل یکی باشد، نه ثابت ۲×۲ برای همه)** | `BP, bpStart, bpEnd, bpCommit, bpVal, bpStroke, bpTemplate` |
+| `09-ui-blueprint.js` | **مود نقشهٔ ساخت:** شبح، چیدن/درگ/چرخش، تأیید دسته‌ای، stagger، **کاشی سبز/قرمزِ اعتبار (اندازه‌اش دقیقاً w×h سلول × CELL است)** | `BP, bpStart, bpEnd, bpCommit, bpVal, bpStroke, bpTemplate` |
 | `09-ui-interaction.js` | لمس/انتخاب، دکمه‌های رابط، ابزار مدیر (جابه‌جایی/ساخت/حذف/نام/پیام)، `api()` | `setAdm, setMode, onTap, bpPick/bpDown/bpDrag` |
 | `10-admin-panel.js` | پنل مدیر (تب‌ها) ← `/api/admin/*` | `openAP, apRender` |
 | `11-features-recorder.js` | ضبط ویدیو؛ cinema و hudcap را با `import()` لود می‌کند | `recStart, recStop, ROOTS` |
@@ -107,15 +95,14 @@ infrastructure = {v:2, next_id, nodes:{id:{x,z}}, edges:{id:{a,b,kind,style,w,re
 | رفتار، حرکت، کار آدم‌ها | `08-characters-behavior.js` (+ `08-characters-navigation`) |
 | جمله و گفتگو | `08-characters-dialogue.js` |
 | اسم/حباب بالای سر | `08-characters-nametags.js` + `03-css-citizens.css` |
-| ظاهر ساختمان/آیتم جدید | `07-buildings-models.js` + `01-server-config.py` (CATALOG, COST, **FOOT**) + `07-buildings-footprint.js` (FOOT) |
-| اندازه/برخورد/چسبیدن آیتم‌ها | `07-buildings-footprint.js` + `01-server-config.py` (FOOT) + `01-server-world.py` (`check_place`) |
-| کاشیِ سبز/قرمزِ پیش‌نمایش موقع ساخت (ناحیهٔ نمایشی زیر شبح) | `09-ui-blueprint.js` (`bpTemplate` → `tile.scale`) — **این کاشی فقط تزئینیه، برخورد واقعی را عوض نمی‌کند** |
+| ظاهر ساختمان/آیتم جدید | `07-buildings-models.js` + `01-server-config.py` (CATALOG, COST, **FOOT, PATH_W**) + `07-buildings-footprint.js` (FOOT, PATH_W) |
+| اندازه/برخورد/چسبیدن آیتم‌ها (همه روی شبکهٔ سلولی؛ لبه‌به‌لبه مجاز) | `07-buildings-footprint.js` (`fpRects, fpCheck, fpDim`) + `01-server-config.py` (FOOT, CELL) + `01-server-world.py` (`check_place, rects_of`) |
+| کاشیِ سبز/قرمزِ پیش‌نمایش موقع ساخت | `09-ui-blueprint.js` (`bpTemplate` → `tile.scale = w×h سلول × CELL`) — اندازه‌اش دقیقاً اندازهٔ ردپای واقعی است |
 | داخل خانه | `07-buildings-houseview.js` + `03-css-house.css` |
 | مود ساخت، شبح، درگ، چرخش، ساخت دسته‌ای | `09-ui-blueprint.js` + `09-ui-interaction` + `03-css-admin.css` + `01-server-admin.py` (batch) |
 | لمس/کلیک روی صحنه، ابزار مدیر | `09-ui-interaction.js` |
 | پنل مدیر (تب/دکمه/API) | `10-admin-panel.js` + `01-server-admin.py` + `03-css-admin.css` |
-| جاده/پیاده‌رو/چراغ | `06-world-roads.js` · ماشین: `06-world-cars` |
-| فاصله/خط خالی بین جاده یا پیاده‌رو و ساختمان‌ها | `07-buildings-footprint.js` (`fpBridgeOne`, `fpSnap`, `fpReseat`) + `06-world-roads.js` + `09-ui-blueprint.js` (آینهٔ پیش‌نمایش) |
+| جاده/پیاده‌رو/چراغ | `06-world-roads.js` · ماشین: `06-world-cars` (حرکت روی بلوک‌های ۸-سلولی) |
 | زمین/آسمان/برکه/کوه/درخت | `06-world-scenery.js` |
 | شب‌وروز/ستاره/ماه | `06-world-environment.js` (+ `01-server-admin.py` env) |
 | قیمت، اقتصاد، مراحل، هدف‌ها، قوانین فالو | `01-server-config.py` + `01-server-world.py` |
@@ -155,16 +142,18 @@ infrastructure = {v:2, next_id, nodes:{id:{x,z}}, edges:{id:{a,b,kind,style,w,re
 
 ## ۱۰) نکات/تله‌ها
 - مود ساخت (`BP`) با `interaction.js` جفت است: رویدادهای pointer در `interaction.js` به `bpDown/bpDrag/bpPick` می‌رسند؛ خروج مدیر باید `bpEnd()` بزند.
-- ساخت دسته‌ای باید اتمیک باشد (`/api/admin/buildings/batch`)؛ اعتبارسنجی هم در فرانت (`bpVal`) هم سرور (`check_cell`).
-- **ردپای واقعی (قانون):** هر آیتم دقیقاً به اندازه و شکل مدل خودش جا می‌گیرد، فضای اضافه رزرو نمی‌شود. برخورد = هم‌پوشانی مستطیل‌های واقعی (لبه‌به‌لبه مجاز، `EPS=1e-3`). `FOOT` سرور (`01-server-config.py`) و فرانت (`07-buildings-footprint.js`) و منطق `rects_of`/`fpRects` باید یکی بمانند؛ اعتبارسنجی هم‌زمان در `fpCheck` (فرانت) و `check_place` (سرور). مختصات غیرشبکه‌ای با دقت ۴ رقم اعشار گرد می‌شود.
-- **پل‌زدن بصری (قانون):** جاده/پیاده‌رو روی شبکهٔ ۲×۲‌اند ولی خانه/دفتر/مزرعه/بازار آزادانه (اعشاری)؛ پس اگر جاده/پیاده‌رو «بعد از» ساختمان گذاشته شود، نوار خالیِ ≤ ۲ واحد (`FP_BR`) بینشان می‌ماند. `fpBridgeOne` این نوار را فقط **بصری** پر می‌کند (جاده: سکوی خاکستری `ap`؛ پیاده‌رو: بازوی خاکی `ex` تا لبهٔ ساختمان) و فقط اگر چیز دیگری در نوار نباشد. ردپا/برخورد/سرور دست نمی‌خورد. `roads()` (نهایی) و `bpPathMask/bpRoadAp` (پیش‌نمایش) باید همیشه از همین تابع استفاده کنند؛ امضای کش (`userData.k`، کلید `bpTemplate`) شامل `ap`/`ex` است.
-- **چرخش ۹۰° ابعاد را جابه‌جا می‌کند** (مثلاً خانه ۱٫۵×۱٫۳ ← ۱٫۳×۱٫۵) و لبه‌ها ≈۰٫۱ می‌لغزند (فاصلهٔ خط‌مانند یا رد شدن با «برخورد»). هر چرخشِ آیتم آزاد باید از `fpReseat` رد شود (ابزار چرخش، `bpRot`).
-- **کاشیِ نمایشیِ سبز/قرمزِ مود ساخت ربطی به برخورد واقعی ندارد؛** فقط باید اندازه‌اش با بدنهٔ واقعیِ مدل (bbox ادغام‌شده، در `bpTemplate`) یکی باشد، وگرنه حس «ناحیهٔ برخورد بزرگ‌تر از طرح» می‌دهد حتی اگر چیدن واقعی مشکلی نداشته باشد.
-- سلول‌های نقشه ×۲ ← مختصات دنیا (برکه: `in_pond` در `01-server-world.py` و `bpInPond`/`inPond` در فرانت — هر سه باید هماهنگ بمانند).
+- ساخت دسته‌ای باید اتمیک باشد (`/api/admin/buildings/batch`)؛ اعتبارسنجی هم در فرانت (`bpVal`/`fpCheck`) هم سرور (`check_place`).
+- **شبکهٔ سلولی (قانون بنیادی):** زمین یک شبکهٔ شطرنجی ریز است؛ هر سلول `CELL` (=`.۲۵`) واحد دنیا. هر آیتم **تعدادِ صحیحی سلول** می‌گیرد (`FOOT` = `(w,h)` به سلول). همهٔ مختصات `x,z` عدد صحیح (سلول) است؛ مرکز دنیا = `x*CELL`. چرخش ۹۰° فقط `w,h` را جابه‌جا می‌کند (`fpDim`/`_dim`).
+- **برخورد = هم‌پوشانی مستطیل‌ها** (لبه‌به‌لبه مجاز، `EPS=1e-3`). هر جا بلوک خالیِ هم‌اندازهٔ آیتم باشد، ساخته می‌شود؛ فقط وقتی رد می‌شود که یکی از سلول‌ها اشغال/برکه/بیرون نقشه باشد.
+- `FOOT` و `PATH_W` در `01-server-config.py` و `07-buildings-footprint.js` باید یکی بمانند؛ اعتبارسنجی هم‌زمان در `fpCheck` (فرانت) و `check_place` (سرور). مدل‌های سه‌بعدی (`07-buildings-models.js`) در همان اندازهٔ بصری قدیمی می‌مانند چون `w×h×CELL` ≈ اندازهٔ واقعی مدل است.
+- **پیاده‌رو:** `FOOT` مثل جاده (۸×۸ سلول) تا لبه‌به‌لبه با جاده و ساختمان‌ها بنشیند، ولی «عرض بصری»اش (`PATH_W=.۵` = ۲×CELL، یک‌چهارمِ جاده) باریک‌تر است. کاشی سبز/قرمز دقیقاً `w×h×CELL` است (دیگر نه ثابت ۲×۲ و نه bbox).
+- **دیگر فاصلهٔ «نوار خالی» یا «لغزش اعشاری بعد از چرخش» وجود ندارد** چون همه روی شبکه‌اند. توابع قدیمی `fpBridge*`، `fpReseat`، `fpDoorLinks` حذف شدند؛ `fpSnap` فقط گرد به نزدیک‌ترین سلول است.
+- ماشین‌ها روی «بلوک‌های جاده» (هر بلوک = ۸ سلول = ۲ واحد دنیا، `RB=8` در `06-world-cars.js`) حرکت می‌کنند، نه سلول‌به‌سلول؛ `roadBlk` در `08-characters-navigation.js` پر می‌شود.
+- سلول → مختصات دنیا (برکه: `in_pond`/`pond_world` در سرور و `fpPondW`/`inPond` در فرانت — همگی با `X = x*CELL`).
 - `README.md` کوتاه است و به همین فایل ارجاع می‌دهد؛ مرجع اصلی همین فایل است.
 
 ## ۱۱) تاریخچه تغییرات (جدیدترین بالا؛ هر خط: تاریخ — چه چیزی — فایل‌ها)
-- ۲۰۲۶-۱۱-۱۹ — **بازطراحی کامل ساخت‌وساز (زیرساخت v2):** موتور هندسی مشترک دوزبانه `05-geo-core.js`↔`01-server-infra.py` (مسیر پیوسته اعشاری، منحنی Catmull-Rom، Stroke با Miter/Bevel/Round + MiterLimit + Cap، Hub تقاطع T/چهارراه/انشعاب، باند آفست دقیق پیاده‌رو کنار جاده، Earcut، Snap پنج‌حالته). مدل داده `infrastructure v2` (nodes/edges/surfaces) + مهاجرت خودکار کاشی‌های قدیمی (تکرارپذیر، بدون حذف). API اتمیک `/api/admin/infra`. رندر پیوسته با کش امضا در `06-world-roads.js` (فقط تغییر‌شده‌ها بازسازی). `07-buildings-footprint.js`: حذف پل‌زدن بصری (`fpBridgeOne/fpBridges/fpDoorLinks`)، برخورد واقعی ساختمان↔مسیر (`geoPolyVsRect`)، Snap دوطرفه ساختمان به لبهٔ مسیر. `09-ui-blueprint.js`/`09-ui-interaction.js`: ابزار رسم نقطه‌به‌نقطه مسیر/سطح + Undo/Redo + پیش‌نمایش=نهایی + پالت عرض/شکل/snap. ناوبری/ماشین‌ها/سینک هماهنگ شدند. ساخت کاشی road/path از API قدیمی بسته شد. تست‌ها: `scripts/test-geo.js` (34/34)، `test-infra-parity.py` (12/12)، `test-server.py` (23/23)، `test-browser.js` (9/9). — `05-geo-core.js`(جدید), `01-server-infra.py`(جدید), `app.py`, `01-server-init.py`, `01-server-world.py`, `01-server-admin.py`, `04-js-boot.js`, `06-world-roads.js`, `07-buildings-footprint.js`, `07-buildings-models.js`, `08-characters-navigation.js`, `09-ui-blueprint.js`, `09-ui-interaction.js`, `12-net-sync.js`, `03-css-admin.css`, `PROJECT_GUIDE.md`
+- ۲۰۲۶-۱۱-۱۹ — **شبکهٔ سلولی ریز (بازطراحی بنیادی ردپای واقعی):** زمین اکنون یک شبکهٔ شطرنجی ریز است (`CELL=.۲۵`، `SIZE=۱۶۰` سلول = همان ۴۰ واحد دنیا). هر آیتم **تعدادِ صحیحی سلول** می‌گیرد (`FOOT` = `(w,h)` به سلول، نه اعشاری): جاده ۸×۸، پیاده‌رو ۸×۸ (هم‌اندازهٔ جاده برای چسبیدن لبه‌به‌لبه، ولی «عرض بصری»اش `PATH_W=.۵` = یک‌چهارم جاده)، خانه ۶×۵، دفتر ۸×۷، مزرعه ۸×۸، بازار ۸×۶، درخت ۲×۲. همهٔ مختصات `x,z` عدد صحیح است؛ مرکز دنیا = `x*CELL`. چرخش ۹۰° فقط `w,h` را جابه‌جا می‌کند (`fpDim`/`_dim`). برخورد = هم‌پوشانی مستطیل‌ها؛ لبه‌به‌لبه مجاز. لایه‌های جبرانی قدیمی حذف شدند چون دیگر نیازی نیستند: `fpBridgeOne/fpBridges` (نوار خالی بصری)، `fpReseat` (لغزش بعد از چرخش)، `fpDoorLinks` (اتصال پیاده‌رو به در). `fpSnap` فقط گرد به نزدیک‌ترین سلول است. کاشی سبز/قرمز اکنون دقیقاً `w×h×CELL` است. مدل‌های سه‌بعدی دست نخوردند چون اندازهٔ بصری `w×h×CELL` ≈ اندازهٔ قدیمی است. ماشین‌ها روی «بلوک‌های ۸-سلولی» حرکت می‌کنند (`RB=8`، `roadBlk`) تا فاصلهٔ حرکتشان مثل قبل ۲单位 باشد. **دیتابیس قدیمی ناسازگار است؛ پاکش کن.** — `01-server-config.py`, `01-server-world.py`, `07-buildings-footprint.js`, `07-buildings-models.js`, `09-ui-blueprint.js`, `09-ui-interaction.js`, `06-world-roads.js`, `06-world-cars.js`, `08-characters-navigation.js`, `PROJECT_GUIDE.md`
 - ۲۰۲۶-۱۱-۱۹ — **برد چسبیدن/پل‌زدن بزرگ شد:** `fpSnap` ساختمان آزاد را به لبهٔ جاده/پیاده‌رو تا ۱٫۲ واحد می‌چسباند (قبلاً ۰٫۴ برای همه)؛ `FP_BR` از ۱ به ۲ (یک سلول کامل) رسید تا فاصلهٔ «یک تا دو بلوک» هم بصری پر شود. — `07-buildings-footprint.js`, `PROJECT_GUIDE.md`
 - ۲۰۲۶-۱۱-۱۹ — **فاصلهٔ خط‌مانند بین جاده/پیاده‌رو و ساختمان:** علت ۱) جاده/پیاده‌رو روی شبکه‌اند (مضرب ۲) و ساختمان آزاد؛ اگر جاده بعد از ساختمان بیاید لبهٔ ساختمان وسط سلول می‌افتد و نوار خالی می‌ماند (snap فقط وقتی کار می‌کرد که ساختمان بعد از جاده چیده شود). علت ۲) پیاده‌رو فقط به «در» ساختمان بازو می‌داد، نه پهلوها. علت ۳) چرخش ۹۰° لبه‌ها را ≈۰٫۱ می‌لغزاند. اصلاح: `fpBridgeOne/fpBridges` نوار خالی (≤۱ واحد) را بصری پر می‌کند (جاده: سکوی هم‌رنگ پیاده‌رو؛ پیاده‌رو: بازوی خاکی تا لبهٔ ساختمان، حتی وقتی ساختمان چسبیده است تا گوشه‌های دیسک دیده نشود)؛ `fpReseat` بعد از چرخش جای معتبر نزدیک را پیدا و به لبه می‌چسباند؛ `fpSnap` پارامتر `raw` (بدون گرد‌کردن ۰٫۲۵ و بدون هم‌ترازی در) گرفت؛ صف نقشهٔ ساخت با تغییر آیتم آزاد، جاده/پیاده‌رو تا ۳ سلول دورتر را دوباره می‌سازد (پیش‌نمایش = نهایی). ردپا، سرور و ظاهر مدل‌ها دست نخورد. — `07-buildings-footprint.js`, `06-world-roads.js`, `09-ui-blueprint.js`, `09-ui-interaction.js`, `PROJECT_GUIDE.md`
 - ۲۰۲۶-۱۱-۱۹ — **کاشی سبز/قرمزِ پیش‌نمایشِ پیاده‌رو خیلی بزرگ بود:** در `bpTemplate`، کاشیِ اعتبار (رنگ زیر شبح) برای `road` و `path` هر دو ثابت ۲×۲ بود؛ در حالی که طرح واقعیِ پیاده‌رو خیلی کوچک‌تر از یک خانهٔ کامل است (مربع مرکزی ۰٫۶۶ + بازوی باریک). همین باعث می‌شد ناحیهٔ نمایشیِ سبز/قرمزِ پیاده‌رو روی ساختمان‌های کناری بیفتد و به‌نظر برسد پیاده‌رو نمی‌تواند به آن‌ها بچسبد، با این‌که برخورد واقعی (`fpCheck`/`check_place`) درست بود. حالا فقط `road` کاشیِ ثابت ۲×۲ دارد؛ `path` مثل بقیهٔ آیتم‌های آزاد از روی bbox واقعیِ مدلِ ادغام‌شده (+۰٫۳ حاشیه) اندازه می‌گیرد. — `09-ui-blueprint.js`, `PROJECT_GUIDE.md`

@@ -8,7 +8,6 @@ Object.assign(globalThis,{THREE,OrbitControls,mergeGeometries});
 
 const GAME_FILES=[
   '05-core-quality',
-  '05-geo-core',
   '05-core-engine',
   '05-core-state',
   '05-core-materials',

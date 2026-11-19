@@ -8,13 +8,11 @@ import os, sys, importlib.util
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-PARTS = (  # (نام مستعار, فایل) — ترتیب وابستگی‌های سطح ماژول رعایت شده:
-    # auth فقط config می‌خواهد؛ infra به auth+world نیاز دارد؛ players به telegram.
+PARTS = (  # (نام مستعار, فایل)
     ("srv_config",   "01-server-config.py"),
     ("srv_db",       "01-server-db.py"),
-    ("srv_auth",     "01-server-auth.py"),
     ("srv_world",    "01-server-world.py"),
-    ("srv_infra",    "01-server-infra.py"),
+    ("srv_auth",     "01-server-auth.py"),
     ("srv_telegram", "01-server-telegram.py"),
     ("srv_players",  "01-server-players.py"),
     ("srv_admin",    "01-server-admin.py"),
