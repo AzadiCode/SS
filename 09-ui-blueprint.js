@@ -46,11 +46,11 @@ function bpAutoRot(type,x,z,rot,others){if(type!=='house'&&type!=='hq')return ro
 function bpPathMask(x,z){const candidate={type:'path',x,z,gx:x,gz:z,rot:0},all=W.buildings.concat(BP.items);return{m:bpMask('path',x,z)|fpDoorMaskForPath(candidate,all)}}
 // قالب شبح: type/rot/mask + ماسک اتصال واقعی؛ هندسهٔ پیاده‌رو داخل footprint خودش محدود می‌ماند.
 // lamp (فقط جاده): پریتیِ چراغِ همان سلول — تا شبح دقیقاً مثل جادهٔ نهایی چراغ‌دار/بی‌چراغ باشد.
-function bpTemplate(type,rot,mask,links,lamp=0){const key=type+'|'+rot+'|'+mask+'|'+lamp+(type==='path'?'|'+PATH_STYLE:'');
+function bpTemplate(type,rot,mask,links,lamp=0,pathStyle=PATH_STYLE){const key=type+'|'+rot+'|'+mask+'|'+lamp+(type==='path'?'|'+pathStyle:'');
   if(BP._tpl.has(key))return BP._tpl.get(key);
   const g=new THREE.Group();
   if(type==='road'){roadMesh(g,mask,lamp);g.userData.tile=1}
-  else if(type==='path'){const lk=links||{m:mask};pathMesh(g,lk.m,1234);g.userData.tile=1}
+  else if(type==='path'){const lk=links||{m:mask};pathMesh(g,lk.m,1234,pathStyle);g.userData.tile=1}
   else{build[type]?.(g,{id:type==='tree'||type==='hq'?7:1234+(rot/90|0),x:0,z:0,rot});if(type!=='tree'&&type!=='hq')plaqueless(g)}
   // ادغام کل مدل به یک مش شفاف + ذخیرهٔ bbox برای خط دور
   g.updateMatrixWorld(true);   // گروه در صحنه نیست؛ بدون این، ماتریس‌های فرزندان stale می‌مانند و هندسه جای غلط ادغام می‌شود
@@ -82,10 +82,10 @@ function bpTemplate(type,rot,mask,links,lamp=0){const key=type+'|'+rot+'|'+mask+
 // تا ابعاد شبح با ساختمان نهایی یکسان بماند.
 function plaqueless(g){for(const c of[...g.children])if(c.isMesh&&c.material&&c.material.map&&_PLQ.has(c.material.map))g.remove(c)}
 // کلون امن قالب شبح: ring و کاشی اعتبار را از روی هندسهٔ مشخص پیدا می‌کند (clone در three.js userData را کپی سطحی می‌دهد)
-function bpClone(type,rot,mask,links,lamp=0){const src=bpTemplate(type,rot,mask,links,lamp),g=src.clone(true);
+function bpClone(type,rot,mask,links,lamp=0,pathStyle=PATH_STYLE){const src=bpTemplate(type,rot,mask,links,lamp,pathStyle),g=src.clone(true);
   const ring=g.children.find(c=>c.geometry===BP_GEO),tile=g.children.find(c=>c.geometry===BP_PGEO);
   if(ring)ring.material=ring.material.clone();if(tile)tile.material=tile.material.clone();   // متریال جدا تا رنگ هر شبح مستقل باشد
-  g.userData={ring,tileMesh:tile,k:mask+'|'+lamp+(type==='path'?'|'+PATH_STYLE:'')};return g}
+  g.userData={ring,tileMesh:tile,k:mask+'|'+lamp+(type==='path'?'|'+pathStyle:'')};return g}
 
 // ── ساخت/به‌روزرسانی یک آیتم صف: مدل شبح + حلقه + کاشی اعتبار
 function bpMake(it,paint=true){const links=it.type==='path'&&!BP._batch?bpPathMask(it.x,it.z):null;
@@ -109,7 +109,7 @@ function bpPaint(it){if(!it.g)return;const val=bpVal(it.type,it.x,it.z,it,it.rot
 function bpAdd(x,z){if(BP.items.length>=400)return toast('حداکثر ۴۰۰ مورد در یک نقشه');
   const ar=(BP.type==='house'||BP.type==='hq')&&!BP.manualRot,others=W.buildings.concat(BP.items),rot=(BP.type==='road'||BP.type==='path')?0:ar?bpAutoRot(BP.type,x,z,BP.rot,others):BP.rot;
   if(bpVal(BP.type,x,z,null,rot)!==true)return false;
-  const it={type:BP.type,x,z,rot,ar};
+  const it={type:BP.type,x,z,rot,ar,...(BP.type==='path'?{style:PATH_STYLE}:{})};
   bpMake(it,!BP._batch);BP.items.push(it);if(!BP._batch){bpRemesh(it);bpAfterChange()}return true}
 function bpRemove(it){if(!it)return;if(it.g){scene.remove(it.g);disposeObj(it.g);it.g=null}
   BP.items.splice(BP.items.indexOf(it),1);if(BP.sel===it)BP.sel=null;
@@ -133,13 +133,13 @@ function bpRemesh(changed,old=changed){
   for(const it of near){
     const links=it.type==='path'?bpPathMask(it.x,it.z):null;
     const lamp=it.type==='road'?(((it.x+it.z)%2+2)%2===0?1:0):0;
-    const m=links?links.m:bpMask(it.type,it.x,it.z),sig=m+'|'+lamp+(it.type==='path'?'|'+PATH_STYLE:'');
+    const m=links?links.m:bpMask(it.type,it.x,it.z),style=it.style==='dirt'?'dirt':'stone',sig=m+'|'+lamp+(it.type==='path'?'|'+style:'');
     if(it.g&&it.g.userData.k!==sig){scene.remove(it.g);disposeObj(it.g);
-      const g=bpClone(it.type,it.rot,m,links,lamp);g.userData.it=it;
+      const g=bpClone(it.type,it.rot,m,links,lamp,it.style||'stone');g.userData.it=it;
       g.position.set(it.x*U,0,it.z*U);scene.add(g);it.g=g;bpPaint(it)}}}
 // بازسازی دسته‌ای ماسک مسیرها؛ از اسکن تکراریِ صف برای هر قطعه جلوگیری می‌کند.
-function bpRemeshAll(){for(const it of BP.items){if(it.type!=='road'&&it.type!=='path')continue;const links=it.type==='path'?bpPathMask(it.x,it.z):null,lamp=it.type==='road'?(((it.x+it.z)%2+2)%2===0?1:0):0,m=links?links.m:bpMask(it.type,it.x,it.z),sig=m+'|'+lamp+(it.type==='path'?'|'+PATH_STYLE:'');
-  if(it.g&&it.g.userData.k!==sig){scene.remove(it.g);disposeObj(it.g);const g=bpClone(it.type,it.rot,m,links,lamp);g.userData.it=it;g.position.set(it.x*U,0,it.z*U);scene.add(g);it.g=g}}}
+function bpRemeshAll(){for(const it of BP.items){if(it.type!=='road'&&it.type!=='path')continue;const links=it.type==='path'?bpPathMask(it.x,it.z):null,lamp=it.type==='road'?(((it.x+it.z)%2+2)%2===0?1:0):0,m=links?links.m:bpMask(it.type,it.x,it.z),style=it.style==='dirt'?'dirt':'stone',sig=m+'|'+lamp+(it.type==='path'?'|'+style:'');
+  if(it.g&&it.g.userData.k!==sig){scene.remove(it.g);disposeObj(it.g);const g=bpClone(it.type,it.rot,m,links,lamp,it.style||'stone');g.userData.it=it;g.position.set(it.x*U,0,it.z*U);scene.add(g);it.g=g}}}
 // ── ردیف پیوستهٔ جاده/پیاده‌رو: افزودن دسته‌ای و فقط یک بازسازی اتصال/اعتبارسنجی در پایان.
 function bpStroke(x0,z0,x1,z1){const pts=[[x0,z0]],step=BP.type==='path'?FOOT.path[0]:GRID;let nx=Math.round((x1-x0)/step),nz=Math.round((z1-z0)/step),x=x0,z=z0;
   while(nx||nz){if(Math.abs(nx)>=Math.abs(nz)&&nx){x+=Math.sign(nx)*step;nx-=Math.sign(nx)}else if(nz){z+=Math.sign(nz)*step;nz-=Math.sign(nz)}pts.push([x,z])}
@@ -155,10 +155,10 @@ function bpFloat(c){const isTile=BP.type==='road'||BP.type==='path';
   const links=BP.type==='path'?bpPathMask(c[0],c[1]):null;
   const lamp=BP.type==='road'?(((c[0]+c[1])%2+2)%2===0?1:0):0;
   const mask=links?links.m:(isTile?bpMask(BP.type,c[0],c[1]):0);
-  const sig=BP.type+'|'+rot+'|'+mask+'|'+lamp;
+  const sig=BP.type+'|'+rot+'|'+mask+'|'+lamp+(BP.type==='path'?'|'+PATH_STYLE:'');
   if(!BP.ghost||BP.ghost.userData.sig!==sig){
     if(BP.ghost){scene.remove(BP.ghost);disposeObj(BP.ghost)}
-    BP.ghost=bpClone(BP.type,rot,mask,links,lamp);BP.ghost.userData.sig=sig;scene.add(BP.ghost)}
+    BP.ghost=bpClone(BP.type,rot,mask,links,lamp,PATH_STYLE);BP.ghost.userData.sig=sig;scene.add(BP.ghost)}
   const val=bpVal(BP.type,c[0],c[1],null,rot),ok=val===true;
   BP.ghost.position.set(c[0]*U,0,c[1]*U);
   if(!isTile)BP.ghost.rotation.y=rot*Math.PI/180;
@@ -193,7 +193,7 @@ async function bpCommit(){const n=BP.items.length;if(!n||BP.busy)return;
   const bad=BP.items.filter(i=>!i.ok);if(bad.length){toast(cpx(bad.length)+' مورد نامعتبر است — سبز شود یا حذفش کن');
     BP.sel=bad[0];bpAfterChange();return}
   BP.busy=true;bpBar();
-  try{const res=await api('/api/admin/buildings/batch','POST',{items:BP.items.map(i=>({type:i.type,x:i.x,z:i.z,rot:i.rot,ar:!!i.ar})),free:$('fr').checked});
+  try{const res=await api('/api/admin/buildings/batch','POST',{items:BP.items.map(i=>({type:i.type,x:i.x,z:i.z,rot:i.rot,ar:!!i.ar,...(i.type==='path'?{style:i.style||'stone'}:{})})),free:$('fr').checked});
     const made=res.buildings||[];BP._stag.clear();
     made.forEach((b,i)=>BP._stag.set(b.id,i*.12));        // پله‌ای: هر ساختمان ۱۲۰ms بعد از قبلی
     toast('✅ '+cpx(n)+' ساختمان ساخته شد');

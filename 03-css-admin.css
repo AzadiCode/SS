@@ -35,3 +35,6 @@
 #bql li i{font-style:normal;opacity:.6;font-size:9px;direction:ltr}
 #bql li span{margin-inline-start:auto;opacity:.7;padding:0 3px}
 #bql li span:hover{opacity:1;color:var(--ember)}
+
+/* انتخاب‌گر مینیمال طرح پیاده‌رو */
+#pathStyle{width:64px;max-width:64px;padding:2px 3px!important;border-radius:5px!important;font-size:8px;line-height:1.2;background:#173b35;color:#fff;border:1px solid #789;min-height:22px}

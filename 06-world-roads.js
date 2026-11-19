@@ -19,10 +19,12 @@ const ROAD_WIDTH=FOOT.road[0]*U,PTW=ROAD_WIDTH*PATH_WIDTH_RATIO;
 // پیاده‌رو مدرن و هم‌سطح: سنگ‌فرش بتنی روشن، درزهای باریک و لبهٔ کوتاه.
 // ضخامت کل فقط ۳٫۲ سانتی‌متر است؛ کف از y=0 شروع می‌شود و هیچ پایهٔ معلقی ندارد.
 let PATH_STYLE=(()=>{try{return localStorage.getItem('tw_path_style')==='dirt'?'dirt':'stone'}catch(_){return'stone'}})();
+// مسیرهای قدیمی که هنوز فیلد style ندارند، سبک زمان ورود به نسخهٔ جدید را حفظ می‌کنند.
+const LEGACY_PATH_STYLE=(()=>{try{let v=localStorage.getItem('tw_path_legacy_style');if(v!=='dirt'&&v!=='stone'){v=PATH_STYLE;localStorage.setItem('tw_path_legacy_style',v)}return v}catch(_){return PATH_STYLE}})();
 const PT_BASE=0x77776c,PT_TOP=[0xb9b8aa,0xc2c0b2,0xb4b4a7,0xc7c4b6],PT_JOINT=0x969589;
-function pathMesh(g,m,id){clearKids(g);
+function pathMesh(g,m,id,style=PATH_STYLE){clearKids(g);
  const all=[],box=(w,h,d,x,y,z,color)=>all.push(vcGeo(new THREE.BoxGeometry(w,h,d).translate(x,y,z),color));
- if(PATH_STYLE==='dirt'){
+ if(style==='dirt'){
   // مسیر خاکی فشرده، کمی تیره‌تر از زمین اطراف؛ بدون جدول و سکوی برجسته
   const soil=[0x8c7650,0x947d55,0x88724c,0x9a8258][((id*7)%4+4)%4];
   box(PTW,.014,PTW,0,.007,0,soil);
@@ -51,7 +53,7 @@ function pathMesh(g,m,id){clearKids(g);
 function setPathStyle(style){
  PATH_STYLE=style==='dirt'?'dirt':'stone';
  try{localStorage.setItem('tw_path_style',PATH_STYLE)}catch(_){}
- if(typeof W!=='undefined'&&W)roads(W);
+ // سبک انتخابی فقط پیش‌فرضِ مسیرهای بعدی است؛ مسیرهای ساخته‌شده دوباره‌رندر نمی‌شوند.
  if(typeof BP!=='undefined'&&BP){
   BP._tpl.clear();
   if(typeof bpRemeshAll==='function')bpRemeshAll();
@@ -65,4 +67,4 @@ const dirs=[[0,-1],[1,0],[0,1],[-1,0]],dims={road:FOOT.road[0],path:FOOT.path[0]
 const maskFor=(b,types)=>{let m=0;const x=b.gx??b.x,z=b.gz??b.z;for(const t of types){const d=step(b.type,t),map=byType[t];for(let i=0;i<4;i++){const[dx,dz]=dirs[i],o=map.get(key(x+dx*d,z+dz*d));if(o&&fpTouchDir(b,o)>=0)m|=1<<i}}return m};
 const doorMask=new Map();for(const l of fpDoorLinks(blds)){const k=l.cx+','+l.cz;doorMask.set(k,(doorMask.get(k)||0)|(1<<l.d))}
 for(const b of rs){const g=objs.get(b.id);if(!g)continue;const m=maskFor(b,['road']),pm=maskFor(b,['path']),cr=((pm&1)&&(pm&4)?1:0)|((pm&2)&&(pm&8)?2:0),lamp=((b.x+b.z)%2+2)%2===0?1:0,k=m+'|'+cr+'|'+lamp;if(g.userData.k!==k){g.userData.k=k;roadMesh(g,m,lamp,cr)}}
-for(const b of ps){const g=objs.get(b.id);if(!g)continue;const k=b.x+','+b.z,m=maskFor(b,['path','road'])|(doorMask.get(k)||0),sig=m+'|'+PATH_STYLE;if(g.userData.k!==sig){g.userData.k=sig;pathMesh(g,m,b.id)}}}
+for(const b of ps){const g=objs.get(b.id);if(!g)continue;const k=b.x+','+b.z,m=maskFor(b,['path','road'])|(doorMask.get(k)||0),style=b.style==='dirt'?'dirt':b.style==='stone'?'stone':LEGACY_PATH_STYLE,sig=m+'|'+style;if(g.userData.k!==sig){g.userData.k=sig;pathMesh(g,m,b.id,style)}}}

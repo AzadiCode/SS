@@ -78,7 +78,7 @@ def add_buildings_batch():
         for k, i in enumerate(order):                      # همه یا هیچ: روی فهرست جدا کار می‌کنیم و آخر یکجا اعمال می‌شود
             t = i["type"]
             x, z, rot = check_place(d, t, i["x"], i["z"], auto_rot(d, t, float(i["x"]), float(i["z"]), i.get("rot"), made, bool(i.get("ar"))), None, made)
-            made.append({"id": d["next_id"] + k, "type": t, "x": x, "z": z, "gx": x, "gz": z, "rot": rot})
+            made.append({"id": d["next_id"] + k, "type": t, "x": x, "z": z, "gx": x, "gz": z, "rot": rot, **({"style": "dirt" if i.get("style") == "dirt" else "stone"} if t == "path" else {})})
         total = 0 if free else sum(COST[b["type"]] for b in made)
         if d["stats"]["money"] < total: raise ValueError("پول خزانه کافی نیست")
         d["next_id"] += len(made); d["buildings"].extend(made); d["stats"]["money"] -= total
