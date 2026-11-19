@@ -2,7 +2,7 @@
 'use strict';
 // ═══ ناوبری v6: شبکهٔ دقیق U با «هزینه» (پیاده‌رو کم‌هزینه، جاده پرهزینه) + A*
 const NS=U,NN=360,NO=-45,nav=new Uint8Array(NN*NN),cost=new Float32Array(NN*NN),gs=new Float32Array(NN*NN),prv=new Int32Array(NN*NN);
-let regH=[],hqH=null,homes=[],mkts=[],farms=[],treeSp=[],roadC=[],pathC=[],ctr=[0,0],RAD=10;const homeById=new Map();
+let regH=[],hqH=null,homes=[],mkts=[],farms=[],treeSp=[],roadC=[],pathC=[],ctr=[0,0],RAD=10;const roadSet=new Set(),pathSet=new Set(),homeById=new Map();
 const ci=v=>Math.floor((v-NO)/NS),cw=i=>NO+(i+.5)*NS,walk=(x,z)=>{const i=ci(x),j=ci(z);return i>=0&&j>=0&&i<NN&&j<NN&&!nav[j*NN+i]};
 const pondM=(x,z)=>((x+17)/9.2)**2+((z+17)/6.6)**2<1; // برکه + حاشیهٔ امن ~۱ واحد
 function blk(x0,x1,z0,z1){for(let j=Math.max(0,ci(z0));j<=Math.min(NN-1,ci(z1));j++)for(let i=Math.max(0,ci(x0));i<=Math.min(NN-1,ci(x1));i++)nav[j*NN+i]=1}
@@ -19,6 +19,10 @@ else if(b.type==='farm'){bk(RR[0]);farms.push({x:X,z:Z})}
 else if(b.type==='road')roadC.push({x:X,z:Z,b});
 else if(b.type==='path')pathC.push({x:X,z:Z,b})
 if(b.type!=='tree'){sx+=X;sz+=Z;n++}}
+// شاخص‌های سریعِ کاشی جاده/پیاده‌رو برای خودروها و تشخیص محل گفت‌وگوی شهروندان.
+// کلیدها همان مختصات شبکه‌ای‌اند که مصرف‌کننده‌ها با round(world/CELL) می‌سازند.
+roadSet.clear();for(const r of roadC)roadSet.add(Math.round(r.x/CELL)+','+Math.round(r.z/CELL));
+pathSet.clear();for(const p of pathC)pathSet.add(Math.round(p.x/CELL)+','+Math.round(p.z/CELL));
 regH=homes.filter(h=>!h.hq).sort((a,b)=>a.id-b.id);hqH=homes.find(h=>h.hq)||null;ctr=n?[sx/n,sz/n]:[0,0];let E=0;for(const b of w.buildings)if(b.type!=='tree')E=Math.max(E,Math.hypot(b.x*U-ctr[0],b.z*U-ctr[1]));
 RAD=Math.min(34,Math.max(8+2.6*Math.log2(1+((w.stats&&w.stats.pop)||1)),E+5)); // با رشد جمعیت، محدودهٔ حرکت بزرگ‌تر می‌شود
 for(const{x:X,z:Z}of roadC)setCost(X,Z,1,1,ROADC,1); // آسفالت: گران، برای ماشین‌هاست
