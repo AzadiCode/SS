@@ -60,9 +60,12 @@ function bpTemplate(type,rot,mask,links,lamp=0){const key=type+'|'+rot+'|'+mask+
     const eg=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(sz.x,Math.max(sz.y,.02),sz.z)),BP_EDGE);
     eg.position.copy(ct);out.add(eg);out.userData.box={sz,ct}}
   geos.forEach(x=>x.dispose());
-  // کاشی زمینی (جاده/پیاده‌رو): صفحهٔ رنگی زیر مدل که سبز/قرمز را نشان می‌دهد
+  // کاشی زمینی (اعتبار سبز/قرمز): اندازه‌اش باید اندازهٔ طرح واقعیِ آیتم باشد، نه یک خانهٔ کامل.
+  // جاده واقعاً کل خانه (۲×۲) را پر می‌کند ⇒ کاشی هم ۲×۲. پیاده‌رو فقط یک ردِ خاکیِ باریک است (مرکز+بازو)
+  // ⇒ باید مثل بقیهٔ آیتم‌های آزاد از روی bbox واقعیِ مدلِ ادغام‌شده اندازه بگیرد، وگرنه کاشیِ ۲×۲ خیلی
+  // بزرگ‌تر از طرحِ واقعیِ پیاده‌رو دیده می‌شود و روی ساختمان‌های کناری می‌افتد (گزارش کاربر).
   const tile=new THREE.Mesh(BP_PGEO,BP_TILE.clone());tile.rotation.x=-Math.PI/2;tile.position.y=.02;
-  if(type==='road'||type==='path'){tile.scale.set(2,2,1)}else{const b=out.userData.box;tile.scale.set(Math.min(2,b?b.sz.x+.5:2),Math.min(2,b?b.sz.z+.5:2),1)}
+  if(type==='road'){tile.scale.set(2,2,1)}else{const b=out.userData.box;tile.scale.set(Math.min(2,b?b.sz.x+.3:2),Math.min(2,b?b.sz.z+.3:2),1)}
   out.add(tile);out.userData.tileMesh=tile;
   const ring=new THREE.Mesh(BP_GEO,new THREE.MeshBasicMaterial({color:BP_OK,transparent:true,opacity:.9,depthWrite:false,side:THREE.DoubleSide}));
   ring.rotation.x=-Math.PI/2;ring.position.y=.06;out.add(ring);out.userData.ring=ring;
