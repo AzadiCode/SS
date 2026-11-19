@@ -35,16 +35,19 @@ function bpMask(t,x,z){const same=b=>b.type==='road'||b.type==='path';
 // تا شبحِ پیاده‌رو دقیقاً همان ماسک/طول‌بازو/بیتِ درِ کاشیِ نهایی را داشته باشد (پیش‌نمایش = نهایی).
 // بدون این، شبحِ کنارِ خانه با m=0 و cr=.4 (دیسک کوچک) رندر می‌شود ولی واقعی با بیتِ در → cr=PTW/2 (پر).
 // ساختمان‌های واقعی (W.buildings) و صفِ چیده‌شده (BP.items) هر دو برای محاسبهٔ در به‌حساب می‌آیند.
-function bpPathMask(x,z){const LN=1-PW/2,L=[LN,LN,LN,LN];let bl=0,m=bpMask('path',x,z);
-  for(const l of fpDoorLinks(W.buildings.concat(BP.items)))if(l.cx===x&&l.cz===z){m|=1<<l.d;L[l.d]=l.len;bl|=1<<l.d}
-  return{m,L,bl}}
+function bpPathMask(x,z){const LN=1-PW/2,L=[LN,LN,LN,LN],all=W.buildings.concat(BP.items);let bl=0,ex=0,m=bpMask('path',x,z);
+  for(const l of fpDoorLinks(all))if(l.cx===x&&l.cz===z){m|=1<<l.d;L[l.d]=l.len;bl|=1<<l.d}
+  for(const e of fpBridgeOne('path',x,z,all,bl).ex){const bit=1<<e.d;m|=bit;ex|=bit;L[e.d]=e.len-PW/2}   // بازوی پل = آینهٔ roads()
+  return{m,L,bl,ex}}
+// سکوی پل‌زدنِ جاده تا ساختمان‌های کناری (آینهٔ roads()) — پیش‌نمایش = نهایی
+const bpRoadAp=(x,z)=>fpBridgeOne('road',x,z,W.buildings.concat(BP.items)).ap,bpApSig=ap=>ap&&ap.length?ap.map(a=>a.map(n=>n.toFixed(2)).join(',')).join(';'):'';
 // قالب شبح: type/rot/mask + links (فقط پیاده‌رو: {m,L,bl} از bpPathMask). کش با کلیدِ امضای کامل.
 // lamp (فقط جاده): پریتیِ چراغِ همان سلول — تا شبح دقیقاً مثل جادهٔ نهایی چراغ‌دار/بی‌چراغ باشد.
-function bpTemplate(type,rot,mask,links,lamp=0){const key=type+'|'+rot+'|'+mask+(links?'|'+links.L.join(',')+'|'+links.bl:'')+'|'+lamp;
+function bpTemplate(type,rot,mask,links,lamp=0,ap=null){const key=type+'|'+rot+'|'+mask+(links?'|'+links.L.join(',')+'|'+links.bl+'|'+(links.ex||0):'')+'|'+lamp+'|'+bpApSig(ap);
   if(BP._tpl.has(key))return BP._tpl.get(key);
   const g=new THREE.Group();
-  if(type==='road'){roadMesh(g,mask,lamp);g.userData.tile=1}
-  else if(type==='path'){const lk=links||{m:mask,L:[1-PW/2,1-PW/2,1-PW/2,1-PW/2],bl:0};pathMesh(g,lk.m,1234,lk.L,lk.bl,0,0);g.userData.tile=1}
+  if(type==='road'){roadMesh(g,mask,lamp,0,ap);g.userData.tile=1}
+  else if(type==='path'){const lk=links||{m:mask,L:[1-PW/2,1-PW/2,1-PW/2,1-PW/2],bl:0};pathMesh(g,lk.m,1234,lk.L,lk.bl,0,0,lk.ex||0);g.userData.tile=1}
   else{build[type]?.(g,{id:type==='tree'||type==='hq'?7:1234+(rot/90|0),x:0,z:0,rot});if(type!=='tree'&&type!=='hq')plaqueless(g)}
   // ادغام کل مدل به یک مش شفاف + ذخیرهٔ bbox برای خط دور
   g.updateMatrixWorld(true);   // گروه در صحنه نیست؛ بدون این، ماتریس‌های فرزندان stale می‌مانند و هندسه جای غلط ادغام می‌شود
@@ -75,16 +78,16 @@ function bpTemplate(type,rot,mask,links,lamp=0){const key=type+'|'+rot+'|'+mask+
 // تا ابعاد شبح با ساختمان نهایی یکسان بماند.
 function plaqueless(g){for(const c of[...g.children])if(c.isMesh&&c.material&&c.material.map&&_PLQ.has(c.material.map))g.remove(c)}
 // کلون امن قالب شبح: ring و کاشی اعتبار را از روی هندسهٔ مشخص پیدا می‌کند (clone در three.js userData را کپی سطحی می‌دهد)
-function bpClone(type,rot,mask,links,lamp=0){const src=bpTemplate(type,rot,mask,links,lamp),g=src.clone(true);
+function bpClone(type,rot,mask,links,lamp=0,ap=null){const src=bpTemplate(type,rot,mask,links,lamp,ap),g=src.clone(true);
   const ring=g.children.find(c=>c.geometry===BP_GEO),tile=g.children.find(c=>c.geometry===BP_PGEO);
   if(ring)ring.material=ring.material.clone();if(tile)tile.material=tile.material.clone();   // متریال جدا تا رنگ هر شبح مستقل باشد
-  g.userData={ring,tileMesh:tile,k:mask+(links?'|'+links.L.join(',')+'|'+links.bl:'')+'|'+lamp};return g}
+  g.userData={ring,tileMesh:tile,k:mask+(links?'|'+links.L.join(',')+'|'+links.bl+'|'+(links.ex||0):'')+'|'+lamp+'|'+bpApSig(ap)};return g}
 
 // ── ساخت/به‌روزرسانی یک آیتم صف: مدل شبح + حلقه + کاشی اعتبار
 function bpMake(it){const links=it.type==='path'?bpPathMask(it.x,it.z):null;
   const lamp=it.type==='road'?(((it.x+it.z)%2+2)%2===0?1:0):0;   // چراغ جاده = پریتی سلول، مثل roads()
   const mask=links?links.m:(it.type==='road'?bpMask(it.type,it.x,it.z):0);
-  const g=bpClone(it.type,it.rot,mask,links,lamp);
+  const g=bpClone(it.type,it.rot,mask,links,lamp,it.type==='road'?bpRoadAp(it.x,it.z):null);
   g.userData.it=it;
   g.position.set(it.x*CELL,0,it.z*CELL);
   if(it.type!=='road'&&it.type!=='path')g.rotation.y=it.rot*Math.PI/180;
@@ -105,25 +108,28 @@ function bpAdd(x,z){if(BP.items.length>=400)return toast('حداکثر ۴۰۰ م
   bpMake(it);BP.items.push(it);bpRemesh(it);bpAfterChange();return true}
 function bpRemove(it){if(!it)return;if(it.g){scene.remove(it.g);disposeObj(it.g);it.g=null}
   BP.items.splice(BP.items.indexOf(it),1);if(BP.sel===it)BP.sel=null;
-  for(const o of BP.items)if((o.type==='road'||o.type==='path')&&Math.abs(o.x-it.x)<=1&&Math.abs(o.z-it.z)<=1)bpRemesh(o);
-  bpAfterChange()}
+  bpRemesh(it);bpAfterChange()}
 function bpMove(it,x,z){if(it.x===x&&it.z===z){bpPaint(it);return true}
   const val=bpVal(it.type,x,z,it,it.rot);if(val!==true){bpPaint(it);return false}
-  it.x=x;it.z=z;it.g.position.set(x*CELL,0,z*CELL);bpRemesh(it);bpPaint(it);bpAfterChange();return true}
+  const ox=it.x,oz=it.z;it.x=x;it.z=z;it.g.position.set(x*CELL,0,z*CELL);bpRemesh(it,ox,oz);bpPaint(it);bpAfterChange();return true}
 function bpRot(it){if(it.type==='road'||it.type==='path')return;
-  it.rot=(it.rot+90)%360;it.g.rotation.y=it.rot*Math.PI/180;bpRemesh(it);bpPaint(it)}
+  it.rot=(it.rot+90)%360;it.g.rotation.y=it.rot*Math.PI/180;
+  const c=fpReseat(it.type,it.rot,it.x,it.z,W.buildings.concat(BP.items.filter(i=>i!==it)));   // بعد از چرخش ابعاد جابه‌جا می‌شود؛ دوباره به لبه بچسب
+  it.x=c[0];it.z=c[1];it.g.position.set(it.x*CELL,0,it.z*CELL);bpRemesh(it);bpPaint(it);bpAfterChange()}
 function bpAfterChange(){for(const it of BP.items)bpPaint(it);bpBar()}
 // ── اتصال زندهٔ کاشی‌ها: با هر تغییر، ماسک همسایگیِ همهٔ کاشی‌های مجاور دوباره ساخته می‌شود (مسیر پیوسته همیشه درست)
-function bpRemesh(changed){if(changed.type!=='road'&&changed.type!=='path')return;
-  const near=[changed,...BP.items.filter(it=>(it.type==='road'||it.type==='path')&&Math.abs(it.x-changed.x)<=1&&Math.abs(it.z-changed.z)<=1)];
+// آیتم آزاد (خانه/…) هم که عوض شود، سلول‌های جاده/پیاده‌رو تا ۳ سلول دورتر باید دوباره پل‌زده شوند (سکو/بازوی بصری)
+function bpRemesh(changed,ox,oz){const tl=changed.type==='road'||changed.type==='path',R=tl?1:3;
+  const hit=it=>(it.type==='road'||it.type==='path')&&((Math.abs(it.x-changed.x)<=R&&Math.abs(it.z-changed.z)<=R)||(ox!==undefined&&Math.abs(it.x-ox)<=R&&Math.abs(it.z-oz)<=R));
+  const near=[...(tl?[changed]:[]),...BP.items.filter(it=>it!==changed&&hit(it))];
   for(const it of near){
     const links=it.type==='path'?bpPathMask(it.x,it.z):null;
     const lamp=it.type==='road'?(((it.x+it.z)%2+2)%2===0?1:0):0;
-    const m=links?links.m:bpMask(it.type,it.x,it.z);
-    const sig=m+(links?'|'+links.L.join(',')+'|'+links.bl:'')+'|'+lamp;
+    const m=links?links.m:bpMask(it.type,it.x,it.z),ap=it.type==='road'?bpRoadAp(it.x,it.z):null;
+    const sig=m+(links?'|'+links.L.join(',')+'|'+links.bl+'|'+(links.ex||0):'')+'|'+lamp+'|'+bpApSig(ap);
     if(it.g&&it.g.userData.k!==sig){
       scene.remove(it.g);disposeObj(it.g);
-      const g=bpClone(it.type,it.rot,m,links,lamp);g.userData.it=it;
+      const g=bpClone(it.type,it.rot,m,links,lamp,ap);g.userData.it=it;
       g.position.set(it.x*CELL,0,it.z*CELL);scene.add(g);it.g=g;bpPaint(it)}}}
 // ── ردیف پیوستهٔ جاده/پیاده‌رو: خط برِزن‌هام بین دو نقطه — هیچ سلولی در مسیر جا نمی‌ماند
 function bpStroke(x0,z0,x1,z1){const pts=[],n=Math.max(Math.abs(x1-x0),Math.abs(z1-z0));
@@ -139,9 +145,9 @@ function bpFloat(c){const isTile=BP.type==='road'||BP.type==='path';
   // جاده/پیاده‌رو: ماسک/لینک با حرکتِ سلول عوض می‌شود ⇒ مشِ شبح را بازسازی کن تا اتصال زنده دیده شود
   if(isTile&&BP.ghost){const links=BP.type==='path'?bpPathMask(c[0],c[1]):null;
     const lamp=BP.type==='road'?(((c[0]+c[1])%2+2)%2===0?1:0):0;
-    const m=links?links.m:bpMask(BP.type,c[0],c[1]);const sig=m+(links?'|'+links.L.join(',')+'|'+links.bl:'')+'|'+lamp;
+    const m=links?links.m:bpMask(BP.type,c[0],c[1]),ap=BP.type==='road'?bpRoadAp(c[0],c[1]):null;const sig=m+(links?'|'+links.L.join(',')+'|'+links.bl+'|'+(links.ex||0):'')+'|'+lamp+'|'+bpApSig(ap);
     if(BP.ghost.userData.k!==sig){scene.remove(BP.ghost);disposeObj(BP.ghost);
-      BP.ghost=bpClone(BP.type,BP.rot,m,links,lamp);scene.add(BP.ghost)}}
+      BP.ghost=bpClone(BP.type,BP.rot,m,links,lamp,ap);scene.add(BP.ghost)}}
   else if(!BP.ghost){const g=bpClone(BP.type,BP.rot,0);BP.ghost=g;scene.add(BP.ghost)}
   const val=bpVal(BP.type,c[0],c[1],null,BP.rot),ok=val===true;
   BP.ghost.position.set(c[0]*CELL,0,c[1]*CELL);
