@@ -44,7 +44,8 @@ try{
   }));
   for(let i=0;i<GAME_FILES.length;i++){
     const s=document.createElement('script');
-    s.textContent=sources[i]+'\\n//# sourceURL=/'+GAME_FILES[i]+'.js';
+    s.textContent=sources[i]+'\n//# sourceURL=/'+GAME_FILES[i]+'.js';
+    s.onerror=()=>console.error('[TribeWorld script execution]',GAME_FILES[i]);
     document.head.appendChild(s);
   }
 }catch(e){
