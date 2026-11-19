@@ -16,7 +16,7 @@ sun.color.copy(k.sun);sun.intensity=k.si;sun.position.set(Math.cos(a)*38,Math.ma
 u.s.value.set(Math.cos(a),Math.max(.04,el*.9),.3).normalize();u.gc.value.copy(k.sun);u.g.value=Math.min(1,k.si);u.a.value.copy(k.top);u.b.value.copy(k.hor);
 moonM.position.set(-Math.cos(a)*170,55+el*70,-60);moon.intensity=.62*NT;moon.color.setHex(0xb8ccff);moonH.position.copy(moonM.position);moonH.material.opacity=.6*NT;moon.position.copy(moonM.position).multiplyScalar(.25);moonM.material.opacity=NT;stars.material.opacity=NT;
 hemi.intensity=k.hi;hemi.color.setHex(0xdfeaff).lerp(_b.setHex(0x8fa6f0),NT);hemi.groundColor.setHex(0x6f8a55).lerp(_b.setHex(0x3b5282),NT);scene.fog.color.copy(k.hor);R.toneMappingExposure=k.ex;
-GLOW.emissiveIntensity=.2+1.9*NT;LAMP.emissiveIntensity=.1+2.8*NT;LP.opacity=.95*NT;LHALO.opacity=.9*NT;HP.opacity=.75*NT;
+GLOW.emissiveIntensity=.2+1.9*NT;LAMP.emissiveIntensity=.1+1.65*NT;LP.opacity=.44*NT;LHALO.opacity=.46*NT;HP.opacity=.75*NT;
 cloudC.setHex(0xf4f1ea).lerp(cloudN,NT);clouds.forEach(c=>c.children.forEach(m=>m.material.color.copy(cloudC)))}
 let _hf=null,_hz='';
 function realHour(){try{const tz=(W&&W.tz)||'Asia/Tehran';if(_hz!==tz||!_hf){_hz=tz;_hf=new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour:'numeric',minute:'numeric',hour12:false})}const p=_hf.formatToParts(new Date());return(+p.find(x=>x.type==='hour').value%24)+ +p.find(x=>x.type==='minute').value/60}catch(e){const d=new Date();return d.getHours()+d.getMinutes()/60}}
