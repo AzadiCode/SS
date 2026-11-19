@@ -34,13 +34,18 @@ const bpPick=e=>{const p=gpt(e);
   ray0(e);const hits=ray.intersectObjects(BP.items.filter(i=>i.g).map(i=>i.g),true);
   for(const h of hits){let o=h.object;while(o&&!o.userData.it)o=o.parent;if(o)return o.userData.it}
   return null};
-const bpDown=e=>{const g0=gpt(e);if(!g0)return;ctl.enabled=false;const it=bpPick(e);BP.down={c:null,moved:0};
+const bpDown=e=>{const g0=gpt(e);if(!g0)return;ctl.enabled=false;const it=bpPick(e);BP.down={c:null,moved:0,samples:[],straight:false,x:e.clientX,y:e.clientY};
   if(it){BP.dragIt=it;BP.down.c=[it.x,it.z];if(!isTile(it.type))BP.down.off=[it.x*CELL-g0[0],it.z*CELL-g0[1]];bpGhostType()}   // درگ آیتم صف = جابه‌جایی دقیق
-  else{BP.dragIt=null;const c=tgtOf(e);if(!c)return;BP.down.c=c;bpFloat(c);if(isTile(BP.type))bpLine(c)}};
+  else{BP.dragIt=null;const c=tgtOf(e);if(!c)return;BP.down.c=c;if(isTile(BP.type))BP.down.samples=[c];bpFloat(c);if(isTile(BP.type))bpLine(c)}};
 const bpDrag=e=>{const it=BP.dragIt,c=tgtOf(e,it);if(!c)return;
   if(BP.down)BP.down.moved=Math.max(BP.down.moved,Math.hypot(e.clientX-(BP.down.x??e.clientX),e.clientY-(BP.down.y??e.clientY)));
   if(it){if(c[0]!==it.x||c[1]!==it.z)bpMove(it,c[0],c[1])}
-  else{bpFloat(c);if(BP.down&&isTile(BP.type))bpLine(c)}};
+  else{bpFloat(c);if(BP.down&&isTile(BP.type)){
+    const d=BP.down,last=d.samples[d.samples.length-1];
+    if(e.shiftKey){d.straight=true;d.samples=[d.c,c]}
+    else{if(d.straight){d.samples=[d.c];d.straight=false}if(!last||last[0]!==c[0]||last[1]!==c[1])d.samples.push(c)}
+    bpLine(c)
+  }}}
 async function onTap(e){const h=pickAt(e);
 if(h.c){react(h.c);if(h.c.me&&!(T&&(mode==='name'||mode==='say'))){const v=await ask('اسم کارکتر تو (خالی = پیش‌فرض)',nameOf(MY));if(v!==null)fetch('/api/player/name',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({init:INIT,name:v})}).then(r=>r.ok?poll():r.json().then(j=>toast(j.error||'خطا'))).catch(()=>0)}else if(T&&mode==='name'){const v=await ask('نام مستعار (خالی = پیش‌فرض)',nameOf(h.c.i));if(v!==null)api('/api/admin/citizen/'+h.c.i,'PUT',{name:v}).catch(()=>0)}
 else if(T&&mode==='say'){const v=await ask('پیام بالای سر «'+nameOf(h.c.i)+'»');if(v)api('/api/admin/say','POST',{cid:h.c.i,text:v}).catch(()=>0)}return}
@@ -73,8 +78,11 @@ if(mode==='build'){
         else{BP.sel=BP.dragIt;bpAfterChange()}}
       else if(BP.sel===BP.dragIt)bpAfterChange();          // آیتم انتخاب‌شده که درگ شد هنوز انتخابی بماند
       BP.dragIt=null}
-    else{const c=tgtOf(e);                               // پایان چیدن: رها کردن شبح یا پایان خطِ ردیف
-      if(BP.type==='road'||BP.type==='path'){if(c&&d.c)bpStroke(d.c[0],d.c[1],c[0],c[1])}
+    else{const c=tgtOf(e);                               // پایان چیدن: مسیر آزاد یا خط مستقیمِ محدودشده با Shift
+      if(isTile(BP.type)&&c&&d.c){
+        if(e.shiftKey||d.straight)bpStroke(d.c[0],d.c[1],c[0],c[1]);
+        else{const samples=d.samples||[d.c],last=samples[samples.length-1];if(!last||last[0]!==c[0]||last[1]!==c[1])samples.push(c);bpStrokePoints(samples)}
+      }
       else if(c&&BP.ok!==false)bpAdd(c[0],c[1]);
       else if(d.c)bpAdd(d.c[0],d.c[1])}
     if(BP.ghost)BP.ghost.visible=false;bpLine(null)}

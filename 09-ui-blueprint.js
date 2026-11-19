@@ -131,15 +131,51 @@ function bpRemesh(changed,ox,oz){const tl=changed.type==='road'||changed.type===
       scene.remove(it.g);disposeObj(it.g);
       const g=bpClone(it.type,it.rot,m,links,lamp,ap);g.userData.it=it;
       g.position.set(it.x*CELL,0,it.z*CELL);scene.add(g);it.g=g;bpPaint(it)}}}
-// ── ردیف پیوستهٔ جاده/پیاده‌رو: خط برِزن‌هام بین دو نقطه — هیچ سلولی در مسیر جا نمی‌ماند
-function bpStroke(x0,z0,x1,z1){const pts=[],n=Math.max(Math.abs(x1-x0),Math.abs(z1-z0));
-  if(n===0)pts.push([x0,z0]);
-  else for(let i=0;i<=n;i++)pts.push([Math.round(x0+(x1-x0)*i/n),Math.round(z0+(z1-z0)*i/n)]);
-  let added=0;for(const[x,z]of pts)if(bpAdd(x,z))added++;return added}
-// ── خط راهنمای کشیدن
+// ── Raster مسیر: اتصال چهارجهتهٔ واقعی (بدون تماسِ صرفاً گوشه‌ای).
+// نسخهٔ قبلی DDA ساده، خط مورب را با خانه‌های قطری می‌ساخت؛ این خانه‌ها از نظر mask چهارجهته
+// به هم وصل نبودند و در گوشه‌ها گسست ایجاد می‌کردند. Supercover زیر هر گام را به همسایهٔ واقعی تبدیل می‌کند.
+function bpGridLine(a,b){
+  let x=a[0],z=a[1];const x1=b[0],z1=b[1],dx=x1-x,dz=z1-z,sx=Math.sign(dx),sz=Math.sign(dz),ax=Math.abs(dx),az=Math.abs(dz),out=[[x,z]];let ix=0,iz=0;
+  while(ix<ax||iz<az){
+    if(ix>=ax){z+=sz;iz++;out.push([x,z]);continue}
+    if(iz>=az){x+=sx;ix++;out.push([x,z]);continue}
+    const lhs=(1+2*ix)*az,rhs=(1+2*iz)*ax;
+    if(lhs<rhs){x+=sx;ix++;out.push([x,z])}
+    else if(lhs>rhs){z+=sz;iz++;out.push([x,z])}
+    else{ // عبور دقیق از گوشه: هر دو ضلع را جداگانه طی کن تا زنجیره ۴-همسایه بماند.
+      x+=sx;ix++;out.push([x,z]);z+=sz;iz++;out.push([x,z]);
+    }
+  }
+  return out
+}
+function bpRaster(samples){const out=[];for(let i=0;i<samples.length;i++){
+  const part=i?bpGridLine(samples[i-1],samples[i]):[samples[i]];
+  for(const c of part)if(!out.length||out[out.length-1][0]!==c[0]||out[out.length-1][1]!==c[1])out.push(c)
+}return out}
+// مسیر را ابتدا کامل اعتبارسنجی کن؛ اگر حتی یک خانه مسدود باشد، هیچ قطعه‌ای از مسیر ساخته نشود.
+// خانهٔ مسیر موجود قابل استفادهٔ مجدد است تا مسیر جدید بتواند به شبکهٔ قبلی متصل شود.
+function bpStrokePoints(samples){
+  const cells=bpRaster(samples);if(!cells.length)return 0;
+  const all=W.buildings.concat(BP.items),occupied=new Map(all.filter(i=>i.type==='road'||i.type==='path').map(i=>[i.x+','+i.z,i]));
+  const fresh=[],seen=new Set();
+  for(const[x,z]of cells){const k=x+','+z;if(seen.has(k))continue;seen.add(k);
+    const old=occupied.get(k);if(old){if(old.type===BP.type)continue;toast('این مسیر از خانهٔ نوع دیگری عبور می‌کند');return 0}
+    if(BP.items.length+fresh.length>=400){toast('حداکثر ۴۰۰ مورد در یک نقشه');return 0}
+    const check=fpCheck(BP.type,x,z,0,W.buildings.concat(BP.items,fresh));
+    if(check!==true){toast('مسیر کامل نشد: '+check+'؛ مسیر را از مانع عبور نده');return 0}
+    const it={type:BP.type,x,z,rot:0};fresh.push(it);occupied.set(k,it)
+  }
+  if(!fresh.length){toast('این مسیر از قبل ساخته شده است');return 0}
+  BP.items.push(...fresh);for(const it of fresh)bpMake(it);for(const it of fresh)bpRemesh(it);bpAfterChange();return fresh.length
+}
+function bpStroke(x0,z0,x1,z1){return bpStrokePoints([[x0,z0],[x1,z1]])}
+// ── راهنمای مسیر: همان مسیر rasterشده‌ای را نشان بده که پس از تأیید واقعاً ساخته می‌شود.
 function bpLine(c){if(!c){if(BP.line){scene.remove(BP.line);disposeObj(BP.line);BP.line=null}return}
-  if(!BP.line){BP.line=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xffe0a0,transparent:true,opacity:.8}));BP.line.position.y=.1;scene.add(BP.line)}
-  BP.line.geometry.setFromPoints([new THREE.Vector3(BP.down.c[0]*CELL,0,BP.down.c[1]*CELL),new THREE.Vector3(c[0]*CELL,0,c[1]*CELL)])}
+  if(!BP.line){BP.line=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xffe0a0,transparent:true,opacity:.9}));BP.line.position.y=.12;scene.add(BP.line)}
+  const d=BP.down,samples=d?.samples?.length?d.samples:(d?.c?[d.c,c]:[c]);
+  const last=samples[samples.length-1];if(last[0]!==c[0]||last[1]!==c[1])samples.push(c);
+  const cells=bpRaster(samples),pts=cells.map(v=>new THREE.Vector3(v[0]*CELL,0,v[1]*CELL));
+  BP.line.geometry.setFromPoints(pts.length?pts:[new THREE.Vector3(c[0]*CELL,0,c[1]*CELL)])}
 // ── شبحِ شناور زیر انگشت (مدل واقعی؛ فقط وقتی درگِ جدید روی زمین است)
 function bpFloat(c){const isTile=BP.type==='road'||BP.type==='path';
   // جاده/پیاده‌رو: ماسک/لینک با حرکتِ سلول عوض می‌شود ⇒ مشِ شبح را بازسازی کن تا اتصال زنده دیده شود
@@ -197,7 +233,7 @@ async function bpCommit(){const n=BP.items.length;if(!n||BP.busy)return;
 // زمان شروع انیمیشنِ پاپ برای ساختمان تازه (۰ = همین حالا؛ stagger ← bpCommit)
 const bpDelay=id=>BP._stag.get(id)||0;
 document.body.insertAdjacentHTML('beforeend',
- `<div id="bph" class="g">🏗️ انگشت بگذار و بکش: شبح دنبال انگشت می‌آید، رها کن = بنشیند · روی پیش‌نمایش بکش = جابه‌جایی · تپ = انتخاب · R چرخش · ⇧ دوتایی حذف</div>
+ `<div id="bph" class="g">🏗️ مسیر جاده/پیاده‌رو: آزاد بکش تا منحنی شود · Shift + کشیدن = خط کاملاً صاف · روی پیش‌نمایش بکش = جابه‌جایی · تپ = انتخاب · R چرخش</div>
   <div id="bpb" class="g"><span id="bpn"></span><button id="bpr" title="چرخش انتخاب‌شده (R)">🔄</button><button id="bpq2" title="صف ساخت">📋</button><button id="bpx" title="کنسل (Esc)">✕</button><button id="bpok" title="ساخت (Enter)">✓</button></div>
   <div id="bpq" class="g"><div id="bpi"></div><ol id="bql"></ol></div>`);
 $('bpx').onclick=()=>{bpEnd();toast('نقشهٔ ساخت کنسل شد — هیچی ساخته نشد')};
