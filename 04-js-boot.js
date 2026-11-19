@@ -11,7 +11,6 @@ const GAME_FILES=[
   '05-core-engine',
   '05-core-state',
   '05-core-materials',
-  '06-world-footprint',
   '06-world-scenery',
   '07-buildings-models',
   '08-characters-dialogue',

@@ -21,9 +21,7 @@ def add_building():
         x, z = (int(j["x"]), int(j["z"])) if j.get("x") not in (None, "") and j.get("z") not in (None, "") else free_cell(d, t)
         check_cell(d, x, z)
         b = {"id": d["next_id"], "type": t, "x": x, "z": z, "rot": auto_rot(d, t, x, z, j.get("rot"))}
-        if t in ("house", "hq") and j.get("rot") is None: b["ar"] = True      # چرخش خودکار (رو به جاده/پیاده‌رو)
         d["next_id"] += 1; d["buildings"].append(b); d["stats"]["money"] -= cost
-        if t in ("road", "path"): reorient(d)
         if t != "tree": log_event(d, f"{CATALOG[t]} ساخته شد" + (f" (−{cost/1e6:g} میلیون تومان)." if cost else "."))
         return b
     return jsonify(building=mutate(f))
@@ -48,14 +46,6 @@ def auto_rot(d, t, x, z, rot=None):
         if best is None or dist < best[0]:
             best = (dist, rot_)
     return best[1] if best else r
-
-
-def reorient(d):
-    """خانه/دفتری که چرخشش خودکار است (ar) بعد از هر تغییر جاده/پیاده‌رو دوباره رو به نزدیک‌ترین مسیر می‌چرخد
-    (مثل بازی‌های شهرسازی: درِ خانه همیشه به مسیر می‌چسبد)."""
-    for b in d["buildings"]:
-        if b["type"] in ("house", "hq") and b.get("ar"):
-            b["rot"] = auto_rot(d, b["type"], b["x"], b["z"], None)
 
 
 @bp.post("/api/admin/buildings/batch")
@@ -85,9 +75,7 @@ def add_buildings_batch():
         made = []
         for t, x, z, rot in clean:
             b = {"id": d["next_id"], "type": t, "x": x, "z": z, "rot": auto_rot(d, t, x, z, rot)}
-            if t in ("house", "hq") and rot is None: b["ar"] = True
             d["next_id"] += 1; d["buildings"].append(b); made.append(b)
-        reorient(d)
         d["stats"]["money"] -= total
         kinds = {}
         for t, *_ in clean: kinds[CATALOG[t]] = kinds.get(CATALOG[t], 0) + 1
@@ -103,7 +91,6 @@ def del_building(bid):
         b = next((i for i in d["buildings"] if i["id"] == bid), None)
         if not b: raise ValueError("پیدا نشد")
         d["buildings"].remove(b)
-        if b["type"] in ("road", "path"): reorient(d)
         if b["type"] != "tree": log_event(d, f"{CATALOG[b['type']]} برداشته شد.")
     mutate(f); return jsonify(ok=True)
 
@@ -116,8 +103,7 @@ def move_building(bid):
         b = next((i for i in d["buildings"] if i["id"] == bid), None)
         if not b: raise ValueError("پیدا نشد")
         x, z = int(j["x"]), int(j["z"]); check_cell(d, x, z, bid); b["x"], b["z"] = x, z
-        if "rot" in j and int(j["rot"]) % 360 != b["rot"]: b["rot"] = int(j["rot"]) % 360; b["ar"] = False   # چرخش دستی ← دیگر خودکار نیست
-        reorient(d)
+        if "rot" in j: b["rot"] = int(j["rot"]) % 360
     mutate(f); return jsonify(ok=True)
 
 

@@ -11,9 +11,9 @@ function setCost(X,Z,hx,hz,v,force){for(let j=ci(Z-hz);j<=ci(Z+hz);j++)for(let i
 function rebuildNav(w){nav.fill(0);cost.fill(1.5);homes=[];mkts=[];farms=[];treeSp=[];roadC=[];roadSet.clear();pathC=[];pathSet.clear();homeById.clear();occ.clear();
 for(let j=0;j<NN;j++)for(let i=0;i<NN;i++){const x=cw(i),z=cw(j);if(Math.abs(x)>38.5||Math.abs(z)>38.5||pondM(x,z))nav[j*NN+i]=1}
 const trees=[];let sx=0,sz=0,n=0;
-for(const b of w.buildings){const X=b.x*CELL,Z=b.z*CELL,a=b.rot*Math.PI/180,q=b.rot%180?1:0,fx=Math.sin(a),fz=Math.cos(a);occ.add(b.x+','+b.z);
-if(b.type==='house'||b.type==='hq'){const hx=q?.9:1,hz=q?1:.9;blk(X-hx,X+hx,Z-hz,Z+hz);const h={id:b.id,x:X,z:Z,fx,fz,hq:b.type==='hq'};homes.push(h);homeById.set(b.id,h)}
-else if(b.type==='market'){const hx=q?.5:1.1,hz=q?1.1:.5;blk(X-hx,X+hx,Z-hz,Z+hz);mkts.push({x:X+fx*1.25,z:Z+fz*1.25,cx:X,cz:Z})}
+for(const b of w.buildings){const X=b.x*CELL,Z=b.z*CELL,a=b.rot*Math.PI/180,q=b.rot%180?1:0,fx=Math.sin(a),fz=Math.cos(a);occ.add(Math.round(b.x)+','+Math.round(b.z));
+if(b.type==='house'||b.type==='hq'){const[fw,fd]=fpDim(b.type,b.rot),hx=fw/2,hz=fd/2;blk(X-hx,X+hx,Z-hz,Z+hz);const h={id:b.id,x:X,z:Z,fx,fz,hq:b.type==='hq'};homes.push(h);homeById.set(b.id,h)}
+else if(b.type==='market'){const[fw,fd]=fpDim('market',b.rot),hx=fw/2,hz=fd/2;blk(X-hx,X+hx,Z-hz,Z+hz);mkts.push({x:X+fx*1.25,z:Z+fz*1.25,cx:X,cz:Z})}
 else if(b.type==='tree'){blk(X-.4,X+.4,Z-.4,Z+.4);trees.push([X,Z])}
 else if(b.type==='farm')farms.push({x:X,z:Z});
 else if(b.type==='road'){roadC.push({x:X,z:Z});roadSet.add(b.x+','+b.z)}
@@ -22,7 +22,8 @@ if(b.type!=='tree'){sx+=X;sz+=Z;n++}}
 regH=homes.filter(h=>!h.hq).sort((a,b)=>a.id-b.id);hqH=homes.find(h=>h.hq)||null;ctr=n?[sx/n,sz/n]:[0,0];let E=0;for(const b of w.buildings)if(b.type!=='tree')E=Math.max(E,Math.hypot(b.x*CELL-ctr[0],b.z*CELL-ctr[1]));
 RAD=Math.min(34,Math.max(8+2.6*Math.log2(1+((w.stats&&w.stats.pop)||1)),E+5)); // با رشد جمعیت، محدودهٔ حرکت بزرگ‌تر می‌شود
 for(const{x:X,z:Z}of roadC)setCost(X,Z,1,1,ROADC,1); // آسفالت: گران، برای ماشین‌هاست
-for(const{x:X,z:Z}of pathC)setCost(X,Z,1,1,.5);
+for(const{x:X,z:Z}of pathC){const cx=Math.round(X/CELL),cz=Math.round(Z/CELL),hw=PW/2,ln=1-hw;setCost(X,Z,hw,hw,.5);
+for(const[dx,dz]of D4){const k=(cx+dx)+','+(cz+dz);if(pathSet.has(k)||roadSet.has(k))setCost(X+dx*(hw+ln/2),Z+dz*(hw+ln/2),dx?ln/2:hw,dz?ln/2:hw,.5)}}
 for(const{x:X,z:Z}of roadC){const cx=Math.round(X/CELL),cz=Math.round(Z/CELL);for(const[dx,dz]of D4)if(pathSet.has((cx+dx)+','+(cz+dz)))setCost(X,Z,dx?1:PW/2,dz?1:PW/2,.7)} // محل رد شدن از خیابان
 for(const[X,Z]of trees)for(const[a,b]of[[.8,0],[-.8,0],[0,.8],[0,-.8]])if(walk(X+a,Z+b)){treeSp.push({x:X+a,z:Z+b,tx:X,tz:Z});break}
 refreshDeco()}

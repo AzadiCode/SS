@@ -3,7 +3,7 @@
 // · bpStroke (ردیف پیوستهٔ بدون گپ) · bpCommit (تأیید اتمیک + زمان‌بندی stagger ← 05-core-main.js).
 // سرور: POST /api/admin/buildings/batch (اتمیک) ← 01-server-admin.py ═══
 'use strict';
-const BP={on:false,items:[],type:'house',rot:0,rotSet:false,sel:null,dragIt:null,down:null,ghost:null,line:null,busy:false,_tpl:new Map(),_stag:new Map()};
+const BP={on:false,items:[],type:'house',rot:0,sel:null,dragIt:null,down:null,ghost:null,line:null,busy:false,_tpl:new Map(),_stag:new Map()};
 const BP_OK=0x3ddc97,BP_BAD=0xff5a4c,BP_GOLD=0xffc247;
 const BP_GEO=new THREE.RingGeometry(.74,.94,4,1,Math.PI/4),BP_PGEO=new THREE.PlaneGeometry(1,1);
 // شبح = مدل واقعیِ ادغام‌شده در یک متریال شفاف مشترک؛ عمق‌نویسی خاموش تا از هم پشت هم هم دیده شوند
@@ -82,18 +82,6 @@ function bpClone(type,rot,mask,links,lamp=0){const src=bpTemplate(type,rot,mask,
   if(ring)ring.material=ring.material.clone();if(tile)tile.material=tile.material.clone();   // متریال جدا تا رنگ هر شبح مستقل باشد
   g.userData={ring,tileMesh:tile,k:mask+(links?'|'+links.L.join(',')+'|'+links.bl:'')+'|'+lamp};return g}
 
-// ── چرخش خودکار (هم‌قاعده با auto_rot سرور): در خانه/دفتر رو به نزدیک‌ترین جاده/پیاده‌رو (واقعی + صف)
-function bpAutoRot(it){const r=[...W.buildings,...BP.items.filter(i=>i!==it)].filter(b=>b.type==='road'||b.type==='path');
-  if(!r.length)return it.rot||0;let best=null;
-  for(const[dx,dz,rt]of[[0,1,0],[1,0,90],[0,-1,180],[-1,0,270]]){const fx=it.x+dx,fz=it.z+dz;let d=1e9;for(const b of r)d=Math.min(d,Math.abs(b.x-fx)+Math.abs(b.z-fz));if(!best||d<best[0])best=[d,rt]}
-  return best[1]}
-// بازسازی مش یک کاشی مسیر اگر امضای اتصالش عوض شده
-function bpRefresh(it){if(!it.g||(it.type!=='road'&&it.type!=='path'))return;
-  const links=it.type==='path'?bpPathMask(it.x,it.z):null,lamp=it.type==='road'?(((it.x+it.z)%2+2)%2===0?1:0):0,m=links?links.m:bpMask(it.type,it.x,it.z),
-  sig=m+(links?'|'+links.L.join(',')+'|'+links.bl:'')+'|'+lamp;
-  if(it.g.userData.k!==sig){scene.remove(it.g);disposeObj(it.g);const g=bpClone(it.type,it.rot,m,links,lamp);g.userData.it=it;g.position.set(it.x*CELL,0,it.z*CELL);scene.add(g);it.g=g;bpPaint(it)}}
-// جهت قلم: خودکار ← ۰ ← ۹۰ ← ۱۸۰ ← ۲۷۰ ← خودکار
-function bpPenRot(){if(!BP.rotSet){BP.rotSet=true;BP.rot=0}else if(BP.rot===270){BP.rotSet=false;BP.rot=0}else BP.rot+=90;bpGhostType();toast(BP.rotSet?'جهت دستی: '+cpx(BP.rot)+'°':'جهت خودکار: در رو به جاده/پیاده‌رو')}
 // ── ساخت/به‌روزرسانی یک آیتم صف: مدل شبح + حلقه + کاشی اعتبار
 function bpMake(it){const links=it.type==='path'?bpPathMask(it.x,it.z):null;
   const lamp=it.type==='road'?(((it.x+it.z)%2+2)%2===0?1:0):0;   // چراغ جاده = پریتی سلول، مثل roads()
@@ -115,25 +103,18 @@ function bpPaint(it){if(!it.g)return;const val=bpVal(it.type,it.x,it.z,it),ring=
 // چیدن/حذف/جابه‌جایی
 function bpAdd(x,z){if(BP.items.length>=400)return toast('حداکثر ۴۰۰ مورد در یک نقشه');
   if(bpVal(BP.type,x,z)!==true)return false;
-  const tile=BP.type==='road'||BP.type==='path',hs=BP.type==='house'||BP.type==='hq',it={type:BP.type,x,z,rot:tile?0:BP.rot,ar:hs&&!BP.rotSet};
-  if(it.ar)it.rot=bpAutoRot(it);
-  bpMake(it);BP.items.push(it);bpRemesh(it);bpAfterChange(it);return true}
+  const it={type:BP.type,x,z,rot:(BP.type==='road'||BP.type==='path')?0:BP.rot};
+  bpMake(it);BP.items.push(it);bpRemesh(it);bpAfterChange();return true}
 function bpRemove(it){if(!it)return;if(it.g){scene.remove(it.g);disposeObj(it.g);it.g=null}
   BP.items.splice(BP.items.indexOf(it),1);if(BP.sel===it)BP.sel=null;
   for(const o of BP.items)if((o.type==='road'||o.type==='path')&&Math.abs(o.x-it.x)<=1&&Math.abs(o.z-it.z)<=1)bpRemesh(o);
-  bpAfterChange(it)}
+  bpAfterChange()}
 function bpMove(it,x,z){if(it.x===x&&it.z===z){bpPaint(it);return true}
   const val=bpVal(it.type,x,z,it);if(val!==true){bpPaint(it);return false}
-  const ox=it.x,oz=it.z;it.x=x;it.z=z;it.g.position.set(x*CELL,0,z*CELL);bpRemesh(it);
-  for(const o of BP.items)if(o!==it&&(o.type==='road'||o.type==='path')&&Math.abs(o.x-ox)<=1&&Math.abs(o.z-oz)<=1)bpRefresh(o);
-  bpPaint(it);bpAfterChange(it);return true}
+  it.x=x;it.z=z;it.g.position.set(x*CELL,0,z*CELL);bpRemesh(it);bpPaint(it);bpAfterChange();return true}
 function bpRot(it){if(it.type==='road'||it.type==='path')return;
-  it.ar=false;it.rot=(it.rot+90)%360;it.g.rotation.y=it.rot*Math.PI/180;bpRemesh(it);bpPaint(it)}
-// ch = آیتمِ تغییرکرده: خانه‌های خودکار اطراف دوباره رو به مسیر می‌چرخند و کاشی‌های مسیرِ کنارشان بازاتصال می‌شوند (چسبیدن درِ خانه به پیاده‌رو)
-function bpAfterChange(ch){if(ch){const tiles=ch.type==='road'||ch.type==='path',near=(a,b,n)=>Math.abs(a.x-b.x)<=n&&Math.abs(a.z-b.z)<=n;
-  for(const h of BP.items.filter(i=>i.ar&&(i.type==='house'||i.type==='hq')&&(tiles?near(i,ch,8):i===ch))){const nr=bpAutoRot(h);if(nr!==h.rot){h.rot=nr;if(h.g)h.g.rotation.y=nr*Math.PI/180;for(const o of BP.items)if(near(o,h,2))bpRefresh(o)}}
-  if(!tiles)for(const o of BP.items)if(near(o,ch,2))bpRefresh(o)}
-  for(const it of BP.items)bpPaint(it);bpBar()}
+  it.rot=(it.rot+90)%360;it.g.rotation.y=it.rot*Math.PI/180;bpRemesh(it);bpPaint(it)}
+function bpAfterChange(){for(const it of BP.items)bpPaint(it);bpBar()}
 // ── اتصال زندهٔ کاشی‌ها: با هر تغییر، ماسک همسایگیِ همهٔ کاشی‌های مجاور دوباره ساخته می‌شود (مسیر پیوسته همیشه درست)
 function bpRemesh(changed){if(changed.type!=='road'&&changed.type!=='path')return;
   const near=[changed,...BP.items.filter(it=>(it.type==='road'||it.type==='path')&&Math.abs(it.x-changed.x)<=1&&Math.abs(it.z-changed.z)<=1)];
@@ -166,7 +147,7 @@ function bpFloat(c){const isTile=BP.type==='road'||BP.type==='path';
   else if(!BP.ghost){const g=bpClone(BP.type,BP.rot,0);BP.ghost=g;scene.add(BP.ghost)}
   const val=bpVal(BP.type,c[0],c[1]),ok=val===true;
   BP.ghost.position.set(c[0]*CELL,0,c[1]*CELL);
-  if(!isTile){const hs=BP.type==='house'||BP.type==='hq',r=hs&&!BP.rotSet?bpAutoRot({type:BP.type,x:c[0],z:c[1],rot:BP.rot}):BP.rot;BP.ghost.rotation.y=r*Math.PI/180}
+  if(!isTile)BP.ghost.rotation.y=BP.rot*Math.PI/180;
   BP.ghost.userData.ring.material.color.setHex(ok?BP_OK:BP_BAD);
   BP.ghost.userData.tileMesh.material.color.setHex(ok?BP_OK:BP_BAD);
   // سلولِ «اشغال» (ساختمان واقعی همان‌جاست): مدل/کاشی شبح داخل هندسهٔ ساختمان می‌رود و مثل بریدگی
@@ -187,7 +168,7 @@ function bpBar(){const b=$('bpb');if(!b)return;b.style.display=BP.on?'flex':'non
   $('bpn').innerHTML='نقشهٔ ساخت: '+cpx(n)+' مورد'+(bad?' · <b style="color:#ff8d80">'+cpx(bad)+' نامعتبر</b>':'')+(cost&&!$('fr').checked?' · '+fa(cost/1e6,1)+' م':'');
   $('bpi').textContent=BP.sel?'انتخاب: '+cpx(BP.items.indexOf(BP.sel)+1)+' · '+(W.catalog?.[BP.sel.type]||BP.sel.type):'';
   $('bpok').style.opacity=n&&!bad&&!BP.busy?1:.35}
-function bpStart(){if(!T)return;BP.on=true;BP.rot=0;BP.rotSet=false;BP.sel=null;BP.pid=null;bpBar();
+function bpStart(){if(!T)return;BP.on=true;BP.rot=0;BP.sel=null;BP.pid=null;bpBar();
   $('bph').style.display='block';$('adm').style.display='none';$('pal').style.display='flex'}
 function bpEnd(){BP.on=false;BP.sel=null;BP.dragIt=null;BP.down=null;BP.pid=null;
   for(const it of BP.items)if(it.g){scene.remove(it.g);disposeObj(it.g);it.g=null}
@@ -201,7 +182,7 @@ async function bpCommit(){const n=BP.items.length;if(!n||BP.busy)return;
   const bad=BP.items.filter(i=>!i.ok);if(bad.length){toast(cpx(bad.length)+' مورد نامعتبر است — سبز شود یا حذفش کن');
     BP.sel=bad[0];bpAfterChange();return}
   BP.busy=true;bpBar();
-  try{const res=await api('/api/admin/buildings/batch','POST',{items:BP.items.map(i=>({type:i.type,x:i.x,z:i.z,rot:i.ar?null:i.rot})),free:$('fr').checked});
+  try{const res=await api('/api/admin/buildings/batch','POST',{items:BP.items.map(i=>({type:i.type,x:i.x,z:i.z,rot:i.rot})),free:$('fr').checked});
     const made=res.buildings||[];BP._stag.clear();
     made.forEach((b,i)=>BP._stag.set(b.id,i*.12));        // پله‌ای: هر ساختمان ۱۲۰ms بعد از قبلی
     toast('✅ '+cpx(n)+' ساختمان ساخته شد');
@@ -217,7 +198,7 @@ document.body.insertAdjacentHTML('beforeend',
   <div id="bpq" class="g"><div id="bpi"></div><ol id="bql"></ol></div>`);
 $('bpx').onclick=()=>{bpEnd();toast('نقشهٔ ساخت کنسل شد — هیچی ساخته نشد')};
 $('bpok').onclick=bpCommit;
-$('bpr').onclick=()=>{if(BP.sel)bpRot(BP.sel);else bpPenRot()};
+$('bpr').onclick=()=>{if(BP.sel)bpRot(BP.sel);else toast('اول یک پیش‌نمایش را انتخاب کن')};
 $('bpq2').onclick=()=>{const q=$('bpq');const on=q.style.display==='flex';q.style.display=on?'none':'flex';if(!on)bpQList()};
 function bpQList(){const l=$('bql');if(!l)return;l.innerHTML=BP.items.map((it,i)=>
   `<li data-i="${i}" class="${it===BP.sel?'on':''} ${it.ok?'':'bad'}">${cpx(i+1)}. ${W.catalog?.[it.type]||it.type} <i>(${it.x},${it.z})</i><span data-del="${i}">✕</span></li>`).join('')||'<li style="opacity:.6">خالی</li>';
@@ -226,5 +207,5 @@ function bpQList(){const l=$('bql');if(!l)return;l.innerHTML=BP.items.map((it,i)
 addEventListener('keydown',e=>{if(!BP.on)return;
   if(e.key==='Escape'){bpEnd();toast('کنسل شد')}
   else if(e.key==='Enter'){e.preventDefault();bpCommit()}
-  else if(e.key==='r'||e.key==='R'){if(BP.sel)bpRot(BP.sel);else bpPenRot()}
+  else if(e.key==='r'||e.key==='R'){if(BP.sel)bpRot(BP.sel);else{BP.rot=(BP.rot+90)%360;bpGhostType()}}
   else if(e.key==='Delete'||e.key==='Backspace'){if(BP.sel){bpRemove(BP.sel)}}});
