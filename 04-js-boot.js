@@ -13,6 +13,7 @@ const GAME_FILES=[
   '05-core-materials',
   '06-world-scenery',
   '07-buildings-models',
+  '07-buildings-footprint',
   '08-characters-dialogue',
   '06-world-roads',
   '06-world-environment',

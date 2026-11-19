@@ -10,7 +10,7 @@ const gg=new THREE.PlaneGeometry(300,300,110,110);gg.rotateX(-Math.PI/2);{const 
 const ground=new THREE.Mesh(gg,new THREE.MeshStandardMaterial({map:tex,roughness:1}));ground.receiveShadow=true;scene.add(ground);
 const sky=new THREE.Mesh(new THREE.SphereGeometry(250,24,12),new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,fog:false,uniforms:{a:{value:new THREE.Color(0x6f9fc8)},b:{value:new THREE.Color(0xc9d6c4)},s:{value:new THREE.Vector3(0,1,0)},gc:{value:new THREE.Color(0xffe2b8)},g:{value:1}},vertexShader:'varying vec3 p;void main(){p=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:'uniform vec3 a,b,s,gc;uniform float g;varying vec3 p;void main(){vec3 c=mix(b,a,smoothstep(0.,.55,p.y));float d=max(dot(p,s),0.);c+=gc*(pow(d,6.)*.35+pow(d,90.)*1.2)*g;gl_FragColor=vec4(c,1.);}'}));scene.add(sky);
 // دکور: برکه، سنگ، گل
-const inPond=(x,z)=>((x+17)/8.6)**2+((z+17)/6)**2<1,occ=new Set();
+const inPond=(x,z)=>((x+17)/8.6)**2+((z+17)/6)**2<1,occ=[]; // مستطیل‌های واقعی آیتم‌ها [x0,x1,z0,z1]
 const pond=new THREE.Mesh(new THREE.CircleGeometry(5.5,48),new THREE.MeshStandardMaterial({color:0x4a8da0,roughness:.12,metalness:.15}));pond.rotation.x=-Math.PI/2;pond.position.set(-17,.04,-17);pond.scale.set(1.3,1,.9);scene.add(pond);
 const rip=new THREE.Mesh(new THREE.RingGeometry(3,3.4,48),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.18,depthWrite:false}));rip.rotation.x=-Math.PI/2;rip.position.set(-17,.06,-17);rip.scale.set(1.3,1,.9);scene.add(rip);
 const rim=new THREE.Mesh(new THREE.RingGeometry(5.5,6.4,48),new THREE.MeshStandardMaterial({color:0xcfc29a,roughness:1}));rim.rotation.x=-Math.PI/2;rim.position.set(-17,.03,-17);rim.scale.copy(pond.scale);scene.add(rim);
@@ -18,7 +18,7 @@ let s=5;const rnd=()=>(s=(s*16807)%2147483647)/2147483647;
 const dm=new THREE.Object3D(),FP=[],fl=new THREE.InstancedMesh(new THREE.SphereGeometry(.08,6,5),new THREE.MeshStandardMaterial({roughness:.7}),260);
 for(let i=0;i<260;i++){FP.push([(rnd()-.5)*78,(rnd()-.5)*78]);fl.setColorAt(i,new THREE.Color(['#f3e9a6','#f4efe4','#e8a3b8','#b9a4e6'][i%4]))}scene.add(fl);
 const rocks=[];for(let i=0;i<22;i++){const r=new THREE.Mesh(new THREE.DodecahedronGeometry(.2+rnd()*.25,0),M(0x8c9088));r.position.set((rnd()-.5)*76,.14,(rnd()-.5)*76);r.scale.y=.7;r.castShadow=true;scene.add(r);rocks.push(r)}
-const hid=(x,z)=>occ.has(Math.round(x/CELL)+','+Math.round(z/CELL))||inPond(x,z);
+const hid=(x,z)=>inPond(x,z)||occ.some(r=>x>r[0]-.1&&x<r[1]+.1&&z>r[2]-.1&&z<r[3]+.1);
 function refreshDeco(){FP.forEach(([x,z],i)=>{dm.position.set(x,.08,z);dm.scale.setScalar(hid(x,z)?0:1);dm.updateMatrix();fl.setMatrixAt(i,dm.matrix)});fl.instanceMatrix.needsUpdate=true;rocks.forEach(r=>r.visible=!hid(r.position.x,r.position.z))}
 for(let i=0;i<18;i++){const an=i/18*6.283,r=112+rnd()*14,h=16+rnd()*22,w=20+rnd()*16;const m=new THREE.Mesh(new THREE.ConeGeometry(w,h,6),M(i%3?0x6b8796:0x7a9a88,1));m.position.set(Math.cos(an)*r,h/2-1,Math.sin(an)*r);m.rotation.y=rnd()*3;scene.add(m);const c=new THREE.Mesh(new THREE.ConeGeometry(w*.32,h*.3,6),M(0xeef2f4,.9));c.position.set(m.position.x,h*.85-1,m.position.z);scene.add(c)}
 {const N=260,tr=new THREE.InstancedMesh(new THREE.CylinderGeometry(.12,.18,1,6),M(0x6b4a30),N),cn=new THREE.InstancedMesh(new THREE.ConeGeometry(.9,1.8,7),new THREE.MeshStandardMaterial({roughness:.95}),N*2),o=new THREE.Object3D();let k=0;

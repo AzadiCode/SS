@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """منطق دنیا: ساخت اولیه، مهاجرت دیتابیس، اقتصاد (tick)، هدف‌ها، رویدادها و خروجی عمومی (view)."""
-import time, random
+import time, random, math
 from datetime import datetime, timezone
-from srv_config import (SIZE, DAY, FOOD_PRICE, FOOD_PER_PERSON, FARM_YIELD, MARKET_INCOME, TZ_NAME,
+from srv_config import (SIZE, CELL, FOOT, GRID_TYPES, DAY, FOOD_PRICE, FOOD_PER_PERSON, FARM_YIELD, MARKET_INCOME, TZ_NAME,
                      CATALOG, COST, TIERS, GOALS, RES, runtime)
 from srv_db import lock, fetch, save
 
@@ -41,15 +41,16 @@ def ensure_hq(d):                                         # دفتر مدیرع�
     if d.get("hq_made"): return False
     d["hq_made"] = True
     if any(b["type"] == "hq" for b in d["buildings"]): return True
-    at = {(b["x"], b["z"]): b for b in d["buildings"]}
+    notree = {**d, "buildings": [b for b in d["buildings"] if b["type"] != "tree"]}
     for r in range(0, 8):
         for x in range(-r, r + 1):
             for z in range(-r, r + 1):
-                if max(abs(x), abs(z)) != r or in_pond(x, z): continue
-                o = at.get((x, z))
-                if o and o["type"] != "tree": continue
-                if o: d["buildings"].remove(o)
-                d["buildings"].append({"id": d["next_id"], "type": "hq", "x": x, "z": z, "rot": 0}); d["next_id"] += 1
+                if max(abs(x), abs(z)) != r: continue
+                try: check_place(notree, "hq", x, z)
+                except ValueError: continue
+                tiles = tiles_of(d["buildings"]); cand = {"type": "hq", "x": x, "z": z, "rot": 0}; R = rects_of(cand, tiles)
+                d["buildings"] = [b for b in d["buildings"] if not (b["type"] == "tree" and any(_hit(a, c) for a in R for c in rects_of(b, tiles)))]
+                d["buildings"].append({"id": d["next_id"], **cand}); d["next_id"] += 1
                 return True
     return True
 
@@ -60,7 +61,7 @@ def fix_pond(d):                                          # ساختمان‌ه�
         if in_pond(b["x"], b["z"]):
             ch = True
             if b["type"] == "tree": d["buildings"].remove(b)
-            else: b["x"], b["z"] = free_cell(d, b["type"])
+            else: b["x"], b["z"] = free_cell(d, b["type"], b["id"])
     return ch
 
 
@@ -71,21 +72,70 @@ def load():
     return d
 
 
-# ───────── نقشه ─────────
-def free_cell(d, t):
-    used = {(b["x"], b["z"]) for b in d["buildings"]}
+# ───────── نقشه و ردپای واقعی ─────────
+EPS = 1e-3                                                 # لبه‌به‌لبه (تماس) برخورد نیست
+LO, HI = -SIZE * CELL - 1, SIZE * CELL - 1                 # مرز واقعی نقشه (واحد دنیا)
+_D4 = ((1, 0), (-1, 0), (0, 1), (0, -1))
+
+
+def pond_world(X, Z): return ((X + 17) / 8.6) ** 2 + ((Z + 17) / 6) ** 2 < 1.15
+
+
+def tiles_of(blds): return {(b["x"], b["z"]) for b in blds if b["type"] in GRID_TYPES}
+
+
+def rects_of(b, tiles):
+    """مستطیل‌های واقعی یک آیتم (x0,x1,z0,z1) به واحد دنیا. پیاده‌رو = مربع مرکزی + بازو به همسایه‌های مسیر."""
+    t = b["type"]; x, z = b["x"] * CELL, b["z"] * CELL; w, dp, ox, oz = FOOT[t]
+    if t == "path":
+        h = .33; R = [(x - h, x + h, z - h, z + h)]
+        for dx, dz in _D4:
+            if (b["x"] + dx, b["z"] + dz) in tiles:
+                R.append(((x if dx > 0 else x - 1), (x + 1 if dx > 0 else x), z - .3, z + .3) if dx else (x - .3, x + .3, (z if dz > 0 else z - 1), (z + 1 if dz > 0 else z)))
+        return R
+    a = 0 if t in GRID_TYPES else math.radians(b.get("rot", 0)); s, c = round(math.sin(a)), round(math.cos(a))
+    cx, cz = x + ox * c + oz * s, z - ox * s + oz * c
+    if s: w, dp = dp, w
+    return [(cx - w / 2, cx + w / 2, cz - dp / 2, cz + dp / 2)]
+
+
+def _hit(a, b): return min(a[1], b[1]) - max(a[0], b[0]) > EPS and min(a[3], b[3]) - max(a[2], b[2]) > EPS
+
+
+def check_place(d, t, x, z, rot=0, ignore=None, extra=()):
+    """اعتبارسنجی با شکل واقعی: داخل نقشه، نه روی برکه، بدون هم‌پوشانیِ واقعی با هیچ آیتمی. خروجی: (x, z, rot) نرمال‌شده."""
+    if t in GRID_TYPES: x, z, rot = int(round(float(x))), int(round(float(z))), 0
+    else: x, z, rot = round(float(x), 4), round(float(z), 4), (int(round(int(rot) / 90)) * 90) % 360
+    oth = [b for b in list(d["buildings"]) + list(extra) if b.get("id") != ignore]
+    tiles = tiles_of(oth)
+    if t in GRID_TYPES: tiles.add((x, z))
+    cand = {"type": t, "x": x, "z": z, "rot": rot}; R = rects_of(cand, tiles)
+    if any(r[0] < LO - EPS or r[1] > HI + EPS or r[2] < LO - EPS or r[3] > HI + EPS for r in R): raise ValueError("خارج از نقشه")
+    if pond_world(x * CELL, z * CELL) if t in GRID_TYPES else any(pond_world(px, pz) for r in R for px in (r[0], (r[0] + r[1]) / 2, r[1]) for pz in (r[2], (r[2] + r[3]) / 2, r[3])):
+        raise ValueError("اینجا برکه است")
+    near = [o for o in oth if abs(o["x"] - x) <= 2 and abs(o["z"] - z) <= 2]
+    for o in near:
+        if any(_hit(a, c) for a in R for c in rects_of(o, tiles)): raise ValueError("با ساختمان دیگری برخورد دارد")
+    if t in GRID_TYPES:                                    # بازوی تازهٔ همسایه‌های مسیر هم نباید روی چیزی بیفتد
+        for dx, dz in _D4:
+            n = next((o for o in oth if o["type"] in GRID_TYPES and o["x"] == x + dx and o["z"] == z + dz), None)
+            if not n: continue
+            Rn = rects_of(n, tiles)
+            for o in oth:
+                if o is n or abs(o["x"] - n["x"]) > 2 or abs(o["z"] - n["z"]) > 2: continue
+                if any(_hit(a, c) for a in Rn for c in rects_of(o, tiles)): raise ValueError("با ساختمان دیگری برخورد دارد")
+    return x, z, rot
+
+
+def free_cell(d, t, ignore=None):
     for r in range(0, SIZE * 2):
         for x in range(-r, r + 1):
             for z in range(-r, r + 1):
-                if max(abs(x), abs(z)) == r and (x, z) not in used and -SIZE <= x < SIZE and -SIZE <= z < SIZE and not in_pond(x, z):
+                if max(abs(x), abs(z)) == r and -SIZE <= x < SIZE and -SIZE <= z < SIZE:
+                    try: check_place(d, t, x, z, 0, ignore)
+                    except ValueError: continue
                     return x, z
     raise ValueError("جایی خالی نیست")
-
-
-def check_cell(d, x, z, ignore=None):
-    if not (-SIZE <= x < SIZE and -SIZE <= z < SIZE): raise ValueError("خارج از نقشه")
-    if in_pond(x, z): raise ValueError("اینجا برکه است")
-    if any(b["x"] == x and b["z"] == z and b["id"] != ignore for b in d["buildings"]): raise ValueError("این خانه پر است")
 
 
 # ───────── اقتصاد و رویدادها ─────────

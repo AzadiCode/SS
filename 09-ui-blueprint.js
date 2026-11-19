@@ -15,13 +15,14 @@ const bpCompat=(a,b)=>a!==b;                                    // لایه‌ه
 const bpInPond=(x,z)=>((x*2+17)/8.6)**2+((z*2+17)/6)**2<1.15;
 const inMap=(x,z)=>x>=-20&&x<20&&z>=-20&&z<20;
 // ── اعتبارسنجی لایه‌دار: خروجی true یا دلیل خطا (رشته). مجاورت هرگز خطا نیست؛ فقط همپوشانیِ هم‌لایه، برکه و خارج نقشه.
-function bpVal(type,x,z,skip){if(!inMap(x,z))return'خارج از نقشه';if(bpInPond(x,z))return'برکه';
-  // هم‌پوشانی با هر ساختمان واقعی ممنوع (مثل سرور: check_cell بدون لایه) — مجاورت آزاد است
-  if(W.buildings.some(b=>b.x===x&&b.z===z))return'اشغال است';
-  for(const it of BP.items)if(it!==skip&&it.x===x&&it.z===z)return'تداخل با پیش‌نمایش';
+let bpHit=null;
+function bpVal(type,x,z,skip,rot){bpHit=null;if(rot==null)rot=(type==='road'||type==='path')?0:BP.rot;
+  const r=fpCheck(type,x,z,rot,W.buildings.concat(BP.items.filter(i=>i!==skip)));
+  if(r==='برخورد'){bpHit=fpHit;return BP.items.includes(fpHit)?'تداخل با پیش‌نمایش':'اشغال است'}
+  if(r!==true)return r;
   if(type==='hq'&&[...W.buildings,...BP.items.filter(i=>i!==skip)].some(b=>b.type==='hq'))return'دفتر فقط یکی است';
   return true}
-const bpFree=(x,z,skip)=>bpVal(BP.type,x,z,skip)===true;
+const bpFree=(x,z,skip)=>bpVal(BP.type,x,z,skip,BP.rot)===true;
 // ── شبحِ مدل واقعی: مدل کامل ساخته می‌شود، همهٔ مش‌ها در یک مش ادغام و با متریال شبح رندر می‌شوند (۱ دراکال)
 const BP_DIR=[[0,-1],[1,0],[0,1],[-1,0]],BP_ROTD=[0,Math.PI/2,Math.PI,Math.PI*1.5];
 // ماسک اتصال برای یک سلولِ نوع t: همسایه‌های واقعی (W) + همسایه‌های صف (BP.items)
@@ -34,14 +35,8 @@ function bpMask(t,x,z){const same=b=>b.type==='road'||b.type==='path';
 // تا شبحِ پیاده‌رو دقیقاً همان ماسک/طول‌بازو/بیتِ درِ کاشیِ نهایی را داشته باشد (پیش‌نمایش = نهایی).
 // بدون این، شبحِ کنارِ خانه با m=0 و cr=.4 (دیسک کوچک) رندر می‌شود ولی واقعی با بیتِ در → cr=PTW/2 (پر).
 // ساختمان‌های واقعی (W.buildings) و صفِ چیده‌شده (BP.items) هر دو برای محاسبهٔ در به‌حساب می‌آیند.
-function bpPathMask(x,z){const LN=1-PW/2;const L=[LN,LN,LN,LN];let bl=0,m=bpMask('path',x,z);
-  // LN فقط برای امضای کش است؛ pathMesh برای بازوی معمولی به مرز سلول می‌رود و L فقط برای بازوی در استفاده می‌شود
-  const di=(dx,dz)=>dz<0?0:dx>0?1:dz>0?2:3;
-  const blds=[...W.buildings,...BP.items.filter(i=>i.type==='house'||i.type==='hq'||i.type==='farm'||i.type==='market')];
-  for(const b of blds){const t=b.type,th=(b.rot||0)*Math.PI/180;
-    if(t==='house'||t==='hq'){const dx=Math.round(Math.sin(th)),dz=Math.round(Math.cos(th));
-      if((dx||dz)&&b.x+dx===x&&b.z+dz===z){const d=di(-dx,-dz);m|=1<<d;L[d]=t==='house'?.85:.53;bl|=1<<d}}
-    else if(t==='farm'||t==='market'){for(const[nx,nz]of[[0,-1],[1,0],[0,1],[-1,0]]){if(b.x+nx===x&&b.z+nz===z){const ex=t==='farm'?.95:(((nx!==0)===((Math.round((b.rot||0)/90)%2+2)%2===0))?1:.7);const d=di(-nx,-nz);m|=1<<d;L[d]=Math.max(.3,1.5-ex);bl|=1<<d}}}}
+function bpPathMask(x,z){const LN=1-PW/2,L=[LN,LN,LN,LN];let bl=0,m=bpMask('path',x,z);
+  for(const l of fpDoorLinks(W.buildings.concat(BP.items)))if(l.cx===x&&l.cz===z){m|=1<<l.d;L[l.d]=l.len;bl|=1<<l.d}
   return{m,L,bl}}
 // قالب شبح: type/rot/mask + links (فقط پیاده‌رو: {m,L,bl} از bpPathMask). کش با کلیدِ امضای کامل.
 // lamp (فقط جاده): پریتیِ چراغِ همان سلول — تا شبح دقیقاً مثل جادهٔ نهایی چراغ‌دار/بی‌چراغ باشد.
@@ -92,7 +87,7 @@ function bpMake(it){const links=it.type==='path'?bpPathMask(it.x,it.z):null;
   if(it.type!=='road'&&it.type!=='path')g.rotation.y=it.rot*Math.PI/180;
   scene.add(g);it.g=g;bpPaint(it);return g}
 // رنگ حالت: سبز=معتبر · قرمز=نامعتبر · طلایی=انتخاب‌شده
-function bpPaint(it){if(!it.g)return;const val=bpVal(it.type,it.x,it.z,it),ring=it.g.userData.ring;
+function bpPaint(it){if(!it.g)return;const val=bpVal(it.type,it.x,it.z,it,it.rot),ring=it.g.userData.ring;
   it.ok=val===true;it.err=val===true?'':val;
   ring.material.color.setHex(it===BP.sel?BP_GOLD:it.ok?BP_OK:BP_BAD);
   it.g.userData.tileMesh.material.color.setHex(it.ok?BP_OK:BP_BAD);
@@ -102,7 +97,7 @@ function bpPaint(it){if(!it.g)return;const val=bpVal(it.type,it.x,it.z,it),ring=
   it.g.children.forEach(ch=>{if(ch!==ring)ch.visible=!occupied})}
 // چیدن/حذف/جابه‌جایی
 function bpAdd(x,z){if(BP.items.length>=400)return toast('حداکثر ۴۰۰ مورد در یک نقشه');
-  if(bpVal(BP.type,x,z)!==true)return false;
+  if(bpVal(BP.type,x,z,null,BP.rot)!==true)return false;
   const it={type:BP.type,x,z,rot:(BP.type==='road'||BP.type==='path')?0:BP.rot};
   bpMake(it);BP.items.push(it);bpRemesh(it);bpAfterChange();return true}
 function bpRemove(it){if(!it)return;if(it.g){scene.remove(it.g);disposeObj(it.g);it.g=null}
@@ -110,7 +105,7 @@ function bpRemove(it){if(!it)return;if(it.g){scene.remove(it.g);disposeObj(it.g)
   for(const o of BP.items)if((o.type==='road'||o.type==='path')&&Math.abs(o.x-it.x)<=1&&Math.abs(o.z-it.z)<=1)bpRemesh(o);
   bpAfterChange()}
 function bpMove(it,x,z){if(it.x===x&&it.z===z){bpPaint(it);return true}
-  const val=bpVal(it.type,x,z,it);if(val!==true){bpPaint(it);return false}
+  const val=bpVal(it.type,x,z,it,it.rot);if(val!==true){bpPaint(it);return false}
   it.x=x;it.z=z;it.g.position.set(x*CELL,0,z*CELL);bpRemesh(it);bpPaint(it);bpAfterChange();return true}
 function bpRot(it){if(it.type==='road'||it.type==='path')return;
   it.rot=(it.rot+90)%360;it.g.rotation.y=it.rot*Math.PI/180;bpRemesh(it);bpPaint(it)}
@@ -145,7 +140,7 @@ function bpFloat(c){const isTile=BP.type==='road'||BP.type==='path';
     if(BP.ghost.userData.k!==sig){scene.remove(BP.ghost);disposeObj(BP.ghost);
       BP.ghost=bpClone(BP.type,BP.rot,m,links,lamp);scene.add(BP.ghost)}}
   else if(!BP.ghost){const g=bpClone(BP.type,BP.rot,0);BP.ghost=g;scene.add(BP.ghost)}
-  const val=bpVal(BP.type,c[0],c[1]),ok=val===true;
+  const val=bpVal(BP.type,c[0],c[1],null,BP.rot),ok=val===true;
   BP.ghost.position.set(c[0]*CELL,0,c[1]*CELL);
   if(!isTile)BP.ghost.rotation.y=BP.rot*Math.PI/180;
   BP.ghost.userData.ring.material.color.setHex(ok?BP_OK:BP_BAD);
@@ -154,7 +149,7 @@ function bpFloat(c){const isTile=BP.type==='road'||BP.type==='path';
   // دیده می‌شود (باگ کاشی صورتیِ ویدیو). فقط حلقهٔ قرمز می‌ماند — و بالای بامِ ساختمانِ موجود می‌رود
   // تا زیر پی دفن نشود و پیامِ روشنِ «اینجا پر است» جلوی چشم باشد.
   const occupied=val==='اشغال است'||val==='تداخل با پیش‌نمایش';
-  const occ=occupied&&W.buildings.find(b=>b.x===c[0]&&b.z===c[1]);
+  const occ=occupied&&bpHit&&W.buildings.includes(bpHit)?bpHit:null;
   const top=occ&&objs.get(occ.id)?(()=>{const bx=new THREE.Box3().setFromObject(objs.get(occ.id));return Math.max(.12,bx.max.y+.25)})():.06;
   BP.ghost.userData.ring.position.y=top;
   BP.ghost.children.forEach(ch=>{if(ch!==BP.ghost.userData.ring)ch.visible=!occupied});

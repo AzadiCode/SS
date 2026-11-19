@@ -26,7 +26,7 @@
 04-js-boot.js      لیست و ترتیب بارگذاری (GAME_FILES)
 05-core-*.js       quality engine state materials perf main
 06-world-*.js      scenery roads environment cars
-07-buildings-*.js  models houseview
+07-buildings-*.js  models footprint houseview
 08-characters-*.js dialogue nametags navigation models behavior
 09-ui-*.js         blueprint interaction hud
 10-admin-*.js      panel
@@ -42,7 +42,7 @@
 |---|---|
 | `01-server-init.py` | `create_app()` (ثبت Blueprintها)؛ بدون استاتیک فلسک |
 | `01-server-config.py` | env، `SIZE`، `CATALOG`(نوع‌ها)، `COST`(قیمت‌ها)، `RULES`، `TIERS`، `GOALS`، اقتصاد (`FOOD_*`, `FARM_YIELD`, `MARKET_INCOME`) |
-| `01-server-world.py` | منطق دنیا: `seed, migrate, ensure_hq, fix_pond, load, tick, check_cell, free_cell, capacity, apply_delta, check_goals, log_event, view, mutate`. **الگوی هر تغییر: `mutate(fn)`** (قفل←load←tick←fn←rev+1←save) |
+| `01-server-world.py` | منطق دنیا: `seed, migrate, ensure_hq, fix_pond, load, tick, check_place, rects_of, free_cell, capacity, apply_delta, check_goals, log_event, view, mutate`. **الگوی هر تغییر: `mutate(fn)`** (قفل←load←tick←fn←rev+1←save) |
 | `01-server-db.py` | `fetch/save` خام + `lock` |
 | `01-server-public.py` | `GET /api/world`, `/healthz`, `/`, `/admin` + سرو `.js`/`.css` ریشه (`/<name>`) |
 | `01-server-auth.py` | توکن مدیر (`POST /api/admin/login`)، دکوراتور `@admin_only` |
@@ -50,7 +50,7 @@
 | `01-server-players.py` | `/api/join, ping, leave, player/name`, `GET /api/admin/players`؛ تخصیص کارکتر (`assign_cid`) |
 | `01-server-telegram.py` | وب‌هوک `/tg/<tok>`، پیام خوش‌آمد (`welcome`)، `tg_setup`, `tg_uid` |
 
-**مدل داده (سند `main`):** `rev, country{name,gov}, stats{pop,money,food,subs}, buildings[{id,type,x,z,rot,ar?}] (`ar`=چرخش خودکار برای house/hq), events[], story{reached,values}, citizens{cid:{name}}, players, chat[], env{mode,hour}, hq_made, next_id`. فیلد جدید ← در `extras()` اضافه کن تا `migrate` به دیتابیس قدیمی برساند.
+**مدل داده (سند `main`):** `rev, country{name,gov}, stats{pop,money,food,subs}, buildings[{id,type,x,z,rot}] (x,z به واحد «خانه»؛ مکان واقعی = x*CELL؛ جاده/پیاده‌رو عدد صحیح، بقیه اعشاری) (`ar`=چرخش خودکار برای house/hq), events[], story{reached,values}, citizens{cid:{name}}, players, chat[], env{mode,hour}, hq_made, next_id`. فیلد جدید ← در `extras()` اضافه کن تا `migrate` به دیتابیس قدیمی برساند.
 
 ## ۴) فرانت — نقشهٔ فایل‌ها (به ترتیب بارگذاری)
 | فایل | مسئولیت / کلیدواژه | نمادهای مهم |
@@ -61,6 +61,7 @@
 | `05-core-materials.js` | متریال‌ها و ابزار ساخت سریع | `mats, add, bx, GRADT` |
 | `06-world-scenery.js` | زمین، آسمان، برکه، گل، سنگ، کوه، جنگل، ابر | `ground, sky, pond, clouds, refreshDeco` |
 | `07-buildings-models.js` | مدل ۳بعدی ساختمان‌ها و `addB` | `build{}, house, bake, plaque, wl, ro` |
+| `07-buildings-footprint.js` | **ردپای واقعی:** مستطیل هر آیتم، برخورد، snap لبه‌به‌لبه، اتصال پیاده‌رو به در | `FOOT, fpRects, fpCheck, fpSnap, fpDoorLinks, fpDim` |
 | `08-characters-dialogue.js` | جمله‌ها `DL`، گفتگو `DC`، نام‌های پیش‌فرض `DEF` | `dgSay, dgConv, dgEvent` |
 | `06-world-roads.js` | جاده/پیاده‌رو متصل + چراغ | `roadMesh, pathMesh` |
 | `06-world-environment.js` | شب‌وروز، ستاره، ماه، کرم شب‌تاب، توربین، ساعت | `envStep, realHour, ffStep` |
@@ -92,7 +93,8 @@
 | رفتار، حرکت، کار آدم‌ها | `08-characters-behavior.js` (+ `08-characters-navigation`) |
 | جمله و گفتگو | `08-characters-dialogue.js` |
 | اسم/حباب بالای سر | `08-characters-nametags.js` + `03-css-citizens.css` |
-| ظاهر ساختمان/آیتم جدید | `07-buildings-models.js` + `01-server-config.py` (CATALOG, COST) |
+| ظاهر ساختمان/آیتم جدید | `07-buildings-models.js` + `01-server-config.py` (CATALOG, COST, **FOOT**) + `07-buildings-footprint.js` (FOOT) |
+| اندازه/برخورد/چسبیدن آیتم‌ها | `07-buildings-footprint.js` + `01-server-config.py` (FOOT) + `01-server-world.py` (`check_place`) |
 | داخل خانه | `07-buildings-houseview.js` + `03-css-house.css` |
 | مود ساخت، شبح، درگ، چرخش، ساخت دسته‌ای | `09-ui-blueprint.js` + `09-ui-interaction` + `03-css-admin.css` + `01-server-admin.py` (batch) |
 | لمس/کلیک روی صحنه، ابزار مدیر | `09-ui-interaction.js` |
@@ -138,10 +140,12 @@
 ## ۱۰) نکات/تله‌ها
 - مود ساخت (`BP`) با `interaction.js` جفت است: رویدادهای pointer در `interaction.js` به `bpDown/bpDrag/bpPick` می‌رسند؛ خروج مدیر باید `bpEnd()` بزند.
 - ساخت دسته‌ای باید اتمیک باشد (`/api/admin/buildings/batch`)؛ اعتبارسنجی هم در فرانت (`bpVal`) هم سرور (`check_cell`).
+- **ردپای واقعی (قانون):** هر آیتم دقیقاً به اندازه و شکل مدل خودش جا می‌گیرد، فضای اضافه رزرو نمی‌شود. برخورد = هم‌پوشانی مستطیل‌های واقعی (لبه‌به‌لبه مجاز، `EPS=1e-3`). `FOOT` سرور (`01-server-config.py`) و فرانت (`07-buildings-footprint.js`) و منطق `rects_of`/`fpRects` باید یکی بمانند؛ اعتبارسنجی هم‌زمان در `fpCheck` (فرانت) و `check_place` (سرور). مختصات غیرشبکه‌ای با دقت ۴ رقم اعشار گرد می‌شود.
 - سلول‌های نقشه ×۲ ← مختصات دنیا (برکه: `in_pond` در `01-server-world.py` و `bpInPond`/`inPond` در فرانت — هر سه باید هماهنگ بمانند).
 - `README.md` کوتاه است و به همین فایل ارجاع می‌دهد؛ مرجع اصلی همین فایل است.
 
 ## ۱۱) تاریخچه تغییرات (جدیدترین بالا؛ هر خط: تاریخ — چه چیزی — فایل‌ها)
+- ۲۰۲۶-۱۱-۱۹ — **ردپای واقعی برای همه‌چیز:** برخورد دیگر «سلولی» نیست؛ هر آیتم مستطیل واقعی خودش را دارد (خانه ۱٫۵×۱٫۳، دفتر ۱٫۹×۱٫۸۴، مزرعه ۱٫۹×۱٫۹، بازار ۲×۱٫۴، تنهٔ درخت ۰٫۵، پیاده‌رو = مربع ۰٫۶۶ + بازوها، جاده = ۲×۲). خانه/دفتر/مزرعه/بازار/درخت آزادانه (اعشاری) چیده می‌شوند و در نقشهٔ ساخت و ابزار جابه‌جایی به لبهٔ واقعی آیتم‌های دیگر می‌چسبند (فاصلهٔ صفر) و درِ خانه با پیاده‌رو روبه‌رو هم‌تراز می‌شود؛ جاده/پیاده‌رو روی شبکه می‌مانند. سرور: `check_place` (برکه با نمونه‌گیری لبه‌ها، مرز نقشه، برخورد واقعی، بازوی پیاده‌رو)؛ ساخت دسته‌ای اتمیک و بررسی برخورد بین موارد همان دسته؛ جابه‌جایی/چرخش هم اعتبارسنجی می‌شود. ناوبری فقط روی مستطیل واقعی می‌بندد (درخت فقط تنه)، گل/سنگ فقط داخل مستطیل واقعی محو می‌شوند (`occ` حالا فهرست مستطیل است)، بازوی درِ پیاده‌رو تا لبهٔ واقعی ساختمان می‌رود (`fpDoorLinks`). `fpDim` که جایی تعریف نشده بود (در `rebuildNav` ReferenceError می‌داد) تعریف شد. فایل جدید: `07-buildings-footprint.js`. ظاهر مدل‌ها دست نخورد. — `01-server-config.py`, `01-server-world.py`, `01-server-admin.py`, `07-buildings-footprint.js`(جدید), `04-js-boot.js`, `06-world-scenery.js`, `06-world-roads.js`, `08-characters-navigation.js`, `09-ui-blueprint.js`, `09-ui-interaction.js`, `PROJECT_GUIDE.md`
 - ۲۰۲۶-۱۱-۱۹ — **برگشت:** تغییرهای ظاهری پیاده‌رو و زمین قطعهٔ ساختمان‌ها (که کاربر نخواسته بود) کامل برگردانده شد؛ `06-world-roads.js`, `07-buildings-models.js`, `08-characters-navigation.js` دوباره مثل اول‌اند. ظاهر هیچ آیتمی بدون درخواست صریح عوض نشود. — فایل‌های نام‌برده
 - ۲۰۲۶-۱۱-۱۹ — **چینش حرفه‌ای (شهرسازی):** علت فاصله‌ها: نقشهٔ ساخت همیشه `rot:0` می‌فرستاد پس چرخش خودکار درِ خانه/دفتر هرگز اجرا نمی‌شد. حالا خانه/دفتر `ar` (چرخش خودکار) دارد و رو به نزدیک‌ترین جاده/پیاده‌رو می‌ایستد؛ با هر تغییر مسیر (ساخت/حذف/جابه‌جایی) دوباره می‌چرخد (`reorient` در سرور، `bpAutoRot/bpAfterChange` در فرانت) و پیاده‌روی جلوی در بازاتصال می‌شود. چرخش دستی (R / دکمهٔ 🔄 / ابزار چرخش) خودکار را خاموش می‌کند؛ دکمهٔ 🔄 بدون انتخاب: جهت قلم خودکار←۰←۹۰←۱۸۰←۲۷۰. — `01-server-admin.py`, `09-ui-blueprint.js`, `07-buildings-models.js`, `PROJECT_GUIDE.md`
 - ۲۰۲۶-۱۱-۱۹ — **تخت‌کردن پروژه:** همهٔ فایل‌ها در یک پوشه با اسم `شماره-دسته-نام`؛ `app.py` بک‌اند را با نام مستعار `srv_*` لود می‌کند؛ `public.py` فقط `.js/.css` را سرو می‌کند؛ `boot.js`/`index.html`/`recorder.js` به اسم‌های جدید رسید؛ `WEB=ROOT`. — همهٔ فایل‌ها (اسم) + `app.py`, `01-server-init.py`, `01-server-config.py`, `01-server-public.py`, `02-web-index.html`, `04-js-boot.js`, `11-features-recorder.js`, `README.md`, `PROJECT_GUIDE.md`

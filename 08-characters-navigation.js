@@ -8,13 +8,13 @@ const pondM=(x,z)=>((x+17)/9.2)**2+((z+17)/6.6)**2<1; // برکه + حاشیهٔ
 function blk(x0,x1,z0,z1){for(let j=Math.max(0,ci(z0));j<=Math.min(NN-1,ci(z1));j++)for(let i=Math.max(0,ci(x0));i<=Math.min(NN-1,ci(x1));i++)nav[j*NN+i]=1}
 const PW=1,ROADC=3.5,D4=[[0,-1],[1,0],[0,1],[-1,0]],dry=(x,z)=>cost[ci(z)*NN+ci(x)]<3;
 function setCost(X,Z,hx,hz,v,force){for(let j=ci(Z-hz);j<=ci(Z+hz);j++)for(let i=ci(X-hx);i<=ci(X+hx);i++){if(i<0||j<0||i>=NN||j>=NN)continue;if(Math.abs(cw(i)-X)>hx||Math.abs(cw(j)-Z)>hz)continue;const k=j*NN+i;cost[k]=force?v:Math.min(cost[k],v)}}
-function rebuildNav(w){nav.fill(0);cost.fill(1.5);homes=[];mkts=[];farms=[];treeSp=[];roadC=[];roadSet.clear();pathC=[];pathSet.clear();homeById.clear();occ.clear();
+function rebuildNav(w){nav.fill(0);cost.fill(1.5);homes=[];mkts=[];farms=[];treeSp=[];roadC=[];roadSet.clear();pathC=[];pathSet.clear();homeById.clear();occ.length=0;
 for(let j=0;j<NN;j++)for(let i=0;i<NN;i++){const x=cw(i),z=cw(j);if(Math.abs(x)>38.5||Math.abs(z)>38.5||pondM(x,z))nav[j*NN+i]=1}
-const trees=[];let sx=0,sz=0,n=0;
-for(const b of w.buildings){const X=b.x*CELL,Z=b.z*CELL,a=b.rot*Math.PI/180,q=b.rot%180?1:0,fx=Math.sin(a),fz=Math.cos(a);occ.add(Math.round(b.x)+','+Math.round(b.z));
-if(b.type==='house'||b.type==='hq'){const[fw,fd]=fpDim(b.type,b.rot),hx=fw/2,hz=fd/2;blk(X-hx,X+hx,Z-hz,Z+hz);const h={id:b.id,x:X,z:Z,fx,fz,hq:b.type==='hq'};homes.push(h);homeById.set(b.id,h)}
-else if(b.type==='market'){const[fw,fd]=fpDim('market',b.rot),hx=fw/2,hz=fd/2;blk(X-hx,X+hx,Z-hz,Z+hz);mkts.push({x:X+fx*1.25,z:Z+fz*1.25,cx:X,cz:Z})}
-else if(b.type==='tree'){blk(X-.4,X+.4,Z-.4,Z+.4);trees.push([X,Z])}
+const trees=[],TL=fpTiles(w.buildings);let sx=0,sz=0,n=0;
+for(const b of w.buildings){const X=b.x*CELL,Z=b.z*CELL,a=b.rot*Math.PI/180,q=b.rot%180?1:0,fx=Math.sin(a),fz=Math.cos(a);const RR=fpRects(b,TL);for(const r of RR)occ.push(r);const bk=r=>blk(r[0]+.001,r[1]-.001,r[2]+.001,r[3]-.001);
+if(b.type==='house'||b.type==='hq'){bk(RR[0]);const h={id:b.id,x:X,z:Z,fx,fz,hq:b.type==='hq'};homes.push(h);homeById.set(b.id,h)}
+else if(b.type==='market'){bk(RR[0]);mkts.push({x:X+fx*1.25,z:Z+fz*1.25,cx:X,cz:Z})}
+else if(b.type==='tree'){bk(RR[0]);trees.push([X,Z])}
 else if(b.type==='farm')farms.push({x:X,z:Z});
 else if(b.type==='road'){roadC.push({x:X,z:Z});roadSet.add(b.x+','+b.z)}
 else if(b.type==='path'){pathC.push({x:X,z:Z});pathSet.add(b.x+','+b.z)}
