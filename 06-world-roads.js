@@ -15,25 +15,49 @@ if(lamp){const bl=new THREE.Mesh(LBG,LAMP);bl.position.set(.82,1.12,.82);g.add(b
 // ── پیاده‌رو سلولی: کف و حاشیهٔ برجسته دقیقاً داخل footprint دو×دو سلول می‌مانند.
 // هر ضلعِ متصل، حاشیهٔ همان ضلع را باز می‌کند؛ بنابراین اتصال به مسیر/جاده/ورودی ساختمان
 // بدون بازوی شناور، بیرون‌زدگی یا هم‌پوشانیِ هندسی انجام می‌شود.
-const ROAD_WIDTH=FOOT.road[0]*U,PTW=ROAD_WIDTH*PATH_WIDTH_RATIO,PT_DIRT=[0xb09366,0xaa8f63,0xb59a6c],PT_EDGE=0x8d8c55,PT_WORN=0x9b8058,PT_FOOT=0x8f744c,PT_PBG=new THREE.IcosahedronGeometry(.03,0),PT_PBC=[0x8f8a80,0x7d786e,0xa39d90],PT_CYL=new THREE.CylinderGeometry(1,1,1,10,1),PT_M=new THREE.Matrix4(),PT_Q=new THREE.Quaternion(),PT_P=new THREE.Vector3(),PT_S=new THREE.Vector3(),PT_E=new THREE.Euler();
+const ROAD_WIDTH=FOOT.road[0]*U,PTW=ROAD_WIDTH*PATH_WIDTH_RATIO;
+// پیاده‌رو مدرن و هم‌سطح: سنگ‌فرش بتنی روشن، درزهای باریک و لبهٔ کوتاه.
+// ضخامت کل فقط ۳٫۲ سانتی‌متر است؛ کف از y=0 شروع می‌شود و هیچ پایهٔ معلقی ندارد.
+let PATH_STYLE=(()=>{try{return localStorage.getItem('tw_path_style')==='dirt'?'dirt':'stone'}catch(_){return'stone'}})();
+const PT_BASE=0x77776c,PT_TOP=[0xb9b8aa,0xc2c0b2,0xb4b4a7,0xc7c4b6],PT_JOINT=0x969589;
 function pathMesh(g,m,id){clearKids(g);
-const all=[];let sd=(id*9301+49297)%233280;const r=()=>(sd=(sd*9301+49297)%233280)/233280;
-const box=(w,h,d,x,y,z,c)=>all.push(vcGeo(new THREE.BoxGeometry(w,h,d).translate(x,y,z),c));
-const disc=(x,z,rx,rz,y,h,c,ry=0)=>{PT_P.set(x,y,z);PT_S.set(rx,h,rz);PT_Q.setFromEuler(PT_E.set(0,ry,0));PT_M.compose(PT_P,PT_Q,PT_S);all.push(vcGeo(PT_CYL.clone().applyMatrix4(PT_M),c))};
-// مرکز طبیعیِ خاکی با لبهٔ برجسته؛ قطر بیرونی دقیقاً برابر عرض مجاز footprint است.
-disc(0,0,PTW/2,PTW/2,.0425,.085,PT_EDGE);
-disc(0,0,PTW/2-.02,PTW/2-.02,.03,.06,PT_DIRT[((id%3)+3)%3]);
-// بازوهای اتصال: فقط در ضلع‌های واقعاً متصل، از مرکز تا مرز سلول؛ هیچ‌چیز بیرون از مربع PTW×PTW نمی‌رود.
-const len=FOOT.path[0]*U/2,off=len/2,rw=Math.min(.035,PTW*.08),rh=.045,ry=.06+rh/2,edge=PTW/2-rw/2;
-if(m&1){box(PTW,.06,len,0,.03,-off,PT_DIRT[((id%3)+3)%3]);box(rw,rh,len,-edge,ry,-off,PT_EDGE);box(rw,rh,len,edge,ry,-off,PT_EDGE)}
-if(m&2){box(len,.06,PTW,off,.03,0,PT_DIRT[((id%3)+3)%3]);box(len,rh,rw,off,ry,-edge,PT_EDGE);box(len,rh,rw,off,ry,edge,PT_EDGE)}
-if(m&4){box(PTW,.06,len,0,.03,off,PT_DIRT[((id%3)+3)%3]);box(rw,rh,len,-edge,ry,off,PT_EDGE);box(rw,rh,len,edge,ry,off,PT_EDGE)}
-if(m&8){box(len,.06,PTW,-off,.03,0,PT_DIRT[((id%3)+3)%3]);box(len,rh,rw,-off,ry,-edge,PT_EDGE);box(len,rh,rw,-off,ry,edge,PT_EDGE)}
-// ساییدگی، ردپا و سنگ‌ریزه‌های کوچک در مرکز؛ کاملاً داخل شعاع مجاز باقی می‌مانند.
-for(let i=0;i<4;i++){const x=(r()-.5)*PTW*.34,z=(r()-.5)*PTW*.34,rx=.035+r()*.025,rz=.025+r()*.02;disc(x,z,rx,rz,.062,.004,PT_WORN,r()*Math.PI)}
-for(let i=0;i<2;i++){const x=(r()-.5)*PTW*.22,z=(r()-.5)*PTW*.22;disc(x,z,.025,.045,.064,.003,PT_FOOT,r()*Math.PI)}
-for(let i=0;i<2;i++){const px=(r()-.5)*PTW*.42,pz=(r()-.5)*PTW*.42,ry0=r()*3,ge=PT_PBG.clone();ge.scale(.65,.32,.65);ge.rotateY(ry0);ge.translate(px,.068,pz);all.push(vcGeo(ge,PT_PBC[i%3]))}
-g.add(vcMesh(all,VCP,false,true))}
+ const all=[],box=(w,h,d,x,y,z,color)=>all.push(vcGeo(new THREE.BoxGeometry(w,h,d).translate(x,y,z),color));
+ if(PATH_STYLE==='dirt'){
+  // مسیر خاکی فشرده، کمی تیره‌تر از زمین اطراف؛ بدون جدول و سکوی برجسته
+  const soil=[0x8c7650,0x947d55,0x88724c,0x9a8258][((id*7)%4+4)%4];
+  box(PTW,.014,PTW,0,.007,0,soil);
+  // دانه‌های ریز و پراکندهٔ خاک/ریگ؛ کاملاً درون footprint
+  const seed=((id*9301+49297)%233280+233280)%233280;
+  for(let i=0;i<7;i++){
+   const x=(((seed*(i+3)*17)%997)/997-.5)*PTW*.78;
+   const z=(((seed*(i+5)*29)%991)/991-.5)*PTW*.78;
+   box(.018,.002,.012,x,.015,z,i%2?0x66583e:0xb19a6d);
+  }
+ }else{
+  const c=((id*9301+49297)%233280+233280)%233280,top=PT_TOP[c%PT_TOP.length];
+  box(PTW,.024,PTW,0,.012,0,PT_BASE);
+  box(PTW-.012,.008,PTW-.012,0,.028,0,top);
+  const seam=.006,span=PTW-.055;
+  box(span,.0015,seam,0,.0325,0,PT_JOINT);
+  box(seam,.0015,span,0,.0325,0,PT_JOINT);
+  const lip=.006,lh=.006;
+  box(PTW,lh,lip,0,.003,PTW/2-lip/2,PT_BASE);
+  box(PTW,lh,lip,0,.003,-PTW/2+lip/2,PT_BASE);
+  box(lip,lh,PTW,PTW/2-lip/2,.003,0,PT_BASE);
+  box(lip,lh,PTW,-PTW/2+lip/2,.003,0,PT_BASE);
+ }
+ g.add(vcMesh(all,VCP,false,true));
+}
+function setPathStyle(style){
+ PATH_STYLE=style==='dirt'?'dirt':'stone';
+ try{localStorage.setItem('tw_path_style',PATH_STYLE)}catch(_){}
+ if(typeof W!=='undefined'&&W)roads(W);
+ if(typeof BP!=='undefined'&&BP){
+  BP._tpl.clear();
+  if(typeof bpRemeshAll==='function')bpRemeshAll();
+  if(typeof bpGhostType==='function'&&BP.on)bpGhostType();
+ }
+}
 // تماس واقعیِ مستطیل‌های سلولی؛ تماس لبه‌ای مجاز است و گوشه‌تماس اتصال نمی‌سازد.
 function roads(w){const blds=w.buildings,rs=blds.filter(b=>b.type==='road'),ps=blds.filter(b=>b.type==='path'),byType={road:new Map(),path:new Map()};
 const key=(x,z)=>x+','+z;for(const b of rs)byType.road.set(key(b.gx??b.x,b.gz??b.z),b);for(const b of ps)byType.path.set(key(b.gx??b.x,b.gz??b.z),b);
@@ -41,4 +65,4 @@ const dirs=[[0,-1],[1,0],[0,1],[-1,0]],dims={road:FOOT.road[0],path:FOOT.path[0]
 const maskFor=(b,types)=>{let m=0;const x=b.gx??b.x,z=b.gz??b.z;for(const t of types){const d=step(b.type,t),map=byType[t];for(let i=0;i<4;i++){const[dx,dz]=dirs[i],o=map.get(key(x+dx*d,z+dz*d));if(o&&fpTouchDir(b,o)>=0)m|=1<<i}}return m};
 const doorMask=new Map();for(const l of fpDoorLinks(blds)){const k=l.cx+','+l.cz;doorMask.set(k,(doorMask.get(k)||0)|(1<<l.d))}
 for(const b of rs){const g=objs.get(b.id);if(!g)continue;const m=maskFor(b,['road']),pm=maskFor(b,['path']),cr=((pm&1)&&(pm&4)?1:0)|((pm&2)&&(pm&8)?2:0),lamp=((b.x+b.z)%2+2)%2===0?1:0,k=m+'|'+cr+'|'+lamp;if(g.userData.k!==k){g.userData.k=k;roadMesh(g,m,lamp,cr)}}
-for(const b of ps){const g=objs.get(b.id);if(!g)continue;const k=b.x+','+b.z,m=maskFor(b,['path','road'])|(doorMask.get(k)||0);if(g.userData.k!==m){g.userData.k=m;pathMesh(g,m,b.id)}}}
+for(const b of ps){const g=objs.get(b.id);if(!g)continue;const k=b.x+','+b.z,m=maskFor(b,['path','road'])|(doorMask.get(k)||0),sig=m+'|'+PATH_STYLE;if(g.userData.k!==sig){g.userData.k=sig;pathMesh(g,m,b.id)}}}

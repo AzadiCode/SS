@@ -46,7 +46,7 @@ function bpAutoRot(type,x,z,rot,others){if(type!=='house'&&type!=='hq')return ro
 function bpPathMask(x,z){const candidate={type:'path',x,z,gx:x,gz:z,rot:0},all=W.buildings.concat(BP.items);return{m:bpMask('path',x,z)|fpDoorMaskForPath(candidate,all)}}
 // قالب شبح: type/rot/mask + ماسک اتصال واقعی؛ هندسهٔ پیاده‌رو داخل footprint خودش محدود می‌ماند.
 // lamp (فقط جاده): پریتیِ چراغِ همان سلول — تا شبح دقیقاً مثل جادهٔ نهایی چراغ‌دار/بی‌چراغ باشد.
-function bpTemplate(type,rot,mask,links,lamp=0){const key=type+'|'+rot+'|'+mask+'|'+lamp;
+function bpTemplate(type,rot,mask,links,lamp=0){const key=type+'|'+rot+'|'+mask+'|'+lamp+(type==='path'?'|'+PATH_STYLE:'');
   if(BP._tpl.has(key))return BP._tpl.get(key);
   const g=new THREE.Group();
   if(type==='road'){roadMesh(g,mask,lamp);g.userData.tile=1}
@@ -85,7 +85,7 @@ function plaqueless(g){for(const c of[...g.children])if(c.isMesh&&c.material&&c.
 function bpClone(type,rot,mask,links,lamp=0){const src=bpTemplate(type,rot,mask,links,lamp),g=src.clone(true);
   const ring=g.children.find(c=>c.geometry===BP_GEO),tile=g.children.find(c=>c.geometry===BP_PGEO);
   if(ring)ring.material=ring.material.clone();if(tile)tile.material=tile.material.clone();   // متریال جدا تا رنگ هر شبح مستقل باشد
-  g.userData={ring,tileMesh:tile,k:mask+'|'+lamp};return g}
+  g.userData={ring,tileMesh:tile,k:mask+'|'+lamp+(type==='path'?'|'+PATH_STYLE:'')};return g}
 
 // ── ساخت/به‌روزرسانی یک آیتم صف: مدل شبح + حلقه + کاشی اعتبار
 function bpMake(it,paint=true){const links=it.type==='path'&&!BP._batch?bpPathMask(it.x,it.z):null;
@@ -133,12 +133,12 @@ function bpRemesh(changed,old=changed){
   for(const it of near){
     const links=it.type==='path'?bpPathMask(it.x,it.z):null;
     const lamp=it.type==='road'?(((it.x+it.z)%2+2)%2===0?1:0):0;
-    const m=links?links.m:bpMask(it.type,it.x,it.z),sig=m+'|'+lamp;
+    const m=links?links.m:bpMask(it.type,it.x,it.z),sig=m+'|'+lamp+(it.type==='path'?'|'+PATH_STYLE:'');
     if(it.g&&it.g.userData.k!==sig){scene.remove(it.g);disposeObj(it.g);
       const g=bpClone(it.type,it.rot,m,links,lamp);g.userData.it=it;
       g.position.set(it.x*U,0,it.z*U);scene.add(g);it.g=g;bpPaint(it)}}}
 // بازسازی دسته‌ای ماسک مسیرها؛ از اسکن تکراریِ صف برای هر قطعه جلوگیری می‌کند.
-function bpRemeshAll(){for(const it of BP.items){if(it.type!=='road'&&it.type!=='path')continue;const links=it.type==='path'?bpPathMask(it.x,it.z):null,lamp=it.type==='road'?(((it.x+it.z)%2+2)%2===0?1:0):0,m=links?links.m:bpMask(it.type,it.x,it.z),sig=m+'|'+lamp;
+function bpRemeshAll(){for(const it of BP.items){if(it.type!=='road'&&it.type!=='path')continue;const links=it.type==='path'?bpPathMask(it.x,it.z):null,lamp=it.type==='road'?(((it.x+it.z)%2+2)%2===0?1:0):0,m=links?links.m:bpMask(it.type,it.x,it.z),sig=m+'|'+lamp+(it.type==='path'?'|'+PATH_STYLE:'');
   if(it.g&&it.g.userData.k!==sig){scene.remove(it.g);disposeObj(it.g);const g=bpClone(it.type,it.rot,m,links,lamp);g.userData.it=it;g.position.set(it.x*U,0,it.z*U);scene.add(g);it.g=g}}}
 // ── ردیف پیوستهٔ جاده/پیاده‌رو: افزودن دسته‌ای و فقط یک بازسازی اتصال/اعتبارسنجی در پایان.
 function bpStroke(x0,z0,x1,z1){const pts=[[x0,z0]],step=BP.type==='path'?FOOT.path[0]:GRID;let nx=Math.round((x1-x0)/step),nz=Math.round((z1-z0)/step),x=x0,z=z0;
