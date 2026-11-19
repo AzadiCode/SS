@@ -167,7 +167,7 @@ function bpBar(){const b=$('bpb');if(!b)return;b.style.display=BP.on?'flex':'non
   $('bpok').style.opacity=n&&!bad&&!BP.busy?1:.35}
 function bpStart(){if(!T)return;BP.on=true;BP.rot=0;BP.manualRot=false;BP.sel=null;BP.pid=null;bpBar();
   $('bph').style.display='block';$('adm').style.display='none';$('pal').style.display='flex'}
-function bpEnd(){BP.on=false;BP.sel=null;BP.dragIt=null;BP.down=null;BP.pid=null;
+function bpEnd(){ctl.enabled=true;BP.on=false;BP.sel=null;BP.dragIt=null;BP.down=null;BP.pid=null;
   for(const it of BP.items)if(it.g){scene.remove(it.g);disposeObj(it.g);it.g=null}
   BP.items=[];bpGhostType();bpLine(null);bpBar();
   $('bph').style.display='none';$('bpq').style.display='none';if(admOn)$('adm').style.display='flex';
