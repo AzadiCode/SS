@@ -22,8 +22,7 @@ if(b.type!=='tree'){sx+=X;sz+=Z;n++}}
 regH=homes.filter(h=>!h.hq).sort((a,b)=>a.id-b.id);hqH=homes.find(h=>h.hq)||null;ctr=n?[sx/n,sz/n]:[0,0];let E=0;for(const b of w.buildings)if(b.type!=='tree')E=Math.max(E,Math.hypot(b.x*CELL-ctr[0],b.z*CELL-ctr[1]));
 RAD=Math.min(34,Math.max(8+2.6*Math.log2(1+((w.stats&&w.stats.pop)||1)),E+5)); // با رشد جمعیت، محدودهٔ حرکت بزرگ‌تر می‌شود
 for(const{x:X,z:Z}of roadC)setCost(X,Z,1,1,ROADC,1); // آسفالت: گران، برای ماشین‌هاست
-for(const{x:X,z:Z}of pathC){const cx=Math.round(X/CELL),cz=Math.round(Z/CELL),hw=PW/2,ln=1-hw;setCost(X,Z,hw,hw,.5);
-for(const[dx,dz]of D4){const k=(cx+dx)+','+(cz+dz);if(pathSet.has(k)||roadSet.has(k))setCost(X+dx*(hw+ln/2),Z+dz*(hw+ln/2),dx?ln/2:hw,dz?ln/2:hw,.5)}}
+for(const{x:X,z:Z}of pathC)setCost(X,Z,1,1,.5);
 for(const{x:X,z:Z}of roadC){const cx=Math.round(X/CELL),cz=Math.round(Z/CELL);for(const[dx,dz]of D4)if(pathSet.has((cx+dx)+','+(cz+dz)))setCost(X,Z,dx?1:PW/2,dz?1:PW/2,.7)} // محل رد شدن از خیابان
 for(const[X,Z]of trees)for(const[a,b]of[[.8,0],[-.8,0],[0,.8],[0,-.8]])if(walk(X+a,Z+b)){treeSp.push({x:X+a,z:Z+b,tx:X,tz:Z});break}
 refreshDeco()}
