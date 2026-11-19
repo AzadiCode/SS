@@ -27,8 +27,8 @@ function fpSnap(type,rot,wx,wz,others,raw){const S=.25,TL=fpTiles(others),ok=(x,
 let px=raw?wx:Math.round(wx/S)*S,pz=raw?wz:Math.round(wz/S)*S;const m=mine(px,pz);let bx=null,bz=null;
 for(const o of others){if(Math.abs(o.x*CELL-px)>6||Math.abs(o.z*CELL-pz)>6)continue;
 for(const r of fpRects(o,TL)){
-if(Math.min(m[3],r[3])-Math.max(m[2],r[2])>-.3)for(const s of[r[0]-m[1],r[1]-m[0]])if(Math.abs(s)<=.4&&(bx===null||Math.abs(s)<Math.abs(bx)))bx=s;
-if(Math.min(m[1],r[1])-Math.max(m[0],r[0])>-.3)for(const s of[r[2]-m[3],r[3]-m[2]])if(Math.abs(s)<=.4&&(bz===null||Math.abs(s)<Math.abs(bz)))bz=s}}
+if(Math.min(m[3],r[3])-Math.max(m[2],r[2])>-.3)for(const s of[r[0]-m[1],r[1]-m[0]])if(Math.abs(s)<=(fpGrid(o.type)?1.2:.4)&&(bx===null||Math.abs(s)<Math.abs(bx)))bx=s;
+if(Math.min(m[1],r[1])-Math.max(m[0],r[0])>-.3)for(const s of[r[2]-m[3],r[3]-m[2]])if(Math.abs(s)<=(fpGrid(o.type)?1.2:.4)&&(bz===null||Math.abs(s)<Math.abs(bz)))bz=s}}
 const tries=[[bx,bz],[bx,null],[null,bz]];for(const[sx,sz]of tries){const x=px+(sx||0),z=pz+(sz||0);if((sx!==null||sz!==null)&&ok(x,z)){px=x;pz=z;break}}
 if(!raw&&(type==='house'||type==='hq')){const a=rot*Math.PI/180,fx=Math.sin(a),fz=Math.cos(a),lx=Math.cos(a),lz=-Math.sin(a);let best=null;
 for(const o of others){if(o.type!=='path')continue;const vx=o.x*CELL-px,vz=o.z*CELL-pz,al=vx*fx+vz*fz,la=vx*lx+vz*lz;if(al>=1.2&&al<2.6&&Math.abs(la)<.6&&(!best||Math.abs(la)<Math.abs(best)))best=la}
@@ -44,7 +44,7 @@ out.push({cx:ax?ta:tl,cz:ax?tl:ta,d:fpDi(-nx,-nz),len:Math.max(.3,Math.abs(ta*CE
 // پس وقتی جاده/پیاده‌رو «بعد از» ساختمان گذاشته شود، لبهٔ ساختمان معمولاً وسط سلول می‌افتد و یک نوار خالیِ زمین بینشان می‌ماند.
 // اینجا آن نوار فقط «بصری» پر می‌شود (برخورد و ردپا دست‌نخورده): جاده ← سکوی پیاده‌روی خاکستری تا لبهٔ ساختمان؛
 // پیاده‌رو ← بازوی خاکی تا لبهٔ ساختمان. فقط نوار بین دو آیتم (≤ FP_BR) و فقط اگر چیزِ دیگری در آن نباشد.
-const FP_BR=1,FP_EMPTY_G=.001,fpFreeT=t=>t==='house'||t==='hq'||t==='farm'||t==='market',FP_DIRS=[[0,-1],[1,0],[0,1],[-1,0]];
+const FP_BR=2,FP_EMPTY_G=.001,fpFreeT=t=>t==='house'||t==='hq'||t==='farm'||t==='market',FP_DIRS=[[0,-1],[1,0],[0,1],[-1,0]];
 // tp=road|path ؛ x,z = سلول ؛ blds = همهٔ آیتم‌ها (بدون خودِ این سلول) ؛ skip = بیتمسک جهت‌هایی که بازوی درِ ساختمان دارند
 // خروجی: road ← {ap:[[x0,x1,z0,z1] محلی]} ؛ path ← {ex:[{d,len}]}
 function fpBridgeOne(tp,x,z,blds,skip=0){const X=x*CELL,Z=z*CELL,hw=tp==='road'?1:.3,near=blds.filter(o=>Math.abs(o.x*CELL-X)<=5&&Math.abs(o.z*CELL-Z)<=5&&!(fpGrid(o.type)&&o.x===x&&o.z===z)),TL=fpTiles(near),ap=[],ex=[];
