@@ -12,7 +12,7 @@ const BP_EDGE=new THREE.LineBasicMaterial({color:0xeaffff,transparent:true,opaci
 const BP_TILE=new THREE.MeshBasicMaterial({color:BP_OK,transparent:true,opacity:.5,depthWrite:false});
 // ── لایه‌ها: خانه/مزرعه/بازار/درخت/hq = لایهٔ ساختمان؛ جاده = لایهٔ خودش؛ پیاده‌رو روی زمینِ باز قابل‌همزیست با لایهٔ جاده نیست
 const bpCompat=(a,b)=>a!==b;                                    // لایه‌های متفاوت همزیست؛ هم‌لایه = تداخل
-const BP_RIVER=[[-145,24],[-125,15],[-105,20],[-85,9],[-65,15],[-45,7],[-25,13],[-5,7],[15,14],[35,8],[55,2],[75,10],[95,4],[118,13],[145,6]];
+const BP_RIVER=[[-146,22],[-96,22],[-96,6],[-40,6],[-40,24],[16,24],[16,4],[72,4],[72,18],[146,18]]; // مسیر شکستهٔ رود — هماهنگ با RIVER_PTS در 06-world-scenery.js
 const bpInPond=(x,z)=>{const X=x*U,Z=z*U;for(let i=1;i<BP_RIVER.length;i++){const a=BP_RIVER[i-1],b=BP_RIVER[i],dx=b[0]-a[0],dz=b[1]-a[1],u=Math.max(0,Math.min(1,((X-a[0])*dx+(Z-a[1])*dz)/(dx*dx+dz*dz)));if(Math.hypot(X-a[0]-u*dx,Z-a[1]-u*dz)<4.1)return true}return false};
 const inMap=(x,z)=>x>=-20*GRID&&x<20*GRID&&z>=-20*GRID&&z<20*GRID;
 // ── اعتبارسنجی لایه‌دار: خروجی true یا دلیل خطا (رشته). مجاورت هرگز خطا نیست؛ فقط همپوشانیِ هم‌لایه، برکه و خارج نقشه.

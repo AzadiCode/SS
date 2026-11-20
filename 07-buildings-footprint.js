@@ -7,7 +7,7 @@ const PATH_CELLS=Math.max(1,Math.ceil(FOOT.road[0]*PATH_WIDTH_RATIO));FOOT.path=
 const FP_LO=-20*GRID,FP_HI=20*GRID-1;
 const fpGrid=t=>t==='road'||t==='path',fpDi=(dx,dz)=>dz<0?0:dx>0?1:dz>0?2:3;
 let fpHit=null;
-const FP_RIVER=[[-145,24],[-125,15],[-105,20],[-85,9],[-65,15],[-45,7],[-25,13],[-5,7],[15,14],[35,8],[55,2],[75,10],[95,4],[118,13],[145,6]];
+const FP_RIVER=[[-146,22],[-96,22],[-96,6],[-40,6],[-40,24],[16,24],[16,4],[72,4],[72,18],[146,18]]; // مسیر شکستهٔ رود — هماهنگ با RIVER_PTS در 06-world-scenery.js
 const fpPondW=(X,Z)=>{for(let i=1;i<FP_RIVER.length;i++){const a=FP_RIVER[i-1],b=FP_RIVER[i],dx=b[0]-a[0],dz=b[1]-a[1],u=Math.max(0,Math.min(1,((X-a[0])*dx+(Z-a[1])*dz)/(dx*dx+dz*dz)));if(Math.hypot(X-a[0]-u*dx,Z-a[1]-u*dz)<4.1)return true}return false};
 const fpTiles=l=>{const s=new Set();for(const b of l)if(b.type==='path')s.add((b.gx??b.x)+','+(b.gz??b.z));return s};
 const fpDims=(t,rot=0)=>{const f=FOOT[t]||FOOT.tree;return !fpGrid(t)&&rot%180?[f[1],f[0]]:f};

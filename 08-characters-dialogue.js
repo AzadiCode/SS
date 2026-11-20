@@ -78,7 +78,7 @@ const DC=[
 function dgSlot(){return H<5?'night':H<7.5?'dawn':H<11.5?'morning':H<14.5?'noon':H<17.5?'afternoon':H<20?'evening':'night'}
 function dgZone(c){const x=c.g.position.x,z=c.g.position.z,D=(a,b)=>Math.hypot(a-x,b-z);
 if(farms.some(f=>D(f.x,f.z)<2.4))return'farm';if(mkts.some(m=>D(m.cx,m.cz)<3))return'market';if(homes.some(h=>D(h.x,h.z)<2.3))return'home';
-const RP=[[-145,24],[-125,15],[-105,20],[-85,9],[-65,15],[-45,7],[-25,13],[-5,7],[15,14],[35,8],[55,2],[75,10],[95,4],[118,13],[145,6]];for(let i=1;i<RP.length;i++){const a=RP[i-1],b=RP[i],dx=b[0]-a[0],dz=b[1]-a[1],u=Math.max(0,Math.min(1,((x-a[0])*dx+(z-a[1])*dz)/(dx*dx+dz*dz)));if(Math.hypot(x-a[0]-u*dx,z-a[1]-u*dz)<6.2)return'river'}const k=Math.round(x/CELL)+','+Math.round(z/CELL);if(pathSet.has(k))return'path';if(roadSet.has(k))return'road';
+const RP=[[-146,22],[-96,22],[-96,6],[-40,6],[-40,24],[16,24],[16,4],[72,4],[72,18],[146,18]];for(let i=1;i<RP.length;i++){const a=RP[i-1],b=RP[i],dx=b[0]-a[0],dz=b[1]-a[1],u=Math.max(0,Math.min(1,((x-a[0])*dx+(z-a[1])*dz)/(dx*dx+dz*dz)));if(Math.hypot(x-a[0]-u*dx,z-a[1]-u*dz)<6.2)return'river'}const k=Math.round(x/CELL)+','+Math.round(z/CELL);if(pathSet.has(k))return'path';if(roadSet.has(k))return'road';
 if(treeSp.some(s=>D(s.x,s.z)<1.2))return'tree';return'open'}
 function dgTags(c){const s=(W&&W.stats)||{},pop=s.pop||1,fd=s.food||0,sl=dgSlot(),z=dgZone(c),n=crowd(c.g.position.x,c.g.position.z),t=['any',sl,z,sl+'_'+z,pop<30?'small':pop<150?'mid':'big'];
 t.push(n>=4?'crowd':n<=1?'alone':'any');if(fd<pop*.5)t.push('hungry');else if(fd>pop*6)t.push('plenty');return t}
