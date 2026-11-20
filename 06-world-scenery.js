@@ -30,48 +30,55 @@ riverWaterMat.map=riverTex;
 // مرکز تیره، کنارِ ساحل روشن‌تر (کف کم‌عمق) با کمی نویز؛ سطح آب ۰٫۰۴ زیر سرِ سنگ‌ها ⇒ لبهٔ سه‌بعدیِ خوانا. UV جهانی و اسکرول در core-main.
 // کلیپ به دشت صاف (r≤53؛ hgt از r=52 بالامی‌رود): آب و ساحل دیگر روی شیب تپه‌ها کشیده نمی‌شوند —
 // رود در مرز دشت زیر تپه «فرو می‌رود» و از دور آن آبِ شیب‌دارِ خراب دیده نمی‌شود.
-// آب زنده: هر کاشی فاز رندوم (aPhase) و دامنهٔ تنفس (aAmp=۳cm×(۱-k) ⇒ مرکز می‌بوبد، لبه چسبیده)؛
-// شیدر uTime هر فریم در world-ambient به‌روز می‌شود: بوبِ عمودی ±۳cm + تپش روشنایی ±۵٫۵٪ per-tile.
+// آب زندهٔ «کم‌هزینه و بدون درز»: جابه‌جایی هر رأس تابعی خالص از «موقعیت خودِ رأس» است
+// (فاز=px*.6+pz*.35 و دامنه از riverDist همان رأس) ⇒ دو کاشیِ مجاور در رأسِ مشترک عیناً همان
+// مقدار می‌گیرند و سطح در همهٔ لحظه‌ها «جوش» است — درز/شکاف و لغزشِ سبزِ پشت بلوک عملاً غیرممکن می‌شود.
+// درون هر کاشی فازِ چهار گوشه کمی تفاوت دارد ⇒ کاشی آرام «دُم‌» می‌کند (موجِ نرم، نه پرش per-tile).
+// دامنه فقط در قلب رود (k<0.45) و فقط ۱٫۲cm است؛ رأس‌های لبه (dc≥1.95) دقیقاً صفرند ⇒ به سنگ‌چین چسبیده.
+// تپش روشنایی ±۳٫۵٪ هم از همین فازِ موضعی می‌آید (نرم، بدون پرش بلوکی).
 {const pos=[],uv=[],col=[],phs=[],amps=[],idx=[];let n=0;
  const x0=Math.min(...RIVER_PTS.map(p=>p[0]))-3,x1=Math.max(...RIVER_PTS.map(p=>p[0]))+3,z0=Math.min(...RIVER_PTS.map(p=>p[1]))-3,z1=Math.max(...RIVER_PTS.map(p=>p[1]))+3;
  for(let gz=z0;gz<z1;gz++)for(let gx=x0;gx<x1;gx++){
   const cx=gx+.5,cz=gz+.5;if(Math.hypot(cx,cz)>53)continue;
   const dc=riverDist(cx,cz);if(dc>=3)continue;
-  const k=Math.min(1,Math.max(0,(dc-1.1)/1.9)),j=(rnd()-.5)*.07,ph=rnd(),am=.03*(1-k); // k: 0=مرکز تیره ← 1=لبهٔ روشن + نویز ظریف
-  const cr=.23+.31*k+j,cg=.60+.14*k+j,cb=.68+.10*k+j;
-  for(const[px,pz]of[[gx,gz],[gx+1,gz],[gx+1,gz+1],[gx,gz+1]]){pos.push(px,hgt(px,pz)+.04,pz);uv.push(px/8,pz/8);col.push(cr,cg,cb);phs.push(ph);amps.push(am)}
+  const k=Math.min(1,Math.max(0,(dc-1.1)/1.9)),j=(rnd()-.5)*.05; // k فقط برای رنگ؛ نویز نصف شد
+  const cr=.26+.30*k+j,cg=.58+.04*k+j,cb=.70+.17*k+j; // شیب آبی (۱۷) ≫ شیب سبز (۴) ⇒ لبهٔ کم‌عمق قطعاً آبی‌تر، نه سبزفام
+  for(const[px,pz]of[[gx,gz],[gx+1,gz],[gx+1,gz+1],[gx,gz+1]]){
+   const vk=Math.min(1,Math.max(0,(riverDist(px,pz)-1.1)/1.9)),va=vk<.45?.012*(1-vk/.45):0; // دامنهٔ پیوسته از موقعیت رأس
+   pos.push(px,hgt(px,pz)+.04,pz);uv.push(px/8,pz/8);col.push(cr,cg,cb);phs.push(px*.6+pz*.35);amps.push(va)}
   idx.push(n,n+1,n+2,n,n+2,n+3);n+=4}
  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));g.setAttribute('aPhase',new THREE.Float32BufferAttribute(phs,1));g.setAttribute('aAmp',new THREE.Float32BufferAttribute(amps,1));g.setIndex(idx);g.computeVertexNormals();
  riverWaterMat.vertexColors=true;
  riverWaterMat.onBeforeCompile=sh=>{sh.uniforms.uTime={value:0};riverWaterMat.userData.sh=sh;
   sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nuniform float uTime;attribute float aPhase;attribute float aAmp;')
-   .replace('#include <color_vertex>','#include <color_vertex>\nvColor.rgb*=1.0+0.055*sin(uTime*0.9+aPhase*6.2831);')
-   .replace('#include <begin_vertex>','#include <begin_vertex>\ntransformed.y+=sin(uTime*1.5+aPhase*6.2831)*aAmp;')};
+   .replace('#include <color_vertex>','#include <color_vertex>\nvColor.rgb*=1.0+0.035*sin(uTime*0.7+aPhase);')
+   .replace('#include <begin_vertex>','#include <begin_vertex>\ntransformed.y+=sin(uTime*0.8+aPhase)*aAmp;')};
  const riverWater=new THREE.Mesh(g,riverWaterMat);riverWater.receiveShadow=true;scene.add(riverWater)}
 // جریان آرام آب (اسکرول بافت) در framePart «world-ambient» در 05-core-main.js انجام می‌شود؛ t سراسری نیست.
+// فاز آب موضعی است (نه per-tile) ⇒ موج پیوسته بدون درز بین کاشی‌ها — توضیح کامل در بلوک آب بالا.
 // ── ساحل بلوکی: روی هر بازوی مستقیم قدم‌به‌قدم نیم‌واحد با ادامهٔ ۳٫۵ واحدی در دو سر تا ردیف‌ها در گوشه‌ها
 // به هم برسند — بدون هیچ قطعهٔ مورب و بدون هیچ بلوک چرخیده (همان ردیف‌های صاف قبلی)؛
-// ۱) سنگ‌چین روی لبهٔ آب (مرکز ۳٫۰، ارتفاع نامنظم ⇒ حس صخرهٔ سه‌بعدی) ۲) چمن/ماسه (مرکز ۳٫۷۵ ⇒ لبهٔ ۴٫۱ = مرز حریم).
-// ضدپرپر: پهنای چمن = گام (۰٫۵) ⇒ هیچ هم‌پوشانی‌ای (حتی قطریِ تقاطع ردیف‌ها) باقی نمی‌ماند و ترازِ شطرنجیِ ±۷٫۵mm
-// لبهٔ ردیف‌ها را پلهٔ نرم می‌دهد؛ کف همهٔ بلوک‌ها زیر زمین/آب است ⇒ نه بلوک شناور می‌ماند، نه دو رویِ هم‌کف برای z-fight.
-// ماسه‌ها رگهٔ پیوستهٔ ۳ تا ۷ بلوکی‌اند (نه تُکه‌های تکیِ پراکنده) تا لبهٔ خاکی مرتب دیده شود.
+// ۱) سنگ‌چین روی لبهٔ آب (مرکز ۳٫۰) ۲) چمن/ماسه (مرکز ۳٫۷۵ ⇒ لبهٔ ۴٫۱ = مرز حریم).
+// «نظمِ ساحل»: کفِ چمنِ همهٔ ردیف‌ها یک ترازِ واحد است (هیچ پله/شطرنجی — گزارش ویدیو: چینش نامیزان و پرپر)؛
+// پهنا = گام (۰٫۵) ⇒ هیچ هم‌پوشانی‌ای (حتی قطری) و هیچ دو رویِ هم‌کف برای z-fight باقی نمی‌ماند؛ کف زیر زمین.
+// رنگ‌ها هم بیت‌ریتمی مرتب‌اند: هر بلوک هفتمِ ردیف ماسه (ریتم ثابت، نه لکهٔ رندوم)، بقیه دو سبزِ نزدیک به هم.
 // کلیپ r≤53: ساحل هم فقط روی دشت صاف است، نه روی شیب تپه‌ها.
 {const CNT=2000,stoneMesh=new THREE.InstancedMesh(new THREE.BoxGeometry(.66,.2,.66),new THREE.MeshStandardMaterial({roughness:.95}),CNT),turfMesh=new THREE.InstancedMesh(new THREE.BoxGeometry(.5,.12,.5),new THREE.MeshStandardMaterial({roughness:1}),CNT);
  stoneMesh.receiveShadow=turfMesh.receiveShadow=true;const dm=new THREE.Object3D(),seen=new Set(),bc=new THREE.Color();let si=0,ti=0;
- for(let i=1;i<RIVER_PTS.length;i++){const a=RIVER_PTS[i-1],b=RIVER_PTS[i],dx=b[0]-a[0],dz=b[1]-a[1],L=Math.hypot(dx,dz),tx=dx/L,tz=dz/L,ang=Math.atan2(tx,tz),run=[0,0];
+ for(let i=1;i<RIVER_PTS.length;i++){const a=RIVER_PTS[i-1],b=RIVER_PTS[i],dx=b[0]-a[0],dz=b[1]-a[1],L=Math.hypot(dx,dz),tx=dx/L,tz=dz/L,ang=Math.atan2(tx,tz),bead=[0,0];
   for(let s=0;s<=L+7;s+=.5){
    const px=a[0]+tx*(s-3.5),pz=a[1]+tz*(s-3.5);
    for(const side of[-1,1]){
-    const nx=-tz*side,nz=tx*side;
+    const nx=-tz*side,nz=tx*side,rd=side<0?0:1;
     const sx=Math.round((px+nx*3)*2)/2,sz=Math.round((pz+nz*3)*2)/2;
-    if(si<CNT&&Math.hypot(sx,sz)<=53&&riverDist(sx,sz)>2.6&&!seen.has('s'+sx+','+sz)){seen.add('s'+sx+','+sz);dm.position.set(sx,hgt(sx,sz)+.085+(rnd()-.5)*.02,sz);dm.rotation.set(0,ang,0);dm.scale.set(1,.85+rnd()*.4,1);dm.updateMatrix();stoneMesh.setMatrixAt(si,dm.matrix);const sc=rnd();stoneMesh.setColorAt(si++,bc.set(sc<.1?'#c9b27e':sc<.4?'#7d807b':sc<.7?'#8f928c':'#9aa09a'))}
+    if(si<CNT&&Math.hypot(sx,sz)<=53&&riverDist(sx,sz)>2.6&&!seen.has('s'+sx+','+sz)){seen.add('s'+sx+','+sz);dm.position.set(sx,hgt(sx,sz)+.085,sz);dm.rotation.set(0,ang,0);dm.scale.set(1,.9+rnd()*.25,1);dm.updateMatrix();stoneMesh.setMatrixAt(si,dm.matrix);const sc=rnd();stoneMesh.setColorAt(si++,bc.set(sc<.12?'#c9b27e':sc<.5?'#7d807b':sc<.8?'#8f928c':'#9aa09a'))}
     const fx=Math.round((px+nx*3.75)*2)/2,fz=Math.round((pz+nz*3.75)*2)/2;
-    if(ti<CNT&&Math.hypot(fx,fz)<=53&&riverDist(fx,fz)>3.05&&!seen.has('t'+fx+','+fz)){seen.add('t'+fx+','+fz);dm.position.set(fx,hgt(fx,fz)+.045+(((Math.round(fx*2)+Math.round(fz*2))%2)*.015),fz);dm.rotation.set(0,ang,0);dm.scale.set(1,1,1);dm.updateMatrix();turfMesh.setMatrixAt(ti,dm.matrix);
-     // تراز شطرنجی قطعی: بلوک‌های مجاورِ متصل دقیقاً ۱۵mm اختلاف روی دارند (پارتی متناظر با خانهٔ گرید، نه شانس) ⇒ لبهٔ پله‌ایِ نرم، بدون هیچ جفت هم‌کف
-     const rd=side<0?0:1; // رگهٔ ماسه: شروع با احتمال ۵٪، ادامهٔ ۲ تا ۶ بلوک بعدی
-     if(run[rd]>0){run[rd]--;turfMesh.setColorAt(ti++,bc.set('#b39b6d'))}
-     else if(rnd()<.05){run[rd]=2+(rnd()*4|0);turfMesh.setColorAt(ti++,bc.set('#b39b6d'))}
-     else{const tc=rnd();turfMesh.setColorAt(ti++,bc.set(tc<.3?'#6f9150':tc<.65?'#7d9f5b':'#5f844a'))}}}}}
+    if(ti<CNT&&Math.hypot(fx,fz)<=53&&riverDist(fx,fz)>3.05&&!seen.has('t'+fx+','+fz)){seen.add('t'+fx+','+fz);dm.position.set(fx,hgt(fx,fz)+.045,fz);dm.rotation.set(0,ang,0);dm.scale.set(1,1,1);dm.updateMatrix();turfMesh.setMatrixAt(ti,dm.matrix);
+     // بیت‌ریتم: شمارندهٔ ۷تایی هر ردیف، خانهٔ ۰ ماسه (پایه) و خانهٔ ۳ ماسهٔ روشن‌تر (نقطهٔ میانی) ⇒ ریتم منظم بدون رندوم
+     const beat=bead[rd]%7;bead[rd]++;
+     if(beat===0)turfMesh.setColorAt(ti++,bc.set('#b39b6d'));
+     else if(beat===3)turfMesh.setColorAt(ti++,bc.set('#c2ab79'));
+     else{const tc=rnd();turfMesh.setColorAt(ti++,bc.set(tc<.5?'#6f9150':'#5f844a'))}}}}}
  stoneMesh.count=si;turfMesh.count=ti;stoneMesh.instanceMatrix.needsUpdate=true;turfMesh.instanceMatrix.needsUpdate=true;
  if(stoneMesh.instanceColor)stoneMesh.instanceColor.needsUpdate=true;if(turfMesh.instanceColor)turfMesh.instanceColor.needsUpdate=true;
  scene.add(stoneMesh);scene.add(turfMesh)}
