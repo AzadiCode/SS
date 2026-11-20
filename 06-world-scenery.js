@@ -117,7 +117,17 @@ const rocks=[];for(let i=0;i<22;i++){const r=new THREE.Mesh(new THREE.Dodecahedr
 const hid=(x,z)=>inPond(x,z)||occ.some(r=>x>r[0]-.1&&x<r[1]+.1&&z>r[2]-.1&&z<r[3]+.1);
 function refreshDeco(){FP.forEach(([x,z],i)=>{dm.position.set(x,.08,z);dm.scale.setScalar(hid(x,z)?0:1);dm.updateMatrix();fl.setMatrixAt(i,dm.matrix)});fl.instanceMatrix.needsUpdate=true;rocks.forEach(r=>r.visible=!hid(r.position.x,r.position.z))}
 for(let i=0;i<18;i++){const an=i/18*6.283,r=112+rnd()*14,h=16+rnd()*22,w=20+rnd()*16;const m=new THREE.Mesh(new THREE.ConeGeometry(w,h,6),M(i%3?0x6b8796:0x7a9a88,1));m.position.set(Math.cos(an)*r,h/2-1,Math.sin(an)*r);m.rotation.y=rnd()*3;scene.add(m);const c=new THREE.Mesh(new THREE.ConeGeometry(w*.32,h*.3,6),M(0xeef2f4,.9));c.position.set(m.position.x,h*.85-1,m.position.z);scene.add(c)}
+// ── تاب‌خوردن بادی جنگل (شیدری، بدون هزینهٔ CPU در هر فریم): uniforms مشترک WXF از موتور آب‌وهوا (06-world-weather.js)
+// هر فریم مقدار می‌گیرند (uWxT=زمان، uWxA=شدت از سرعت باد+گوست). خم‌شدن در فضای شیء و بر پایهٔ ارتفاعِ هر نمونه
+// (instanceMatrix[3]) است ⇒ تنه کم، تاج درخت زیاد؛ چرخش رندوم هر نمونه هم جهتِ تاب را در دنیا متنوع می‌کند.
+// در هوای صاف amp≈۰٫۰۳ (لرزش حیات‌بخش چند سانتی‌متری) و در توفان تا ~۰٫۳ (تکانِ محسوس تاج‌ها).
+const WXF={time:{value:0},amp:{value:0}};
+const wxBendMat=m=>{m.onBeforeCompile=sh=>{sh.uniforms.uWxT=WXF.time;sh.uniforms.uWxA=WXF.amp;
+ sh.vertexShader=sh.vertexShader
+  .replace('#include <common>','#include <common>\nuniform float uWxT;uniform float uWxA;')
+  .replace('#include <begin_vertex>','#include <begin_vertex>\n#ifdef USE_INSTANCING\nfloat wxPh=instanceMatrix[3][0]*1.7+instanceMatrix[3][2]*1.3;\nfloat wxH=clamp(instanceMatrix[3][1]/3.4+position.y*.16,0.,1.);\nfloat wxS=uWxA*wxH*wxH;\ntransformed.x+=(sin(uWxT*1.9+wxPh)*.62+sin(uWxT*.7+wxPh*2.1)*.38)*wxS;\ntransformed.z+=(cos(uWxT*1.5+wxPh*1.3)*.55+cos(uWxT*.53+wxPh*.7)*.45)*wxS;\n#endif')}};
 {const N=260,tr=new THREE.InstancedMesh(new THREE.CylinderGeometry(.12,.18,1,6),M(0x6b4a30),N),cn=new THREE.InstancedMesh(new THREE.ConeGeometry(.9,1.8,7),new THREE.MeshStandardMaterial({roughness:.95}),N*2),o=new THREE.Object3D();let k=0;
+wxBendMat(tr.material);wxBendMat(cn.material);
 for(let i=0;i<N;i++){let x,z;do{x=(rnd()-.5)*104;z=(rnd()-.5)*104}while((Math.abs(x)<42&&Math.abs(z)<42)||inRiver(x,z));
 const sc=1+rnd()*1.3;o.rotation.set(0,rnd()*6,0);o.scale.setScalar(sc);o.position.set(x,.5*sc+hgt(x,z),z);o.updateMatrix();tr.setMatrixAt(i,o.matrix);
 for(let j=0;j<2;j++){o.scale.set(sc*(1-j*.3),sc*(1-j*.2),sc*(1-j*.3));o.position.set(x,(1.2+j*.9)*sc+hgt(x,z),z);o.updateMatrix();cn.setMatrixAt(k,o.matrix);cn.setColorAt(k++,new THREE.Color([0x3f7a4a,0x4a8a52,0x356b44,0x5a9a58][(rnd()*4)|0]))}}

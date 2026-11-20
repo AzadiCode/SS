@@ -34,7 +34,7 @@ const _strikeQ=[]; // ضربه‌های ثانویهٔ آذرخش (زمان‌د
 const WIND={dir:2.3,speed:1,gust:0,x:0,z:0};
 let SWAY=1,WCD=.8,gustV=0,gustT=7,gustOn=0; // SWAY/WCD در 05-core-main.js مصرف می‌شوند
 // ─── ۲) میان‌یابی چرخهٔ شب‌وروز بدون تخصیص حافظه (آینهٔ kf در 06-world-environment.js) ───────────────────────────────────────────
-const _wxT=new THREE.Color(),_wxH=new THREE.Color(),_wxS=new THREE.Color(),_wxA=new THREE.Color(),_wxB=new THREE.Color(),_wxV=new THREE.Vector3(),_kf={si:0,hi:0,ex:0};
+const _wxT=new THREE.Color(),_wxH=new THREE.Color(),_wxS=new THREE.Color(),_wxA=new THREE.Color(),_wxB=new THREE.Color(),_wxV=new THREE.Vector3(),_wxQ=new THREE.Quaternion(),_kf={si:0,hi:0,ex:0};
 function wxKF(h){let i=0;while(i<KF.length-2&&h>=KF[i+1][0])i++;
  const A=KF[i],B=KF[i+1],f=(h-A[0])/(B[0]-A[0]);
  _wxT.setHex(A[1]);_wxA.setHex(B[1]);_wxT.lerp(_wxA,f);
@@ -77,6 +77,31 @@ let pudM=null,snowPM=null;
  pudM=new THREE.Mesh(mergeGeometries(pg,false),pudMat);pudM.receiveShadow=false;scene.add(pudM);
  snowPM=new THREE.Mesh(mergeGeometries(sg,false),snowMat);snowPM.receiveShadow=false;scene.add(snowPM);
  pg.forEach(g=>g.dispose());sg.forEach(g=>g.dispose());pudM.visible=snowPM.visible=false}
+// ─── ۴٫۵) لایهٔ سطوح همهٔ سازه‌ها/آیتم‌ها: خِیس‌شدن، برف‌نشستن و ته‌رنگ دمایی — بدون draw call و بدون نور جدید ───────────────────────────────────────────
+// هر MeshStandardMaterial دنیا یک‌بار (در لحظهٔ بارگذاری یا با گشت‌زنی دوره‌ای برای متریال‌های زمان-اجر) با این
+// لایه patch می‌شود؛ همهٔ متریال‌ها به «همین یک مجموعهٔ uniform مشترک» وصل‌اند ⇒ هر فریم فقط چند عدد مقدار می‌گیرند.
+//  uWxWet: تیرگی/براقیِ خیس   uWxSnow: سفیدشدن برفِ نشسته (فقط سطوح رو‌به‌بالا = بام‌ها)   uWxTint/uWxTintAmt: ته‌رنگ سرد/گرم
+//  uWxRough: زبری هدف در خیس‌شدن   uWxUpV: بردار «بالا» در فضای دید (برف روی بام، نه روی دیوار)
+// استثناها: شیدرهای اختصاصی (زمین/آب/ذرات — onBeforeCompile دارند)، متریال‌های شفاف (هاله/شبح/پوشش‌ها) و منابع نورِ
+// قوی (لامپ/پنجرهٔ شب) — این‌ها یا خود موتور آب‌وهوا مستقیم مدیریت‌شان می‌کند یا نباید برف‌گیر/خیس شوند.
+const WXU={wet:{value:0},snow:{value:0},tint:{value:new THREE.Color(1,1,1)},tintAmt:{value:0},rough:{value:.4},up:{value:new THREE.Vector3(0,1,0)}};
+function wxPatchMat(m){
+ if(!m||m.userData.wxP)return;m.userData.wxP=1;
+ // توجه: onBeforeCompile روی Material.prototype یک تابعِ خالیِ پیش‌فرض است و همیشه truthy؛
+ // «own property» بودنش یعنی شیدر اختصاصی (زمین/آب/جنگل) — آن‌ها نباید دوباره patch شوند.
+ if(!m.isMeshStandardMaterial||Object.prototype.hasOwnProperty.call(m,'onBeforeCompile')||m.transparent||m.emissiveIntensity>1.2)return;
+ m.onBeforeCompile=sh=>{Object.assign(sh.uniforms,{uWxWet:WXU.wet,uWxSnow:WXU.snow,uWxTint:WXU.tint,uWxTintAmt:WXU.tintAmt,uWxRough:WXU.rough,uWxUpV:WXU.up});
+  sh.fragmentShader=sh.fragmentShader
+   .replace('#include <common>','#include <common>\nuniform float uWxWet,uWxSnow,uWxTintAmt,uWxRough;uniform vec3 uWxTint,uWxUpV;')
+   .replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\n{float wxSky=smoothstep(.18,.85,dot(normalize(normal),uWxUpV));diffuseColor.rgb*=mix(vec3(1.),uWxTint,uWxTintAmt);diffuseColor.rgb*=mix(vec3(1.),vec3(.62,.68,.74),uWxWet);diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.94,.96,.99),uWxSnow*wxSky);roughnessFactor=mix(roughnessFactor,uWxRough,uWxWet);}')}
+ m.needsUpdate=true;   // اجبارِ باز-کامپایل: متریال ممکن است پیش از patch (در فریم‌های نخستِ لود دنیا) کامپایل شده باشد؛ برای متریالِ ناکامپایل بی‌ضرر است
+}
+// ثبت اولیه: همهٔ متریال‌های موجود تا همین لحظهٔ بارگذاری (زمین/جاده/منظره/مدل‌ها + کشِ متریال‌های مشترک) —
+// قبل از اولین رندر انجام می‌شود ⇒ صفر کامپایل مجدد شیدر در حین بازی.
+{const wxReg=o=>{if(!o)return;(Array.isArray(o.material)?o.material:[o.material]).forEach(wxPatchMat)};
+ scene.traverse(c=>{if(c.isMesh||c.isInstancedMesh||c.isPoints)wxReg(c)});
+ for(const k in mats)wxPatchMat(mats[k])}
+let wxSweepT=.4,wxSweepN=15; // گشت‌زنی متریال‌های زمان-اجر (بنر، پایهٔ چراغ، شهروند، متریال‌های تازهٔ جاده…): در دوران ساخت دنیا هر ۰٫۴ثانیه، بعد هر ۲٫۵ثانیه — هر متریال فقط یک‌بار patch می‌شود
 // ─── ۵) هدف پاکت + همگام‌سازی از سرور (از sync در 12-net-sync.js صدا زده می‌شود) ───────────────────────────────────────────
 function wxTarget(t,i){const b=WXTYPES[t],k=.45+.55*i;return{
  cloud:Math.min(1,b.cloud*(.55+.45*i)),fog:Math.min(1,b.fog*k),rain:b.rain*(.4+.6*i),snow:b.snow*(.4+.6*i),
@@ -122,7 +147,8 @@ function weatherStep(dt,t){const P=QLV[Q.lv()],fxOn=!!P.fx,den=WXQ[Q.lv()];
   if(e>=1){WXto=null;WXfrom=null}}
  // ۲) دما و باد
  WXtempC+=(WXtemp-WXtempC)*Math.min(1,dt*.25);
- windStep(dt,t);SWAY=.72+WXcur.wind*1.55;WCD=.35+WIND.speed*.4;
+ windStep(dt,t);SWAY=.72+WXcur.wind*1.55+WIND.gust*1.15;WCD=.35+WIND.speed*.4; // SWAY حالا با گوستِ باد هم نفس می‌کشد ⇒ در توفان تابِ محسوس
+ WXF.time.value=t;WXF.amp.value=Math.min(.42,(WIND.speed*.03+WIND.gust*.09)*(.55+WXcur.wind*.8)); // خم‌شدن جنگل (uniforms مشترک در 06-world-scenery.js)
  // ۳) تر شدن و برف زمین (فیزیکی: خشک‌شدن/ذوب تدریجی)
  const wTgt=WXcur.rain>.05?Math.min(1,WXcur.rain*1.1+.1):(WXcur.snow>.1?.12:0);
  WET+=(wTgt-WET)*Math.min(1,dt*(wTgt>WET?.09:.02));
@@ -136,6 +162,14 @@ function weatherStep(dt,t){const P=QLV[Q.lv()],fxOn=!!P.fx,den=WXQ[Q.lv()];
  wxKF(H);
  const nf=Math.max(0,Math.min(1,1-_kf.si/1.4)),cloud=WXcur.cloud,dark=WXcur.dark,fog=WXcur.fog,fl=FLASH*(fxOn?1:.35),
   cSun=Math.max(0,cloud-.1),snowA=WXcur.snow,coldT=Math.max(0,Math.min(1,(6-WXtempC)/12)),hotT=Math.max(0,Math.min(1,(WXtempC-30)/10));
+ // ۴٫۶) لایهٔ سطوح: واکنش ظاهری «همهٔ سازه‌ها و آیتم‌ها» به آب‌وهوا — خیس‌شدن، برف‌نشستن روی بام‌ها، ته‌رنگ سرد/گرم؛
+ // فقط مقدارِ uniformهای مشترکِ WXU به‌روز می‌شود (همهٔ متریال‌ها به همان‌ها وصل‌اند) ⇒ صفر هزینهٔ اضافه در هر فریم؛
+ // + گشت‌زنی کوتاه برای متریال‌هایی که بعد از بارگذاری ساخته می‌شوند (هر متریال فقط یک‌بار patch؛ بدون recompile زنجیره‌ای)
+ WXU.wet.value=WET;WXU.snow.value=SNOWG*.85;WXU.rough.value=.42-WET*.24;
+ if(coldT>.001||hotT>.001){WXU.tint.value.setRGB(1+hotT*.05-coldT*.06,1-coldT*.03-hotT*.02,1+coldT*.09-hotT*.1);WXU.tintAmt.value=Math.max(coldT*.5,hotT*.42)}else WXU.tintAmt.value=0;
+ _wxQ.copy(cam.quaternion).invert();WXU.up.value.set(0,1,0).applyQuaternion(_wxQ);
+ if((wxSweepT-=dt)<=0){wxSweepT=wxSweepN-->0?.4:2.5;
+  scene.traverse(c=>{if(c.isMesh||c.isInstancedMesh||c.isPoints){const m=c.material;if(m)(Array.isArray(m)?m:[m]).forEach(wxPatchMat)}})}
  sun.intensity=_kf.si*(1-cSun*.55-dark*.26)+fl*Math.max(.15,_kf.si*.6);
  _wxA.copy(_wxS).lerp(_wxB.setHex(0x9fb2c4),Math.min(.85,cSun*.6+dark*.15));_wxA.lerp(_wxB.setHex(0xffd9a0),hotT*.35);sun.color.copy(_wxA);
  hemi.intensity=_kf.hi*(1+Math.max(0,cloud-.15)*.2-dark*.38+SNOWG*.18)+fl*1.5;

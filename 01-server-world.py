@@ -100,13 +100,58 @@ def load():
 # ───────── شبکهٔ صحیحِ خرده‌سلولی ─────────
 LO, HI = -SIZE * GRID, SIZE * GRID - 1
 RIVER_POINTS = [(-146, 22), (-96, 22), (-96, 6), (-40, 6), (-40, 24), (16, 24), (16, 4), (72, 4), (72, 18), (146, 18)]  # مسیر شکستهٔ رود — هماهنگ با RIVER_PTS در 06-world-scenery.js
+RIVER_GUARD = 4.1  # حریم رود بر حسب واحد دنیا (همان مقدار قبلی؛ فقط مرجعِ اندازه‌گیری عوض شد)
+
+# ── مسیر «فِلِت‌شده» رود (آینهٔ دقیق FILLET در 06-world-scenery.js): هر گوشهٔ قائمهٔ ۹۰ درجه با کمان ۸-قطعه‌ای
+#    (r=min(6, ۰٫۴۵·طول هر ضلع)) نرم می‌شود. رندر آب/ساحل/جالیِ زمین همه از همین مسیر پیروی می‌کنند و کمان در
+#    گوشه‌ها تا r·(1−cos۴۵°)≈۱٫۷۶ داخلِ زاویه را می‌بُرد؛ پس گارد ساخت هم باید از همین مسیر اندازه بگیرد —
+#    وگرنه در پیچ‌های رود خانه/درختِ «مجاز» وسط جالیِ بریده‌شده یا داخل حلقهٔ سنگ ساحل می‌نشیند (باگ گزارش‌شده:
+#    «نزدیکی آب هرچی می‌سازم محو می‌شود»). الگوریتم عیناً همان JS است تا مرزِ فریم ۴٫۱ دو طرف کاملاً یکی بماند.
+def _build_river_fillet():
+    poly = []
+    for i in range(len(RIVER_POINTS)):
+        p = RIVER_POINTS[i]
+        if i == 0 or i == len(RIVER_POINTS) - 1:
+            poly.append([float(p[0]), float(p[1])]); continue
+        ax, az = RIVER_POINTS[i - 1]; bx, bz = p; cx, cz = RIVER_POINTS[i + 1]
+        d1x, d1z = bx - ax, bz - az; L1 = math.hypot(d1x, d1z)
+        d2x, d2z = cx - bx, cz - bz; L2 = math.hypot(d2x, d2z)
+        if L1 < 1e-9 or L2 < 1e-9: poly.append([float(bx), float(bz)]); continue
+        u1x, u1z = d1x / L1, d1z / L1; u2x, u2z = d2x / L2, d2z / L2
+        dot = max(-1.0, min(1.0, u1x * u2x + u1z * u2z))
+        if math.acos(dot) < .12: poly.append([float(bx), float(bz)]); continue  # تقریباً مستقیم
+        r = min(6.0, L1 * .45, L2 * .45)
+        tin = [bx - u1x * r, bz - u1z * r]; tout = [bx + u2x * r, bz + u2z * r]
+        poly.append(tin)
+        nx, nz = -u1z, u1x                       # عمودِ ضلع ورودی
+        sgn = 1 if (nx * (u2x - u1x) + nz * (u2z - u1z)) >= 0 else -1
+        ccx, ccz = tin[0] + nx * sgn * r, tin[1] + nz * sgn * r   # مرکز کمان؛ دقیقاً هم‌فاصلهٔ r از هر دو مماس
+        ain = math.atan2(tin[1] - ccz, tin[0] - ccx); aout = math.atan2(tout[1] - ccz, tout[0] - ccx)
+        sweep = aout - ain
+        while sweep > math.pi: sweep -= 2 * math.pi
+        while sweep < -math.pi: sweep += 2 * math.pi
+        for j in range(1, 8):                    # STEPS=8 — مثل فرانت
+            t = j / 8; th = ain + sweep * t
+            poly.append([ccx + math.cos(th) * r, ccz + math.sin(th) * r])
+        poly.append(tout)
+    return poly
+
+_FILLET = _build_river_fillet()
+
+def _poly_dist(poly, X, Z):
+    best = 1e18
+    for i in range(1, len(poly)):
+        ax, az = poly[i - 1]; bx, bz = poly[i]
+        dx, dz = bx - ax, bz - az; dd = dx * dx + dz * dz
+        u = 0.0 if dd <= 0 else max(0.0, min(1.0, ((X - ax) * dx + (Z - az) * dz) / dd))
+        d = math.hypot(X - ax - u * dx, Z - az - u * dz)
+        if d < best: best = d
+    return best
+
 def pond_world(X, Z):
-    for i in range(1, len(RIVER_POINTS)):
-        ax, az = RIVER_POINTS[i - 1]; bx, bz = RIVER_POINTS[i]
-        dx, dz = bx - ax, bz - az
-        u = max(0.0, min(1.0, ((X - ax) * dx + (Z - az) * dz) / (dx * dx + dz * dz)))
-        if math.hypot(X - ax - u * dx, Z - az - u * dz) < 4.1: return True
-    return False
+    """حریم رود = فاصله تا مسیر «فِلِت‌شده» (همان مسیری که آب و ساحل رندر می‌شوند) < ۴٫۱.
+    در قطعات مستقیم عیناً همان فاصلهٔ قبلی است؛ فقط در پیچ‌ها مرز با رندر هم‌تراز می‌شود."""
+    return _poly_dist(_FILLET, X, Z) < RIVER_GUARD
 
 
 def tiles_of(blds):

@@ -12,8 +12,10 @@ const BP_EDGE=new THREE.LineBasicMaterial({color:0xeaffff,transparent:true,opaci
 const BP_TILE=new THREE.MeshBasicMaterial({color:BP_OK,transparent:true,opacity:.5,depthWrite:false});
 // ── لایه‌ها: خانه/مزرعه/بازار/درخت/hq = لایهٔ ساختمان؛ جاده = لایهٔ خودش؛ پیاده‌رو روی زمینِ باز قابل‌همزیست با لایهٔ جاده نیست
 const bpCompat=(a,b)=>a!==b;                                    // لایه‌های متفاوت همزیست؛ هم‌لایه = تداخل
-const BP_RIVER=[[-146,22],[-96,22],[-96,6],[-40,6],[-40,24],[16,24],[16,4],[72,4],[72,18],[146,18]]; // مسیر شکستهٔ رود — هماهنگ با RIVER_PTS در 06-world-scenery.js
-const bpInPond=(x,z)=>{const X=x*U,Z=z*U;for(let i=1;i<BP_RIVER.length;i++){const a=BP_RIVER[i-1],b=BP_RIVER[i],dx=b[0]-a[0],dz=b[1]-a[1],u=Math.max(0,Math.min(1,((X-a[0])*dx+(Z-a[1])*dz)/(dx*dx+dz*dz)));if(Math.hypot(X-a[0]-u*dx,Z-a[1]-u*dz)<4.1)return true}return false};
+const BP_RIVER=[[-146,22],[-96,22],[-96,6],[-40,6],[-40,24],[16,24],[16,4],[72,4],[72,18],[146,18]]; // مسیر شکستهٔ رود — هماهنگ با RIVER_PTS در 06-world-scenery.js (برای مستندات؛ اندازه‌گیری از filletDist)
+// حریم رود = فاصله تا مسیر «فِلِت‌شده» (filletDist در 06-world-scenery.js) — همان مرجعی که آب/ساحل رندر می‌شوند؛
+// هم‌بعد بودن گارد با رندر یعنی هیچ پیش‌نمایش سبزی داخل آب/ساحل پیچ‌ها تولید نمی‌شود (هم‌ساز با fpPondW).
+const bpInPond=(x,z)=>filletDist(x*U,z*U)<4.1;
 const inMap=(x,z)=>x>=-20*GRID&&x<20*GRID&&z>=-20*GRID&&z<20*GRID;
 // ── اعتبارسنجی لایه‌دار: خروجی true یا دلیل خطا (رشته). مجاورت هرگز خطا نیست؛ فقط همپوشانیِ هم‌لایه، برکه و خارج نقشه.
 let bpHit=null;
@@ -209,7 +211,8 @@ async function bpCommit(){const n=BP.items.length;if(!n||BP.busy)return;
     made.forEach((b,i)=>BP._stag.set(b.id,i*.12));        // پله‌ای: هر ساختمان ۱۲۰ms بعد از قبلی
     toast('✅ '+cpx(n)+' ساختمان ساخته شد');
     for(const it of BP.items)if(it.g){scene.remove(it.g);disposeObj(it.g);it.g=null}
-    BP.items=[];bpBar()}
+    BP.items=[];bpGhostType();   // شبحِ شناورِ زیر انگشت هم پاک شود؛ وگرنه نسخهٔ نیمه‌شفافش روی ساختمان واقعیِ تازه می‌ماند و «محو/روی‌هم‌افتاده» دیده می‌شود
+    bpBar()}
   catch(e){/* api خودش توست خطا می‌زند */}
   BP.busy=false;bpBar()}
 // زمان شروع انیمیشنِ پاپ برای ساختمان تازه (۰ = همین حالا؛ stagger ← bpCommit)

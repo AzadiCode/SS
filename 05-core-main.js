@@ -32,7 +32,8 @@ R.setAnimationLoop(()=>{
   if(riverWaterMat.userData.sh)riverWaterMat.userData.sh.uniforms.uTime.value=t} // تپش زندهٔ کاشی‌ها (فاز/دامنه در 06-world-scenery.js)
  for(const c of clouds){c.position.x+=dt*WCD;if(c.position.x>90)c.position.x=-90}});   // WCD = سرعت رانش ابر از باد (06-world-weather.js)
  // SWAY = دامنهٔ تاب باد (از 06-world-weather.js)
- framePart('building-animation',()=>{for(const g of objs.values())if(g.userData.sw!==undefined)g.rotation.z=Math.sin(t*1.3+g.userData.sw)*.025*SWAY;for(const g of objs.values()){const u=g.userData;if(u.t<1){u.t=Math.min(1,u.t+dt*1.8);if(u.t<=0)continue;const e=1-Math.pow(1-u.t,3);g.scale.setScalar(Math.max(.01,e*(1+.12*Math.sin(u.t*Math.PI))))}}});
+ // تاب بادی آیتم‌های sw-دار (درخت‌های کاشته‌شده/بنر): دو محور با فاز جدا = تکانِ طبیعی؛ دامنه از SWAY (حالا با گوست باد هم — توفان = تابِ محسوس)
+ framePart('building-animation',()=>{const wxAmp=.026*SWAY;for(const g of objs.values())if(g.userData.sw!==undefined){const ph=g.userData.sw;g.rotation.z=Math.sin(t*1.3+ph)*wxAmp;g.rotation.x=Math.cos(t*.83+ph*1.31)*wxAmp*.62}for(const g of objs.values()){const u=g.userData;if(u.t<1){u.t=Math.min(1,u.t+dt*1.8);if(u.t<=0)continue;const e=1-Math.pow(1-u.t,3);g.scale.setScalar(Math.max(.01,e*(1+.12*Math.sin(u.t*Math.PI))))}}});
  framePart('quality-controller',()=>Q.frame(dt));
  framePart('citizen-simulation',()=>stepCits(dt,t));
  framePart('cars-simulation',()=>stepCars(dt,t));
