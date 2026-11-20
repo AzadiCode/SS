@@ -1,10 +1,10 @@
 // ═══ لمس و انتخاب روی صحنه، ساخت دکمه‌های رابط، و ابزار مدیر (جابه‌جایی، ساخت، چرخش، حذف، نام، پیام).
 // پنل مدیر ← 10-admin-panel.js ═══
 'use strict';
-const MODES={move:'✋ جابه‌جایی: ساختمان را بکش و رها کن',build:'🏗️ نقشهٔ ساخت: شبح را بچین، بعد ✓ بزن تا همه ساخته شوند',rot:'🔄 چرخش: روی ساختمان بزن',del:'🗑️ حذف: روی ساختمان بزن',name:'🏷️ نام مستعار: روی آدم بزن',say:'💬 پیام: روی آدم بزن'};
+const MODES={move:'✋ جابه‌جایی: ساختمان را بکش و رها کن',build:'🏗️ نقشهٔ ساخت: شبح را بچین، بعد ✓ بزن تا همه ساخته شوند',rot:'🔄 چرخش: روی ساختمان بزن',del:'🗑️ حذف: روی ساختمان بزن',name:'🏷️ نام مستعار: روی آدم بزن',say:'💬 پیام: روی آدم بزن',pedestrian:'🚸 گذرگاه عابر: روی خیابان کنار پیاده‌رو بزن'};
 // ── رابط
 document.body.insertAdjacentHTML('afterbegin','<div id="nts"></div>');
-document.body.insertAdjacentHTML('beforeend',`<div id="adm"><div class="btn e g" data-m="move" title="جابه‌جایی">✋</div><div class="btn e g" data-m="build" title="ساخت">🏗️</div><div class="btn e g" data-m="rot" title="چرخش">🔄</div><div class="btn e g" data-m="del" title="حذف">🗑️</div><div class="btn e g" data-m="name" title="نام مستعار">🏷️</div><div class="btn e g" data-m="say" title="پیام">💬</div><div class="btn e g" id="brec" title="ضبط ویدیو (فقط تصویر سه‌بعدی)">🎥</div><div class="btn e g" id="brec2" title="استودیوی سینمایی: حرکت‌های آماده + ضبط (کامپیوتر و موبایل)">🎬</div><div class="btn e g" id="btm" title="زمان">⏱️</div></div><div id="pal" class="g"><span data-t="house" class="on">🏠</span><span data-t="hq">🏢</span><span data-t="farm">🌾</span><span data-t="market">🏪</span><span data-t="road">🛣️</span><span data-t="path" title="پیاده‌رو">🚶</span><select id="pathStyle" title="طرح پیاده‌رو" style="display:none;padding:5px;border-radius:6px;background:#173b35;color:#fff;border:1px solid #789"><option value="stone">سنگی</option><option value="dirt">خاکی</option></select><span data-t="tree">🌲</span><label><input type="checkbox" id="fr" checked> رایگان</label></div><div id="md" class="g"><p id="mt"></p><input id="mi" maxlength="120"><div><button id="mok">تأیید</button><button id="mno">انصراف</button></div></div>`);
+document.body.insertAdjacentHTML('beforeend',`<div id="adm"><div class="btn e g" data-m="move" title="جابه‌جایی">✋</div><div class="btn e g" data-m="build" title="ساخت">🏗️</div><div class="btn e g" data-m="rot" title="چرخش">🔄</div><div class="btn e g" data-m="del" title="حذف">🗑️</div><div class="btn e g" data-m="name" title="نام مستعار">🏷️</div><div class="btn e g" data-m="say" title="پیام">💬</div><div class="btn e g" data-m="pedestrian" title="تابلو و خط‌کشی عابر">🚸</div><div class="btn e g" data-m="pedestrian" title="تابلو و خط‌کشی عابر">🚸</div><div class="btn e g" id="brec" title="ضبط ویدیو (فقط تصویر سه‌بعدی)">🎥</div><div class="btn e g" id="brec2" title="استودیوی سینمایی: حرکت‌های آماده + ضبط (کامپیوتر و موبایل)">🎬</div><div class="btn e g" id="btm" title="زمان">⏱️</div></div><div id="pal" class="g"><span data-t="house" class="on">🏠</span><span data-t="hq">🏢</span><span data-t="farm">🌾</span><span data-t="market">🏪</span><span data-t="road">🛣️</span><span data-t="path" title="پیاده‌رو">🚶</span><select id="pathStyle" title="طرح پیاده‌رو" style="display:none;padding:5px;border-radius:6px;background:#173b35;color:#fff;border:1px solid #789"><option value="stone">سنگی</option><option value="dirt">خاکی</option></select><span data-t="tree">🌲</span><label><input type="checkbox" id="fr" checked> رایگان</label></div><div id="md" class="g"><p id="mt"></p><input id="mi" maxlength="120"><div><button id="mok">تأیید</button><button id="mno">انصراف</button></div></div>`);
 $('side').insertAdjacentHTML('beforeend','<div id="bn" class="btn g" title="نمایش/پنهان نام‌ها"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.9 3.1-6.2 7-6.2s7 2.3 7 6.2"/></svg></div><div id="bm" class="btn g" title="قطع صدا"></div><div id="ba" class="btn g" title="ابزار مدیر"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/></svg></div>');
 $('tier').insertAdjacentHTML('beforeend','<span id="clk"></span>');
 // ── ابزار مدیر (جابه‌جایی، ساخت، چرخش، حذف، نام، پیام)
@@ -15,6 +15,48 @@ let activePointer=null;
 function unlockWorldInput(cancelGesture=true){activePointer=null;ctl.enabled=true;if(!cancelGesture)return;drag=null;dn=null;cur.visible=false;if(BP.on){BP.down=null;BP.dragIt=null;BP.pid=null;if(BP.ghost)BP.ghost.visible=false;bpLine(null)}}
 function captureWorldPointer(e){activePointer=e.pointerId;try{R.domElement.setPointerCapture(e.pointerId)}catch(_){}}
 function ask(t,v='',pw){return new Promise(res=>{const m=$('md'),i=$('mi');$('mt').textContent=t;i.type=pw?'password':'text';i.value=v;m.style.display='flex';i.focus();const done=x=>{m.style.display='none';$('mok').onclick=$('mno').onclick=i.onkeydown=null;res(x)};$('mok').onclick=()=>done(i.value.trim());$('mno').onclick=()=>done(null);i.onkeydown=e=>{if(e.key==='Enter')done(i.value.trim());if(e.key==='Escape')done(null)}})}
+
+// گذرگاه‌ها در سند اصلی دنیا ذخیره می‌شوند و از API مشترک پروژه همگام هستند.
+const pedCrossings=new Map();
+const pedWhite=new THREE.MeshStandardMaterial({color:0xf8f7ed,emissive:0x77776b,emissiveIntensity:.12,roughness:.8});
+const pedGreen=new THREE.MeshStandardMaterial({color:0x168b54,emissive:0x073d20,emissiveIntensity:.35,roughness:.45});
+const pedIconMat=new THREE.MeshBasicMaterial({color:0xf4fff5});
+function makePedCrossing(item){
+ const id=Number(item.id);if(!Number.isFinite(id))return;
+ if(pedCrossings.has(id))return;
+ const {x,z,axis}=item,g=new THREE.Group();g.position.set(x,0,z);g.userData={crossing:item,id};
+ for(let i=-3;i<=3;i++){const stripe=new THREE.Mesh(new THREE.BoxGeometry(axis==='x'?.105:1.05,.018,axis==='x'?1.05:.105),pedWhite);if(axis==='x')stripe.position.set(i*.155,.105,0);else stripe.position.set(0,.105,i*.155);g.add(stripe)}
+ for(const side of [-1,1]){
+  const post=new THREE.Mesh(new THREE.CylinderGeometry(.025,.035,.82,7),new THREE.MeshStandardMaterial({color:0x555b5b,roughness:.8}));
+  const board=new THREE.Mesh(new THREE.BoxGeometry(.34,.38,.07),pedGreen),icon=new THREE.Group();
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.035,8,6),pedIconMat);head.position.set(0,.105,0);icon.add(head);
+  const torso=new THREE.Mesh(new THREE.BoxGeometry(.045,.105,.018),pedIconMat);torso.position.set(0,.015,0);icon.add(torso);
+  const limbGeo=new THREE.BoxGeometry(.025,.105,.018);for(const [px,py,rz] of [[-.055,.035,-.45],[.055,.035,.45],[-.027,-.085,-.35],[.035,-.085,.35]]){const limb=new THREE.Mesh(limbGeo,pedIconMat);limb.position.set(px,py,0);limb.rotation.z=rz;icon.add(limb)}
+  if(axis==='x'){post.position.set(0,.41,side*.78);board.position.set(0,.91,side*.78);icon.position.set(0,.91,side*.738)}else{post.position.set(side*.78,.41,0);board.position.set(side*.78,.91,0);icon.position.set(side*.738,.91,0);board.rotation.y=Math.PI/2;icon.rotation.y=Math.PI/2}
+  g.add(post,board,icon)
+ }
+ scene.add(g);pedCrossings.set(id,g)
+}
+function syncPedCrossings(items=[]){
+ const ids=new Set(items.map(v=>Number(v.id)));
+ for(const [id,g] of pedCrossings)if(!ids.has(id)){scene.remove(g);g.traverse(o=>{if(o.isMesh){o.geometry.dispose();if(o.material!==pedWhite&&o.material!==pedGreen&&o.material!==pedIconMat)o.material.dispose()}});pedCrossings.delete(id)}
+ for(const item of items)makePedCrossing(item)
+}
+async function placePedCrossing(e){
+ const p=gpt(e);if(!p)return toast('نقطه‌ای روی نقشه انتخاب کن');
+ const roads=W.buildings.filter(b=>b.type==='road');let best=null,bd=Infinity;
+ for(const b of roads){const x=b.x*U,z=b.z*U,d=Math.hypot(p[0]-x,p[1]-z);if(d<bd){bd=d;best={x,z,b}}}
+ if(!best||bd>2.35)return toast('برای ساخت گذرگاه، نزدیک یک خیابان قرار بگیر');
+ const {x,z,b}=best;let east=0,north=0;for(const r of roads){if(r===b)continue;const dx=r.x-b.x,dz=r.z-b.z;if(Math.abs(dx)===8&&dz===0)east++;if(Math.abs(dz)===8&&dx===0)north++}
+ const axis=east>=north?'x':'z';
+ try{const r=await fetch('/api/admin/pedestrian-crossing',{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':T},body:JSON.stringify({x,z,axis})});const j=await r.json();if(!r.ok)throw Error(j.error||'ذخیره گذرگاه ناموفق بود');toast('✅ گذرگاه در دنیای اصلی ذخیره شد');poll()}catch(err){toast(err.message||'خطا در ذخیره گذرگاه')}
+}
+function deletePedCrossing(e){
+ ray0(e);const hits=ray.intersectObjects([...pedCrossings.values()],true);if(!hits.length)return false;let o=hits[0].object;while(o&&!o.userData.crossing)o=o.parent;if(!o)return false;
+ const id=o.userData.id;if(!confirm('گذرگاه عابر حذف شود؟'))return true;
+ fetch('/api/admin/pedestrian-crossing/'+id,{method:'DELETE',headers:{'X-Admin-Token':T}}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||'حذف ناموفق بود');toast('گذرگاه حذف شد');poll()}).catch(err=>toast(err.message));return true
+}
+
 async function api(p,m,b,q){const r=await fetch(p,{method:m,headers:{'Content-Type':'application/json','X-Admin-Token':T},body:b?JSON.stringify(b):undefined}),j=await r.json().catch(()=>({}));if(r.status===401){T=localStorage.tk='';setAdm(0);toast('نشست مدیر تمام شد؛ دوباره وارد شو')}if(!r.ok){if(!q)toast(j.error||'خطا');throw 0}poll();return j}
 function setAdm(on){if(!on)unlockWorldInput();admOn=on;$('adm').style.display=on?'flex':'none';if(!on){setMode('');if(BP.on)bpEnd();const p=$('ap');if(p)p.style.display='none'}}
 function setMode(m){unlockWorldInput();mode=mode===m?'':m;document.querySelectorAll('#adm [data-m]').forEach(b=>b.classList.toggle('on',b.dataset.m===mode));$('pal').style.display=mode==='build'?'flex':'none';cur.visible=false;
@@ -45,7 +87,7 @@ const bpDrag=e=>{const it=BP.dragIt,c=tgtOf(e,it);if(!c)return;
   if(BP.down)BP.down.moved=Math.max(BP.down.moved,Math.hypot(e.clientX-(BP.down.x??e.clientX),e.clientY-(BP.down.y??e.clientY)));
   if(it){if(c[0]!==it.x||c[1]!==it.z)bpMove(it,c[0],c[1])}
   else{bpFloat(c);if(BP.down&&isTile(BP.type))bpLine(c)}};
-async function onTap(e){const h=pickAt(e);
+async function onTap(e){if(mode==='pedestrian'){if(deletePedCrossing(e))return;placePedCrossing(e);return}const h=pickAt(e);
 if(h.c){react(h.c);if(h.c.me&&!(T&&(mode==='name'||mode==='say'))){const v=await ask('اسم کارکتر تو (خالی = پیش‌فرض)',nameOf(MY));if(v!==null)fetch('/api/player/name',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({init:INIT,name:v})}).then(r=>r.ok?poll():r.json().then(j=>toast(j.error||'خطا'))).catch(()=>0)}else if(T&&mode==='name'){const v=await ask('نام مستعار (خالی = پیش‌فرض)',nameOf(h.c.i));if(v!==null)api('/api/admin/citizen/'+h.c.i,'PUT',{name:v}).catch(()=>0)}
 else if(T&&mode==='say'){const v=await ask('پیام بالای سر «'+nameOf(h.c.i)+'»');if(v)api('/api/admin/say','POST',{cid:h.c.i,text:v}).catch(()=>0)}return}
 if(h.b){h.g.userData.t=.55;

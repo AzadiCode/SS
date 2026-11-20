@@ -30,7 +30,7 @@ def seed():
     return d
 
 
-def extras(): return {"citizens": {}, "players": {}, "chat": [], "chat_id": 0, "env": {"mode": "live", "hour": 12.0}, "hq_made": False}
+def extras(): return {"citizens": {}, "players": {}, "chat": [], "chat_id": 0, "env": {"mode": "live", "hour": 12.0}, "pedestrian_crossings": [], "next_crossing_id": 1, "hq_made": False}
 
 
 def migrate(d):
@@ -214,7 +214,7 @@ def apply_delta(d, delta):
 # ───────── خروجی عمومی و تغییر ─────────
 def view(d):
     return {"rev": d["rev"], "country": d["country"], "stats": d["stats"], "capacity": capacity(d),
-            "buildings": d["buildings"], "events": d["events"][:20], "catalog": CATALOG, "cost": COST, "day": DAY,
+            "buildings": d["buildings"], "pedestrian_crossings": d.get("pedestrian_crossings", []), "events": d["events"][:20], "catalog": CATALOG, "cost": COST, "day": DAY,
             "tier": [n for at, n in TIERS if d["stats"]["subs"] >= at][-1], "tiers": [n for _, n in TIERS],
             "citizens": d["citizens"], "bot": runtime["bot_user"], "chat": d["chat"][-12:], "env": d["env"], "tz": TZ_NAME,
             "goals": [{"at": a, "key": k, "title": t, "value": d["story"]["values"].get(k)} for a, k, t in GOALS]}

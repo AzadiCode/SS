@@ -33,17 +33,41 @@ function mkCar(){const g=new THREE.Group(),col=rr(CC);bx(g,.62,.13,.3,col,0,.05)
  [[.2,.16],[.2,-.16],[-.2,.16],[-.2,-.16]].forEach(([x,z])=>{const w=new THREE.Mesh(WH,M(0x25282c));w.rotation.x=Math.PI/2;w.position.set(x,.07,z);g.add(w)});
  [-.09,.09].forEach(z=>{const l=new THREE.Mesh(new THREE.BoxGeometry(.03,.05,.07),HL);l.position.set(.32,.12,z);g.add(l)});return g}
 function carLanePoint(node,d){return{x:node.x-d[1]*LANE,z:node.z+d[0]*LANE}}
+function carNodeKey(n){return n.ix+','+n.iz}
 function pickNext(c){
- const ns=c.node.neighbors,forward=ns.filter(e=>!c.d||(e.dx!==-c.d[0]||e.dz!==-c.d[1])),pool=forward.length?forward:ns;if(!pool.length)return 0;
- // در تقاطع‌ها ادامهٔ مسیر بر گردش تصادفی اولویت دارد؛ دوربرگردان فقط در بن‌بست مجاز است.
- let e;if(c.d){const straight=pool.find(v=>v.dx===c.d[0]&&v.dz===c.d[1]);e=straight&&Math.random()<.72?straight:rr(pool)}else e=rr(pool);
+ const ns=c.node.neighbors;
+ // برگشت فوری از همان خیابان ممنوع است؛ فقط وقتی مسیر دیگری وجود ندارد (بن‌بست) مجاز می‌شود.
+ const forward=ns.filter(e=>!c.d||(e.dx!==-c.d[0]||e.dz!==-c.d[1]));
+ if(!ns.length)return 0;
+ const recent=new Set(c.history||[]);
+ // مقصدهایی که در چند تقاطع اخیر دیده شده‌اند کنار گذاشته می‌شوند تا خودرو وارد حلقه و رفت‌وبرگشت نشود.
+ const fresh=forward.filter(e=>!recent.has(carNodeKey(e.node)));
+ let pool=fresh.length?fresh:(forward.length?forward:ns);
+ if(!pool.length)return 0;
+ const straight=c.d&&pool.find(e=>e.dx===c.d[0]&&e.dz===c.d[1]);
+ let e=null;
+ // مسیر مستقیم در اولویت قوی است؛ اگر مسیر مستقیم قبلاً تکرار شده باشد، مسیر تازه انتخاب می‌شود.
+ if(straight&&Math.random()<.86)e=straight;
+ if(!e){
+  // در حالت اجبار به استفاده از گره‌های تکراری، قدیمی‌ترین مقصد اولویت می‌گیرد.
+  if(!fresh.length&&forward.length){
+   const ageOf=e=>{const i=(c.history||[]).lastIndexOf(carNodeKey(e.node));return i<0?1e6:(c.history.length-1-i)};
+   const oldest=Math.max(...pool.map(ageOf));pool=pool.filter(v=>ageOf(v)===oldest);
+  }
+  // وزن مسیر مستقیم بیشتر از چپ/راست است؛ انتخاب تصادفی خام در تقاطع حذف شده است.
+  const weights=pool.map(v=>v.dx===(c.d||[])[0]&&v.dz===(c.d||[])[1]?4.5:1);
+  let r=Math.random()*weights.reduce((a,b)=>a+b,0);
+  for(let i=0;i<pool.length;i++){r-=weights[i];if(r<=0){e=pool[i];break}}
+  e=e||pool[pool.length-1];
+ }
  c.d=[e.dx,e.dz];c.next=e.node;const q=carLanePoint(e.node,c.d);c.tx=q.x;c.tz=q.z;return 1;
 }
 function carStartTurn(c,incoming){
  const d=c.d,p0={x:c.g.position.x,z:c.g.position.z},p3=carLanePoint(c.node,d);
  if(incoming[0]===d[0]&&incoming[1]===d[1]){c.turn=null;return}
- // برای پیچ ۹۰ درجه، کنترل بزیه بر اساس شعاع لاین تنظیم می‌شود؛ نه یک قوس بزرگ و برش‌زننده.
- const reverse=incoming[0]===-d[0]&&incoming[1]===-d[1],k=reverse?.18:LANE*.55228475;
+ // نقاط کنترل کوتاه و مماس با دو لاین؛ مانع برش مورب تقاطع و قوس‌های بیش‌ازحد بزرگ می‌شود.
+ const reverse=incoming[0]===-d[0]&&incoming[1]===-d[1],chord=Math.hypot(p3.x-p0.x,p3.z-p0.z);
+ const k=reverse?.18:Math.min(.14,Math.max(.07,chord*.42));
  const p1={x:p0.x+incoming[0]*k,z:p0.z+incoming[1]*k},p2={x:p3.x-d[0]*k,z:p3.z-d[1]*k};
  let len=0,prev=p0;for(let i=1;i<=12;i++){const u=i/12,v=1-u,pt={x:v*v*v*p0.x+3*v*v*u*p1.x+3*v*u*u*p2.x+u*u*u*p3.x,z:v*v*v*p0.z+3*v*v*u*p1.z+3*v*u*u*p2.z+u*u*u*p3.z};len+=Math.hypot(pt.x-prev.x,pt.z-prev.z);prev=pt}
  c.turn={p0,p1,p2,p3,u:0,len:Math.max(.08,len)};
@@ -52,7 +76,7 @@ function carSpawnClear(x,z){for(const o of cars){if(o.out)continue;if(Math.hypot
 function spawnCar(){
  if(!carRoadGraph.length)return;
  for(let attempt=0;attempt<12;attempt++){
-  const node=rr(carRoadGraph),g=mkCar(),c={id:++carSerial,g,node,next:null,d:null,tx:0,tz:0,hd:0,v:0,sp:1.45+Math.random()*.55,life:38+Math.random()*42,sc:0,stuck:0,out:0,turn:null};
+  const node=rr(carRoadGraph),g=mkCar(),c={id:++carSerial,g,node,next:null,d:null,tx:0,tz:0,hd:0,v:0,sp:1.45+Math.random()*.55,life:38+Math.random()*42,sc:0,stuck:0,out:0,turn:null,history:[carNodeKey(node)]};
   if(!pickNext(c))continue;const pos=carLanePoint(node,c.d);if(!carSpawnClear(pos.x,pos.z))continue;
   g.scale.setScalar(.01);g.position.set(pos.x,.06,pos.z);c.hd=Math.atan2(-c.d[1],c.d[0]);scene.add(g);cars.push(c);return;
  }
@@ -90,6 +114,8 @@ function stepCars(dt,t){
   if(c.turn){const q=carBezier(c.turn,c.turn.u),mag=Math.hypot(q.dx,q.dz)||1;vx=q.dx/mag;vz=q.dz/mag}
   else{const dx=c.tx-g.position.x,dz=c.tz-g.position.z;dist=Math.hypot(dx,dz)||1;vx=dx/dist;vz=dz/dist}
   let desired=carSafeSpeed(c,vx,vz),redStop=false,maxMove=Infinity;
+  // خودرو در پیچ سرعت را کمی کم می‌کند تا تغییر مسیر طبیعی و بدون چرخش تند باشد.
+  if(c.turn)desired=Math.min(desired,c.sp*.78);
   // مرکز خودرو در توقف باید حدود ۱٫۱۰ واحد پیش از مرکز تقاطع بماند؛ دماغه پشت خط توقف می‌ایستد.
   if(!c.turn&&c.next&&c.next.neighbors.length>=3){
    const light=signalStatus(c.next,c.d,t);
@@ -102,6 +128,7 @@ function stepCars(dt,t){
    const a=Math.atan2(-q.dz,q.dx);let da=Math.atan2(Math.sin(a-c.hd),Math.cos(a-c.hd));c.hd+=da*Math.min(1,dt*10);
   }else if(dist<=move+.025){
    g.position.x=c.tx;g.position.z=c.tz;const incoming=c.d.slice();c.node=c.next;
+   c.history.push(carNodeKey(c.node));if(c.history.length>9)c.history.shift();
    if(!pickNext(c)){c.out=1;continue}carStartTurn(c,incoming);
    if(c.turn){const q=carBezier(c.turn,0),a=Math.atan2(-q.dz,q.dx);let da=Math.atan2(Math.sin(a-c.hd),Math.cos(a-c.hd));c.hd+=da*Math.min(1,dt*10)}
   }else{

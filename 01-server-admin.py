@@ -9,6 +9,35 @@ from srv_world import mutate, free_cell, check_place, log_event, apply_delta, re
 bp = Blueprint("admin", __name__)
 
 
+@bp.post("/api/admin/pedestrian-crossing")
+@admin_only
+def add_pedestrian_crossing():
+    """ذخیرهٔ گذرگاه در سند اصلی دنیای بازی."""
+    j = request.get_json(silent=True) or {}
+    try: x, z = float(j.get("x")), float(j.get("z"))
+    except (TypeError, ValueError): raise ValueError("مختصات گذرگاه نامعتبر است")
+    axis = j.get("axis", "x")
+    if axis not in ("x", "z") or abs(x) > 200 or abs(z) > 200: raise ValueError("موقعیت یا جهت گذرگاه نامعتبر است")
+    def f(d):
+        crossings = d.setdefault("pedestrian_crossings", [])
+        if any(abs(float(c.get("x", 0))-x) < .05 and abs(float(c.get("z", 0))-z) < .05 and c.get("axis") == axis for c in crossings): raise ValueError("اینجا گذرگاه وجود دارد")
+        item = {"id": int(d.setdefault("next_crossing_id", 1)), "x": x, "z": z, "axis": axis}
+        d["next_crossing_id"] = item["id"] + 1; crossings.append(item)
+        return item
+    return jsonify(crossing=mutate(f))
+
+
+@bp.delete("/api/admin/pedestrian-crossing/<int:cid>")
+@admin_only
+def delete_pedestrian_crossing(cid):
+    def f(d):
+        crossings = d.setdefault("pedestrian_crossings", [])
+        item = next((c for c in crossings if int(c.get("id", -1)) == cid), None)
+        if item is None: raise ValueError("گذرگاه پیدا نشد")
+        crossings.remove(item)
+    mutate(f); return jsonify(ok=True)
+
+
 @bp.post("/api/admin/building")
 @admin_only
 def add_building():

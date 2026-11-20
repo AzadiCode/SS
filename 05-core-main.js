@@ -26,7 +26,7 @@ R.setAnimationLoop(()=>{
  framePart('environment',()=>envStep(dt));
  framePart('hud-counters',()=>{for(const k in disp){disp[k]+=(tgt[k]-disp[k])*Math.min(1,dt*5);const v=Math.abs(tgt[k]-disp[k])<.05?tgt[k]:disp[k],txt=fa(v,k==='money'?1:0);if(last[k]!==txt){last[k]=txt;$('v_'+k).textContent=txt}}});
  framePart('intro-camera',()=>{if(intro<1&&W){intro=Math.min(1,intro+dt/3.2);const e=1-Math.pow(1-intro,3);cam.position.lerpVectors(START,HOME,e);cam.lookAt(0,0,0);if(intro>=1){ctl.enabled=true;ctl.update()}}});
- framePart('world-ambient',()=>{{const k=1+.12*Math.sin(t*.8);rip.scale.set(1.3*k,1,.9*k);rip.material.opacity=.14+.06*Math.sin(t*.8)}for(const c of clouds){c.position.x+=dt*.8;if(c.position.x>90)c.position.x=-90}});
+ framePart('world-ambient',()=>{for(const c of clouds){c.position.x+=dt*.8;if(c.position.x>90)c.position.x=-90}});
  framePart('building-animation',()=>{for(const g of objs.values())if(g.userData.sw!==undefined)g.rotation.z=Math.sin(t*1.3+g.userData.sw)*.025;for(const g of objs.values()){const u=g.userData;if(u.t<1){u.t=Math.min(1,u.t+dt*1.8);if(u.t<=0)continue;const e=1-Math.pow(1-u.t,3);g.scale.setScalar(Math.max(.01,e*(1+.12*Math.sin(u.t*Math.PI))))}}});
  framePart('quality-controller',()=>Q.frame(dt));
  framePart('citizen-simulation',()=>stepCits(dt,t));
