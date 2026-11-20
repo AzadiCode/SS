@@ -4,6 +4,17 @@
 // مدل‌ها
 function gable(g,w,h,d,c,y){const sh=new THREE.Shape();sh.moveTo(-w/2,0);sh.lineTo(w/2,0);sh.lineTo(0,h);const m=new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:d,bevelEnabled:false}),M(c,.6));m.position.set(0,y,-d/2);return add(g,m)}
 const GLOW=new THREE.MeshStandardMaterial({color:0xffe0a0,emissive:0xffb84d,emissiveIntensity:.5,roughness:.4}),FM={},F=c=>FM[c]||(FM[c]=new THREE.MeshStandardMaterial({color:c,roughness:.9,flatShading:true}));
+// ── تابلوی عابر پیاده: صفحهٔ آبی با پیکان‌گرِ عابر (بافت Canvas مشترک؛ شب بازتاب‌نده می‌شود ← applyEnv) ──
+const CROSSM=(()=>{const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');
+ x.fillStyle='#1d5fbf';x.fillRect(0,0,128,128);
+ x.strokeStyle='#eef3ff';x.lineWidth=6;x.strokeRect(5,5,118,118);
+ x.fillStyle='#fff';x.strokeStyle='#fff';x.lineWidth=11;x.lineCap='round';x.lineJoin='round';
+ x.beginPath();x.arc(63,34,11,0,6.284);x.fill();
+ x.beginPath();x.moveTo(64,48);x.lineTo(59,76);x.stroke();
+ x.beginPath();x.moveTo(62,55);x.lineTo(43,66);x.moveTo(62,55);x.lineTo(81,62);x.stroke();
+ x.beginPath();x.moveTo(59,76);x.lineTo(47,103);x.moveTo(59,76);x.lineTo(72,99);x.moveTo(72,99);x.lineTo(78,110);x.stroke();
+ const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;return t})();
+const CROSSSGN=new THREE.MeshStandardMaterial({map:CROSSM,roughness:.45,emissive:0x3f7fd0,emissiveIntensity:.12});
 const WALL=[0xe8dfca,0xdccfb2,0xeee4cf,0xd9c8a8],ROOF=[0xa3452f,0x8a3b2b,0x5f7482,0xb0683b],AWN=[0xc8553a,0xe0a43a,0x3f7f99,0x7a9a4a];
 const cyl=(g,rt,rb,h,c,px,py,pz,sg=8)=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,sg),M(c));m.position.set(px,py+h/2,pz);return add(g,m)};
 const ball=(g,r,c,px,py,pz,d=1)=>{const m=new THREE.Mesh(new THREE.IcosahedronGeometry(r,d),F(c));m.position.set(px,py,pz);return add(g,m)};
@@ -98,5 +109,9 @@ const gl=NORAY(new THREE.Mesh(HQGG,HQG));gl.rotation.x=-Math.PI/2;gl.position.se
 
 tree(g,b){const k=b.id,sr=((k*9301+49297)%233280)/233280,s=.9+sr*.7,v=k%3;g.userData.sw=sr*6;cyl(g,.09*s,.13*s,.7*s,0x6e4c32,0,0,0,6);
 if(v===1)[[.8,.62],[1.25,.46],[1.62,.3]].forEach(([y,r])=>{const m=new THREE.Mesh(new THREE.ConeGeometry(r*s,.62*s,7),F(0x3f7a4a));m.position.y=y*s;add(g,m)});
-else[[0,1.05,0,.62],[.25,.85,.1,.42],[-.22,.9,-.1,.4]].forEach(([a,y,c,r],i)=>ball(g,r*s,v?[0x6a9f4f,0x7aae55,0x5e9448][i]:[0x4f8f4a,0x5f9f55,0x3f7d45][i],a*s,y*s,c*s));bakeVC(g)}};
+else[[0,1.05,0,.62],[.25,.85,.1,.42],[-.22,.9,-.1,.4]].forEach(([a,y,c,r],i)=>ball(g,r*s,v?[0x6a9f4f,0x7aae55,0x5e9448][i]:[0x4f8f4a,0x5f9f55,0x3f7d45][i],a*s,y*s,c*s));bakeVC(g)},
+// تابلوی عابر پیاده: تیرک کوتاه + صفحهٔ آبی دوروطن. جهت‌گیری مدل رو به جاده در roads() انجام می‌شود (صفحه رو به +z).
+crossing(g){cyl(g,.028,.042,.52,0x3a3f44,0,0,0,6);bx(g,.07,.05,.07,0x3a3f44,0,.52,0);
+const pl=new THREE.Mesh(new THREE.PlaneGeometry(.32,.32),CROSSSGN);pl.position.set(0,.63,.014);add(g,pl);
+const bk=new THREE.Mesh(new THREE.PlaneGeometry(.32,.32),M(0x1d5fbf,.5));bk.position.set(0,.63,-.014);bk.rotation.y=Math.PI;add(g,bk)}};
 function addB(b,delay=0){const g=new THREE.Group();build[b.type]?.(g,b);g.position.set(b.x*U,0,b.z*U);g.rotation.y=(b.type==='road'||b.type==='path')?0:b.rot*Math.PI/180;g.scale.setScalar(delay>0?0:.01);Object.assign(g.userData,{b,t:delay>0?-delay:0});scene.add(g);objs.set(b.id,g)}

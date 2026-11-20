@@ -2,7 +2,7 @@
 'use strict';
 let bSig='';
 // سرور با هر tick اقتصادی rev را بالا می‌برد حتی وقتی ساختمانی عوض نشده؛ ناوبری (A*) و جاده‌ها فقط وقتی ساختمان‌ها یا جمعیت واقعاً عوض شدند بازسازی می‌شوند
-function sync(w){W=w;rev=w.rev;if(typeof syncPedCrossings==='function')syncPedCrossings(w.pedestrian_crossings||[]);const ids=new Set(w.buildings.map(b=>b.id));
+function sync(w){W=w;rev=w.rev;const ids=new Set(w.buildings.map(b=>b.id));
 for(const[id,g]of objs)if(!ids.has(id)){scene.remove(g);disposeObj(g);objs.delete(id)}
 for(const b of w.buildings){const g=objs.get(b.id);if(!g)addB(b,bpDelay(b.id));else if(g.userData.b.x!==b.x||g.userData.b.z!==b.z||g.userData.b.rot!==b.rot){g.position.set(b.x*U,0,b.z*U);if(b.type!=='road'&&b.type!=='path')g.rotation.y=b.rot*Math.PI/180;g.userData.b=b}}
 plan.visible=!w.buildings.some(b=>b.type==='hq');

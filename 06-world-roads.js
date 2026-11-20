@@ -3,19 +3,32 @@
 // ── جاده‌های متصل + چراغ خیابان
 const LAMP=new THREE.MeshStandardMaterial({color:0xfff1c0,emissive:0xffd98a,emissiveIntensity:.1}),LP=new THREE.MeshBasicMaterial({map:GRADT,color:0xffc873,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}),LPG=new THREE.PlaneGeometry(4.6,4.6),ASP=0x4a4d52;
 const LBG=keepGeo(new THREE.SphereGeometry(.09,8,6));
+// ── نور واقعی چراغ‌های خیابان: استخر کوچک و ثابتی از PointLight که هر شب روی نزدیک‌ترین چراغ‌ها به دوربین می‌نشیند.
+// تعداد نورها هنگام بازی ثابت می‌ماند (بدون recompile شیدر)، روز با intensity=0 خاموش است و
+// کیفیت پایین (fx=0) آن‌ها را کامل از صحنه برمی‌دارد ⇒ بدون افت عملکرد.
+let LAMPS_FX=true,lampT=0;
+const LAMP_LIGHTS=[];for(let i=0;i<(MOB?4:8);i++){const l=new THREE.PointLight(0xffd28a,0,9,2);l.castShadow=false;l.position.set(0,-60,0);scene.add(l);LAMP_LIGHTS.push(l)}
+const lampPts=[];                                    // موقعیت جهانی سرِ چراغ‌ها ← در roads() به‌روز می‌شود
+function lampStep(dt){const tgt=LAMPS_FX?3.0*NT:0;
+ if((lampT-=dt)<=0){lampT=.5;const tx=ctl.target.x,tz=ctl.target.z,near=[];
+  for(const p of lampPts){const dx=p.x-tx,dz=p.z-tz;near.push({d:dx*dx+dz*dz,p})}
+  near.sort((a,b)=>a.d-b.d);
+  for(let i=0;i<LAMP_LIGHTS.length;i++){const l=LAMP_LIGHTS[i],p=near[i]?near[i].p:null;
+   if(p&&(!l.userData.p||l.userData.p.x!==p.x||l.userData.p.z!==p.z)){l.position.set(p.x,p.y,p.z);l.intensity=0}   // جابه‌جایی با محو شدن شروع شود
+   l.userData.p=p;l.userData.on=!!p}}
+ for(const l of LAMP_LIGHTS){const t=l.userData.on?tgt:0;l.intensity+=(t-l.intensity)*Math.min(1,dt*5)}}
 // هر کاشی جاده = یک مش ادغام‌شده (رنگ در رأس‌ها) + فقط برای چراغ‌دار: لامپ/هاله. قبلاً ۵ تا ۱۵ مش جدا بود.
 function roadMesh(g,m,lamp,cr=0){clearKids(g);
 const A=[],q=(w,d,x,z,c,h=.08)=>A.push(vcGeo(new THREE.BoxGeometry(w,h,d).translate(x,h/2,z),c));
 q(ROAD_WIDTH,ROAD_WIDTH,0,0,0xb9b3a4,.06);q(ROAD_WIDTH*.65,ROAD_WIDTH*.65,0,0,ASP);
 [[1,0,-.825,1.3,.6],[2,.825,0,.6,1.3],[4,0,.825,1.3,.6],[8,-.825,0,.6,1.3]].forEach(([bit,x,z,w,d])=>{if(m&bit){q(w,d,x,z,ASP);q(bit&5?.06:.3,bit&5?.3:.06,x*.9,z*.9,0xf1e7b8,.09)}});
 if(cr){
- // گذرگاه عابر در همان سمتی که پیاده‌رو به جاده می‌رسد؛ هر چهار جهت مستقل‌اند.
+ // گذرگاه عابر: خط‌کشی زیگزاگ واقعی که کل عرض جاده را می‌پوشاند؛ فقط با تابلوی عابر پیاده ساخته می‌شود، نه با پیاده‌رو.
+ // جهت عابر عمود بر ضلعِ تابلو است؛ نوارها موازی جاده و در طول عرض جاده تکرار می‌شوند (شمال/جنوب یا شرق/غرب یکسان رسم می‌شوند).
  const zb=(w,d,x,z)=>q(w,d,x,z,0xefe9d6,.095);
- for(let i=-3;i<=3;i++){
-  if(cr&1)zb(1.24,.105,i*.17,-.70);
-  if(cr&2)zb(.105,1.24,.70,i*.17);
-  if(cr&4)zb(1.24,.105,i*.17,.70);
-  if(cr&8)zb(.105,1.24,-.70,i*.17);
+ for(let i=0;i<7;i++){const o=-.72+i*.24;
+  if(cr&5)zb(1.4,.115,0,o);
+  if(cr&10)zb(.115,1.4,o,0);
  }
 }
 // خط توقف سفید در ورودی تقاطع‌های سه‌راه/چهارراه؛ یک خط برای هر شاخهٔ متصل
@@ -74,20 +87,26 @@ function setPathStyle(style){
  }
 }
 // تماس واقعیِ مستطیل‌های سلولی؛ تماس لبه‌ای مجاز است و گوشه‌تماس اتصال نمی‌سازد.
-// تشخیص گذرگاه از تماس واقعیِ footprint و نیز تلورانس یک خرده‌سلول؛
-// این کار وقتی پیاده‌رو در امتداد دو ضلع جاده کاشته شده باشد، خط‌کشی را از دست نمی‌دهد.
-function roadCrossingMask(road,paths){
+// تشخیص ضلع گذرگاه از تماس footprint تابلوی عابر پیاده با کاشی جاده + تلورانس یک خرده‌سلول؛
+// تابلویی که کمی جابه‌جا چیده شده باشد هم خط‌کشی ضلع خود را از دست نمی‌دهد.
+function roadCrossingMask(road,signs){
  const A=fpBounds(road);let mask=0;
- for(const path of paths){const B=fpBounds(path),ovX=B.x0<=A.x1+1&&B.x1>=A.x0-1,ovZ=B.z0<=A.z1+1&&B.z1>=A.z0-1;
+ for(const sign of signs){const B=fpBounds(sign),ovX=B.x0<=A.x1+1&&B.x1>=A.x0-1,ovZ=B.z0<=A.z1+1&&B.z1>=A.z0-1;
   if(ovZ){if(B.x0>=A.x1+1&&B.x0<=A.x1+2)mask|=2;if(B.x1<=A.x0-1&&B.x1>=A.x0-2)mask|=8}
   if(ovX){if(B.z0>=A.z1+1&&B.z0<=A.z1+2)mask|=4;if(B.z1<=A.z0-1&&B.z1>=A.z0-2)mask|=1}
  }
  return mask;
 }
-function roads(w){const blds=w.buildings,rs=blds.filter(b=>b.type==='road'),ps=blds.filter(b=>b.type==='path'),byType={road:new Map(),path:new Map()};
+function roads(w){const blds=w.buildings,rs=blds.filter(b=>b.type==='road'),ps=blds.filter(b=>b.type==='path'),cs=blds.filter(b=>b.type==='crossing'),byType={road:new Map(),path:new Map()};
 const key=(x,z)=>x+','+z;for(const b of rs)byType.road.set(key(b.gx??b.x,b.gz??b.z),b);for(const b of ps)byType.path.set(key(b.gx??b.x,b.gz??b.z),b);
-const dirs=[[0,-1],[1,0],[0,1],[-1,0]],dims={road:FOOT.road[0],path:FOOT.path[0]},step=(a,b)=>(dims[a]+dims[b])/2;
+const dirs=[[0,-1],[1,0],[0,1],[-1,0]],dims={road:FOOT.road[0],path:FOOT.path[0],crossing:FOOT.crossing[0]},step=(a,b)=>(dims[a]+dims[b])/2;
 const maskFor=(b,types)=>{let m=0;const x=b.gx??b.x,z=b.gz??b.z;for(const t of types){const d=step(b.type,t),map=byType[t];for(let i=0;i<4;i++){const[dx,dz]=dirs[i],o=map.get(key(x+dx*d,z+dz*d));if(o&&fpTouchDir(b,o)>=0)m|=1<<i}}return m};
 const doorMask=new Map();for(const l of fpDoorLinks(blds)){const k=l.cx+','+l.cz;doorMask.set(k,(doorMask.get(k)||0)|(1<<l.d))}
-for(const b of rs){const g=objs.get(b.id);if(!g)continue;const m=maskFor(b,['road']);const lamp=((b.x+b.z)%2+2)%2===0?1:0,k=m+'|'+lamp;if(g.userData.k!==k){g.userData.k=k;roadMesh(g,m,lamp,0)}}
-for(const b of ps){const g=objs.get(b.id);if(!g)continue;const k=b.x+','+b.z,m=maskFor(b,['path','road'])|(doorMask.get(k)||0),style=b.style==='dirt'?'dirt':b.style==='stone'?'stone':LEGACY_PATH_STYLE,sig=m+'|'+style;if(g.userData.k!==sig){g.userData.k=sig;pathMesh(g,m,b.id,style)}}}
+lampPts.length=0;
+// خط‌کشی گذرگاه فقط با «تابلوی عابر پیاده» ساخته می‌شود؛ پیاده‌رو دیگر خط‌کشی خودکار جاده را تغییر نمی‌دهد.
+for(const b of rs){const g=objs.get(b.id);if(!g)continue;const m=maskFor(b,['road']),cr=roadCrossingMask(b,cs);const lamp=((b.x+b.z)%2+2)%2===0?1:0;if(lamp)lampPts.push({x:b.x*U+.82,y:1.12,z:b.z*U+.82});const k=m+'|'+cr+'|'+lamp;if(g.userData.k!==k){g.userData.k=k;roadMesh(g,m,lamp,cr)}}
+for(const b of ps){const g=objs.get(b.id);if(!g)continue;const k=b.x+','+b.z,m=maskFor(b,['path','road'])|(doorMask.get(k)||0),style=b.style==='dirt'?'dirt':b.style==='stone'?'stone':LEGACY_PATH_STYLE,sig=m+'|'+style;if(g.userData.k!==sig){g.userData.k=sig;pathMesh(g,m,b.id,style)}}
+// تابلوی عابر پیاده رو به جادهٔ مجاورش می‌ایستد (صفحهٔ تابلو عمود بر مسیر عابر)؛ تشخیص با همان fpTouchDir.
+for(const c of cs){const g=objs.get(c.id);if(!g)continue;let fx=0,fz=0;
+ for(const r of rs){const d=fpTouchDir(c,r);if(d<0)continue;fx=[0,1,0,-1][d];fz=[-1,0,1,0][d];break}
+ if(fx||fz)g.rotation.y=Math.atan2(fx,fz)}}

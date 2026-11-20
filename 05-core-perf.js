@@ -19,6 +19,8 @@ function apply(lv,init){
  if(dirty&&!init)scene.traverse(o=>{const m=o.material;if(m){if(Array.isArray(m))m.forEach(x=>x.needsUpdate=true);else m.needsUpdate=true}});
  // ۲) افکت‌های نوری: هاله‌ها، نور فانوس/چراغ، کرم شب‌تاب، ابرها (متریال invisible ← اصلاً رسم نمی‌شود)
  const fx=!!p.fx;[LHALO,LNHALO,LP,HP,HQG].forEach(m=>m.visible=fx);ffm.visible=fx;clouds.forEach((c,i)=>c.visible=i<p.cl);
+ // نور واقعی چراغ‌های خیابان هم زیر پرچم fx می‌آید؛ تعداد نورهای فعال در صحنه ثابت می‌ماند تا recompile رخ ندهد
+ if(typeof LAMPS_FX!=='undefined'){LAMPS_FX=fx;for(const l of LAMP_LIGHTS)l.visible=fx}
  const an=fx?4:1;if(tex.anisotropy!==an){tex.anisotropy=an;tex.needsUpdate=true}
  // ۳) فاصلهٔ دید: مه نزدیک‌تر (حذف اشیای دور در cull())
  if(p.vd<1e8){scene.fog.near=Math.min(48,p.vd*.4);scene.fog.far=Math.min(150,p.vd*1.5)}else{scene.fog.near=48;scene.fog.far=150}

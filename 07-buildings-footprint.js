@@ -2,7 +2,7 @@
 'use strict';
 const GRID=8,U=CELL/GRID;
 const PATH_WIDTH_RATIO=1/4;
-const FOOT={house:[6,6],hq:[8,8],farm:[8,8],market:[8,6],tree:[2,2],road:[8,8]};
+const FOOT={house:[6,6],hq:[8,8],farm:[8,8],market:[8,6],tree:[2,2],road:[8,8],crossing:[2,2]};
 const PATH_CELLS=Math.max(1,Math.ceil(FOOT.road[0]*PATH_WIDTH_RATIO));FOOT.path=[PATH_CELLS,PATH_CELLS];
 const FP_LO=-20*GRID,FP_HI=20*GRID-1;
 const fpGrid=t=>t==='road'||t==='path',fpDi=(dx,dz)=>dz<0?0:dx>0?1:dz>0?2:3;

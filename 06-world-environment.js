@@ -16,7 +16,8 @@ sun.color.copy(k.sun);sun.intensity=k.si;sun.position.set(Math.cos(a)*38,Math.ma
 u.s.value.set(Math.cos(a),Math.max(.04,el*.9),.3).normalize();u.gc.value.copy(k.sun);u.g.value=Math.min(1,k.si);u.a.value.copy(k.top);u.b.value.copy(k.hor);
 moonM.position.set(-Math.cos(a)*170,55+el*70,-60);moon.intensity=.62*NT;moon.color.setHex(0xb8ccff);moonH.position.copy(moonM.position);moonH.material.opacity=.6*NT;moon.position.copy(moonM.position).multiplyScalar(.25);moonM.material.opacity=NT;stars.material.opacity=NT;
 hemi.intensity=k.hi;hemi.color.setHex(0xdfeaff).lerp(_b.setHex(0x8fa6f0),NT);hemi.groundColor.setHex(0x6f8a55).lerp(_b.setHex(0x3b5282),NT);scene.fog.color.copy(k.hor);R.toneMappingExposure=k.ex;
-GLOW.emissiveIntensity=.2+1.9*NT;LAMP.emissiveIntensity=2.25*NT;LP.opacity=.72*NT;LHALO.opacity=.82*NT;HP.opacity=.75*NT;
+GLOW.emissiveIntensity=.2+1.9*NT;LAMP.emissiveIntensity=.1+1.65*NT;LP.opacity=.44*NT;LHALO.opacity=.46*NT;HP.opacity=.75*NT;
+CROSSM.emissiveIntensity=.12+1.15*NT;   // صفحهٔ تابلوی عابر پیاده شب‌ها بازتاب‌نده می‌شود
 cloudC.setHex(0xf4f1ea).lerp(cloudN,NT);clouds.forEach(c=>c.children.forEach(m=>m.material.color.copy(cloudC)))}
 let _hf=null,_hz='';
 function realHour(){try{const tz=(W&&W.tz)||'Asia/Tehran';if(_hz!==tz||!_hf){_hz=tz;_hf=new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour:'numeric',minute:'numeric',hour12:false})}const p=_hf.formatToParts(new Date());return(+p.find(x=>x.type==='hour').value%24)+ +p.find(x=>x.type==='minute').value/60}catch(e){const d=new Date();return d.getHours()+d.getMinutes()/60}}
@@ -28,4 +29,5 @@ for(const r of turbs)r.rotation.z-=dt*1.1;
 if(fL)fL.intensity=.35+1.6*NT;
 {const c0=cits[0];if(c0&&c0.gl>0){c0.gl-=dt;c0.g.scale.set(.84+(Math.random()-.5)*.16,.84+(Math.random()-.5)*.1,.84);c0.g.visible=Math.random()>.12;if(c0.gl<=0){c0.g.scale.setScalar(.84);c0.g.visible=true}}}
 if((tk-=dt)<=0){tk=(MOB?15:11)+Math.random()*13;dgAmb()}
+lampStep(dt);   // نور واقعی چراغ‌های خیابان: فقط نزدیک‌ترین چراغ‌ها روشن می‌مانند (بدون افت عملکرد)
 tags()}

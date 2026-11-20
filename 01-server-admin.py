@@ -9,53 +9,15 @@ from srv_world import mutate, free_cell, check_place, log_event, apply_delta, re
 bp = Blueprint("admin", __name__)
 
 
-@bp.post("/api/admin/pedestrian-crossing")
-@admin_only
-def add_pedestrian_crossing():
-    """ذخیرهٔ گذرگاه در سند اصلی دنیای بازی."""
-    j = request.get_json(silent=True) or {}
-    try: x, z = float(j.get("x")), float(j.get("z"))
-    except (TypeError, ValueError): raise ValueError("مختصات گذرگاه نامعتبر است")
-    axis = j.get("axis", "x")
-    if axis not in ("x", "z") or abs(x) > 200 or abs(z) > 200: raise ValueError("موقعیت یا جهت گذرگاه نامعتبر است")
-    def f(d):
-        crossings = d.setdefault("pedestrian_crossings", [])
-        if any(abs(float(c.get("x", 0))-x) < .05 and abs(float(c.get("z", 0))-z) < .05 and c.get("axis") == axis for c in crossings): raise ValueError("اینجا گذرگاه وجود دارد")
-        item = {"id": int(d.setdefault("next_crossing_id", 1)), "x": x, "z": z, "axis": axis}
-        d["next_crossing_id"] = item["id"] + 1; crossings.append(item)
-        return item
-    return jsonify(crossing=mutate(f))
-
-
-@bp.put("/api/admin/pedestrian-crossing/<int:cid>")
-@admin_only
-def move_pedestrian_crossing(cid):
-    j = request.get_json(silent=True) or {}
-    try: x, z = float(j.get("x")), float(j.get("z"))
-    except (TypeError, ValueError): raise ValueError("مختصات گذرگاه نامعتبر است")
-    if abs(x) > 200 or abs(z) > 200: raise ValueError("موقعیت گذرگاه نامعتبر است")
-    def f(d):
-        crossings = d.setdefault("pedestrian_crossings", [])
-        item = next((c for c in crossings if int(c.get("id", -1)) == cid), None)
-        if item is None: raise ValueError("گذرگاه پیدا نشد")
-        axis = j.get("axis", item.get("axis", "x"))
-        if axis not in ("x", "z"): raise ValueError("جهت گذرگاه نامعتبر است")
-        if any(int(c.get("id", -1)) != cid and abs(float(c.get("x", 0))-x) < .05 and abs(float(c.get("z", 0))-z) < .05 for c in crossings):
-            raise ValueError("در این نقطه گذرگاه دیگری وجود دارد")
-        item.update({"x": x, "z": z, "axis": axis})
-        return item
-    return jsonify(crossing=mutate(f))
-
-
-@bp.delete("/api/admin/pedestrian-crossing/<int:cid>")
-@admin_only
-def delete_pedestrian_crossing(cid):
-    def f(d):
-        crossings = d.setdefault("pedestrian_crossings", [])
-        item = next((c for c in crossings if int(c.get("id", -1)) == cid), None)
-        if item is None: raise ValueError("گذرگاه پیدا نشد")
-        crossings.remove(item)
-    mutate(f); return jsonify(ok=True)
+def crossing_anchored(d, gx, gz, extra=()):
+    """تابلوی عابر پیاده باید با لبهٔ خود به یک کاشی جاده بچسبد (تماس واقعی footprint، مثل fpTouchDir فرانت).
+    جاده ۸ خرده‌سلول است و تابلو ۲ سلول ⇒ فاصلهٔ مرکزها در ضلع تماس ۵ و در محور عمود حداکثر ۴ است."""
+    for r in [b for b in list(d["buildings"]) + list(extra) if b.get("type") == "road"]:
+        dx = int(r.get("gx", r["x"])) - gx
+        dz = int(r.get("gz", r["z"])) - gz
+        if (abs(dx) == 5 and abs(dz) <= 4) or (abs(dz) == 5 and abs(dx) <= 4):
+            return True
+    return False
 
 
 @bp.post("/api/admin/building")
@@ -69,7 +31,9 @@ def add_building():
         if d["stats"]["money"] < cost: raise ValueError("پول خزانه کافی نیست")
         x, z = (float(j["x"]), float(j["z"])) if j.get("x") not in (None, "") and j.get("z") not in (None, "") else free_cell(d, t)
         x, z, rot = check_place(d, t, x, z, auto_rot(d, t, x, z, j.get("rot"), auto=bool(j.get("ar"))))
-        b = {"id": d["next_id"], "type": t, "x": x, "z": z, "gx": x, "gz": z, "rot": rot}
+        if t == "crossing" and not crossing_anchored(d, x, z): raise ValueError("تابلوی عابر پیاده باید کنار خیابان باشد")
+        b = {"id": d["next_id"], "type": t, "x": x, "z": z, "gx": x, "gz": z, "rot": rot,
+             **({"style": "dirt" if j.get("style") == "dirt" else "stone"} if t == "path" else {})}
         d["next_id"] += 1; d["buildings"].append(b); d["stats"]["money"] -= cost
         if t != "tree": log_event(d, f"{CATALOG[t]} ساخته شد" + (f" (−{cost/1e6:g} میلیون تومان)." if cost else "."))
         return b
@@ -127,6 +91,7 @@ def add_buildings_batch():
         for k, i in enumerate(order):                      # همه یا هیچ: روی فهرست جدا کار می‌کنیم و آخر یکجا اعمال می‌شود
             t = i["type"]
             x, z, rot = check_place(d, t, i["x"], i["z"], auto_rot(d, t, float(i["x"]), float(i["z"]), i.get("rot"), made, bool(i.get("ar"))), None, made)
+            if t == "crossing" and not crossing_anchored(d, x, z, made): raise ValueError("تابلوی عابر پیاده باید کنار خیابان باشد")
             made.append({"id": d["next_id"] + k, "type": t, "x": x, "z": z, "gx": x, "gz": z, "rot": rot, **({"style": "dirt" if i.get("style") == "dirt" else "stone"} if t == "path" else {})})
         total = 0 if free else sum(COST[b["type"]] for b in made)
         if d["stats"]["money"] < total: raise ValueError("پول خزانه کافی نیست")
@@ -157,6 +122,7 @@ def move_building(bid):
         b = next((i for i in d["buildings"] if i["id"] == bid), None)
         if not b: raise ValueError("پیدا نشد")
         b["x"], b["z"], b["rot"] = check_place(d, b["type"], j["x"], j["z"], j["rot"] if "rot" in j else b.get("rot", 0), bid)
+        if b["type"] == "crossing" and not crossing_anchored(d, b["x"], b["z"]): raise ValueError("تابلوی عابر پیاده باید کنار خیابان باشد")
         b["gx"], b["gz"] = b["x"], b["z"]
     mutate(f); return jsonify(ok=True)
 
