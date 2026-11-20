@@ -3,7 +3,7 @@
 import time, random, math
 from datetime import datetime, timezone
 from srv_config import (SIZE, CELL, GRID, U, FOOT, GRID_TYPES, DAY, FOOD_PRICE, FOOD_PER_PERSON, FARM_YIELD, MARKET_INCOME, TZ_NAME,
-                     CATALOG, COST, TIERS, GOALS, RES, runtime)
+                     CATALOG, COST, TIERS, GOALS, RES, WEATHER_TYPES, WEATHER_DEFAULT, runtime)
 from srv_db import lock, fetch, save
 
 
@@ -30,7 +30,7 @@ def seed():
     return d
 
 
-def extras(): return {"citizens": {}, "players": {}, "chat": [], "chat_id": 0, "env": {"mode": "live", "hour": 12.0}, "hq_made": False}
+def extras(): return {"citizens": {}, "players": {}, "chat": [], "chat_id": 0, "env": {"mode": "live", "hour": 12.0}, "weather": dict(WEATHER_DEFAULT), "hq_made": False}
 
 
 def migrate(d):
@@ -178,9 +178,32 @@ def counts(d):
 def capacity(d): return counts(d).get("house", 0) * 4
 
 
+# ───────── آب‌وهوای زنده ─────────
+def wx_tick(d):
+    """سیر طبیعی آب‌وهوا (فقط حالت خودکار): زنجیرهٔ مارکوف با ماندگاری چند‌دقیقه‌ای؛
+    شدت و دمای هر حالت هم‌زمان با نوعش تعیین می‌شود. تغییر ⇒ rev+1 تا همهٔ کلاینت‌ها در poll بعدی ببینند."""
+    w = d.get("weather")
+    if not isinstance(w, dict):
+        d["weather"] = dict(WEATHER_DEFAULT); return True
+    now = time.time()
+    if w.get("mode", "auto") != "auto" or now < float(w.get("next") or 0):
+        return False
+    cur = WEATHER_TYPES.get(w.get("type")) or WEATHER_TYPES["clear"]
+    keys, weights = list(cur["next"]), list(cur["next"].values())
+    t = random.choices(keys, weights=weights)[0]
+    cfg = WEATHER_TYPES[t]; lo, hi = cfg["dur"]
+    w.update(mode="auto", type=t, intensity=round(random.uniform(.45, 1), 2),
+             since=now, next=now + random.uniform(lo, hi),
+             temp=round(max(-10, min(45, cfg["temp"] + random.uniform(-3, 3))), 1))
+    return True
+
+
 def tick(d):
     n = min(int((time.time() - d["last"]) // DAY), 60)
-    if n <= 0: return False
+    wx = wx_tick(d)                                           # آب‌وهوا مستقل از اقتصاد تکامل می‌یابد
+    if n <= 0:
+        if wx: d["rev"] += 1
+        return wx
     d["last"] = time.time() if n == 60 else d["last"] + n * DAY
     c, s = counts(d), d["stats"]
     for _ in range(n):
@@ -217,6 +240,7 @@ def view(d):
             "buildings": d["buildings"], "events": d["events"][:20], "catalog": CATALOG, "cost": COST, "day": DAY,
             "tier": [n for at, n in TIERS if d["stats"]["subs"] >= at][-1], "tiers": [n for _, n in TIERS],
             "citizens": d["citizens"], "bot": runtime["bot_user"], "chat": d["chat"][-12:], "env": d["env"], "tz": TZ_NAME,
+            "weather": d.get("weather") or dict(WEATHER_DEFAULT),
             "goals": [{"at": a, "key": k, "title": t, "value": d["story"]["values"].get(k)} for a, k, t in GOALS]}
 
 

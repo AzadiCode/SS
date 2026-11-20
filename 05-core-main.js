@@ -24,13 +24,15 @@ R.setAnimationLoop(()=>{
  let dt=0,t=0;
  framePart('clock',()=>{dt=Math.min(ck.getDelta(),.1);t=ck.elapsedTime});
  framePart('environment',()=>envStep(dt));
+ framePart('weather',()=>weatherStep(dt,t));   // موتور آب‌وهوا — بعد از محیط، قبل از رندر؛ در 06-world-weather.js
  framePart('hud-counters',()=>{for(const k in disp){disp[k]+=(tgt[k]-disp[k])*Math.min(1,dt*5);const v=Math.abs(tgt[k]-disp[k])<.05?tgt[k]:disp[k],txt=fa(v,k==='money'?1:0);if(last[k]!==txt){last[k]=txt;$('v_'+k).textContent=txt}}});
  framePart('intro-camera',()=>{if(intro<1&&W){intro=Math.min(1,intro+dt/3.2);const e=1-Math.pow(1-intro,3);cam.position.lerpVectors(START,HOME,e);cam.lookAt(0,0,0);if(intro>=1){ctl.enabled=true;ctl.update()}}});
  framePart('world-ambient',()=>{{// نوار sheen حذف شد (آب بلوکی خودش جریان را نشان می‌دهد)؛ زبری سطح و اسکرول بافت، جریان آرام رود را می‌سازند.
   riverWaterMat.roughness=.2+.03*Math.sin(t*.5);riverTex.offset.x=(t*.008)%1;riverTex.offset.y=(t*.0035)%1;
   if(riverWaterMat.userData.sh)riverWaterMat.userData.sh.uniforms.uTime.value=t} // تپش زندهٔ کاشی‌ها (فاز/دامنه در 06-world-scenery.js)
- for(const c of clouds){c.position.x+=dt*.8;if(c.position.x>90)c.position.x=-90}});
- framePart('building-animation',()=>{for(const g of objs.values())if(g.userData.sw!==undefined)g.rotation.z=Math.sin(t*1.3+g.userData.sw)*.025;for(const g of objs.values()){const u=g.userData;if(u.t<1){u.t=Math.min(1,u.t+dt*1.8);if(u.t<=0)continue;const e=1-Math.pow(1-u.t,3);g.scale.setScalar(Math.max(.01,e*(1+.12*Math.sin(u.t*Math.PI))))}}});
+ for(const c of clouds){c.position.x+=dt*WCD;if(c.position.x>90)c.position.x=-90}});   // WCD = سرعت رانش ابر از باد (06-world-weather.js)
+ // SWAY = دامنهٔ تاب باد (از 06-world-weather.js)
+ framePart('building-animation',()=>{for(const g of objs.values())if(g.userData.sw!==undefined)g.rotation.z=Math.sin(t*1.3+g.userData.sw)*.025*SWAY;for(const g of objs.values()){const u=g.userData;if(u.t<1){u.t=Math.min(1,u.t+dt*1.8);if(u.t<=0)continue;const e=1-Math.pow(1-u.t,3);g.scale.setScalar(Math.max(.01,e*(1+.12*Math.sin(u.t*Math.PI))))}}});
  framePart('quality-controller',()=>Q.frame(dt));
  framePart('citizen-simulation',()=>stepCits(dt,t));
  framePart('cars-simulation',()=>stepCars(dt,t));

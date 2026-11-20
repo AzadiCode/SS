@@ -15,7 +15,7 @@ function openAP(){if(!T)return;if(!APok){APok=1;document.body.insertAdjacentHTML
  const p=$('ap');p.style.display=p.style.display==='flex'?'none':'flex';apRender()}
 async function apAct(fn,ok){try{await fn();toast(ok||'✅ انجام شد');await poll();apRender()}catch(e){if(!T&&$('ap'))$('ap').style.display='none'}}
 function apRender(){const w=W;if(!w||!$('ap'))return;const s=w.stats,R={pop:'👥 جمعیت',money:'💰 خزانه',food:'🌾 غذا',subs:'▶️ مشترک'};
- $('apt').innerHTML=[['main','وضعیت'],['story','داستان'],['build','ساخت'],['cit','آدم‌ها و زمان'],['on','🟢 آنلاین']].map(([k,n])=>`<span data-t="${k}" class="${APtab===k?'on':''}">${n}</span>`).join('');
+ $('apt').innerHTML=[['main','وضعیت'],['story','داستان'],['build','ساخت'],['cit','آدم‌ها و زمان'],['wx','🌦️ آب‌وهوا'],['on','🟢 آنلاین']].map(([k,n])=>`<span data-t="${k}" class="${APtab===k?'on':''}">${n}</span>`).join('');
  let h='';
  if(APtab==='on'){if(Date.now()-APpt>8000){APpt=Date.now();apPlayers()}
   if(!APP)h='<p>در حال بارگذاری…</p>';else{const P=APP.players,M=60;h=`<p>🟢 آنلاین الان: <b>${apFd(APP.online)}</b> از <b>${apFd(APP.total)}</b> بازیکن</p><div class="l">${P.slice(0,M).map(p=>`<div class="b"><span>${p.on?'🟢':'⚪'} ${apEsc(nameOf(p.cid))}</span><span>${p.on?'آنلاین':apAgo(APP.now-p.seen)}</span></div>`).join('')||'<p>هنوز کسی وارد نشده</p>'}${P.length>M?`<p>… و ${apFd(P.length-M)} نفر دیگر</p>`:''}</div>`}}
@@ -29,6 +29,17 @@ function apRender(){const w=W;if(!w||!$('ap'))return;const s=w.stats,R={pop:'�
  else if(APtab==='build'){const bs=w.buildings,hv=b=>b.type!=='road'&&b.type!=='path'&&b.type!=='tree',L=bs.filter(hv).concat(bs.filter(b=>!hv(b))),M=60;
  h=`<h4>🏗️ ساخت ساختمان</h4><div class="r"><select id="ap_bt">${Object.entries(w.catalog).map(([k,v])=>`<option value="${apEsc(k)}">${apEsc(v)}</option>`).join('')}</select><input class="n" id="ap_bx" type="number" placeholder="x"><input class="n" id="ap_bz" type="number" placeholder="z"><label class="c"><input id="ap_free" type="checkbox">رایگان</label><button data-a="addb">بساز</button></div>
   <h4>🧱 ساختمان‌ها (${apFd(bs.length)})</h4><div class="l">${L.slice(0,M).map(b=>`<div class="b"><span>${apEsc(w.catalog[b.type]||b.type)} #${apFd(b.id)} (${apFd(b.x)}، ${apFd(b.z)})</span><span><button class="s" data-a="mvb" data-i="${b.id}">جابه‌جایی</button><button class="d" data-a="delb" data-i="${b.id}">حذف</button></span></div>`).join('')}${L.length>M?`<p>… و ${apFd(L.length-M)} مورد دیگر (با ابزارهای روی نقشه)</p>`:''}</div>`}
+ else if(APtab==='wx'){const wx=w.weather||{},wm=wx.mode==='manual'?'manual':'auto',wt=WXTYPES[wx.type]?wx.type:'clear',
+  wi=Math.round((isFinite(+wx.intensity)?+wx.intensity:.7)*100),wtr=Math.round(+wx.transition||25),wtp=Math.round(+wx.temp||24);
+  h=`<h4>🌦️ آب‌وهوای دنیا</h4>
+ <div class="r"><select id="ap_wm"><option value="auto"${wm==='auto'?' selected':''}>خودکار (تغییر طبیعی)</option><option value="manual"${wm==='manual'?' selected':''}>دستی (انتخاب مدیر)</option></select>
+ <select id="ap_wt">${Object.keys(WXTYPES).map(k=>`<option value="${k}"${k===wt?' selected':''}>${WXFA[k]}</option>`).join('')}</select></div>
+ <div class="r"><label>شدت (٪)<input class="n" id="ap_wi" type="number" min="10" max="100" value="${wi}"></label>
+ <label>گذار (ثانیه)<input class="n" id="ap_wtr" type="number" min="3" max="180" value="${wtr}"></label>
+ <label>دمای پایه (°)<input class="n" id="ap_wtp" type="number" min="-15" max="48" value="${wtp}"></label>
+ <button data-a="wx">اعمال</button></div>
+ <div class="r"><button class="s" data-a="wxa">بازگشت به چرخهٔ طبیعی</button></div>
+ <p style="opacity:.7">حالت دستی: هوای انتخابی برای همهٔ بازیکن‌ها اعمال می‌شود؛ «شدت» تراکم بارش/مه و «گذار» سرعت نرم‌شدن تغییر را تعیین می‌کند. چرخهٔ خودکار با احتمال و ماندگاری طبیعی خودش ادامه می‌یابد.</p>`}
  else h=`<h4>🏷️ نام مستعار و پیام</h4><div class="r"><input class="n" style="width:84px" id="ap_ci" type="number" placeholder="شماره آدم"><input class="f" id="ap_cname" placeholder="نام مستعار (خالی = پیش‌فرض)"><button class="s" data-a="cit">ثبت نام</button></div>
  <div class="r"><input class="f" id="ap_ctx" placeholder="پیام بالای سر (شماره خالی = تصادفی)"><button data-a="say">ارسال</button></div>
  <h4>🕒 زمان دنیا</h4><div class="r">${(()=>{const m=(w.env||{}).mode||'live';return `<select id="ap_em2">${[['live','زنده'],['lapse','گذر سریع روز'],['fixed','ساعت ثابت']].map(([k,n])=>`<option value="${k}"${k===m?' selected':''}>${n}</option>`).join('')}</select>`})()}<input class="n" id="ap_eh" type="number" placeholder="ساعت" value="${apEsc(Math.round((w.env||{}).hour||12))}"><button data-a="env">اعمال</button></div>`;
@@ -45,4 +56,6 @@ async function apClick(e){const b=e.target.closest('[data-a]');if(!b)return;cons
  if(a==='cit')return apAct(()=>api('/api/admin/citizen/'+(apN('ci')),'PUT',{name:apV('cname')}),'نام ثبت شد ✅');
  if(a==='say')return apAct(()=>api('/api/admin/say','POST',{cid:apV('ci')===''?null:apN('ci'),text:apV('ctx')}),'پیام ارسال شد ✅');
  if(a==='env')return apAct(()=>api('/api/admin/env','POST',{mode:apV('em2'),hour:apN('eh')||12}),'زمان تنظیم شد ✅');
+ if(a==='wx')return apAct(()=>api('/api/admin/weather','POST',{mode:'manual',type:apV('wt'),intensity:(apN('wi')||70)/100,transition:apN('wtr')||25,temp:apV('wtp')===''?undefined:apN('wtp')}),'آب‌وهوا تنظیم شد ✅');
+ if(a==='wxa')return apAct(()=>api('/api/admin/weather','POST',{mode:'auto'}),'چرخهٔ طبیعی آب‌وهوا فعال شد ✅');
  if(a==='tools'){setAdm(!admOn);$('ap').style.display='none'}}

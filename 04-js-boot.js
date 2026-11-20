@@ -17,6 +17,7 @@ const GAME_FILES=[
   '08-characters-dialogue',
   '06-world-roads',
   '06-world-environment',
+  '06-world-weather',
   '08-characters-nametags',
   '09-ui-blueprint',
   '09-ui-interaction',

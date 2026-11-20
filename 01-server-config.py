@@ -39,5 +39,20 @@ TIERS = [(0, "قبیله"), (500, "روستا"), (5000, "شهر"), (50000, "کش
 GOALS = [(100, "name", "انتخاب اسم قبیله با رأی مخاطبان"), (2000, "gov", "انتخاب نظام حکومت: پادشاهی یا جمهوری")]
 RES = ("pop", "money", "food", "subs")
 
+# ───────── آب‌وهوای زنده (سیر طبیعی در سرور؛ آینهٔ WXTYPES در 06-world-weather.js) ─────────
+# next: وزن گذار مارکوف از هر حالت | dur: ماندگاری هر حالت به ثانیهٔ واقعی | temp: دمای پایهٔ °C آن حالت
+WEATHER_TYPES = {
+    "clear":    {"next": {"clear": 3, "partly": 5, "overcast": 1, "fog": 1}, "dur": (300, 900), "temp": 27},
+    "partly":   {"next": {"clear": 4, "partly": 2, "overcast": 4, "drizzle": 1, "fog": 1, "snow": .5}, "dur": (280, 800), "temp": 23},
+    "overcast": {"next": {"partly": 3, "overcast": 2, "drizzle": 3, "rain": 3, "fog": 1.5, "storm": 1, "snow": 1}, "dur": (240, 700), "temp": 18},
+    "fog":      {"next": {"clear": 3, "partly": 3, "overcast": 2, "fog": 1, "drizzle": 1}, "dur": (180, 480), "temp": 14},
+    "drizzle":  {"next": {"overcast": 3, "rain": 3, "partly": 2, "fog": 1, "drizzle": 1}, "dur": (200, 600), "temp": 11},
+    "rain":     {"next": {"drizzle": 3, "overcast": 3, "rain": 2, "storm": 1.5, "partly": 1}, "dur": (220, 600), "temp": 9},
+    "storm":    {"next": {"rain": 5, "overcast": 3, "drizzle": 1}, "dur": (150, 420), "temp": 12},
+    "snow":     {"next": {"overcast": 3, "partly": 2, "snow": 2, "clear": 1, "fog": 1}, "dur": (280, 800), "temp": -2},
+}
+WEATHER_FA = {"clear": "آفتابی", "partly": "نیمه‌ابری", "overcast": "ابری", "fog": "مه", "drizzle": "نم‌نم", "rain": "باران", "storm": "توفان", "snow": "برف"}
+WEATHER_DEFAULT = {"mode": "auto", "type": "clear", "intensity": .7, "since": 0, "next": 0, "temp": 24, "transition": 25}
+
 # ───────── وضعیت زمان اجرا (بین بخش‌ها مشترک) ─────────
 runtime = {"bot_user": ""}                                 # نام کاربری ربات؛ بعد از راه‌اندازی تلگرام پر می‌شود

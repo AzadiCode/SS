@@ -2,8 +2,9 @@
 """API مدیر (همه با X-Admin-Token): ساخت/جابه‌جایی/حذف ساختمان (تکی و نقشهٔ ساخت دسته‌ای)، تغییر منابع، مشارکت‌ها،
 رأی‌گیری، اتفاق داستانی، نام آدم‌ها، پیام بالای سر، و زمان دنیا. (ورود مدیر ← auth.py | فهرست آنلاین‌ها ← players.py)"""
 from flask import Blueprint, request, jsonify
+import time
 from srv_auth import admin_only
-from srv_config import CATALOG, COST, RULES, GOALS, FOOT, U, GRID_TYPES
+from srv_config import CATALOG, COST, RULES, GOALS, FOOT, U, GRID_TYPES, WEATHER_TYPES, WEATHER_DEFAULT, WEATHER_FA
 from srv_world import mutate, free_cell, check_place, log_event, apply_delta, rects_of, tiles_of
 
 bp = Blueprint("admin", __name__)
@@ -263,4 +264,33 @@ def set_env():                                            # live = ساعت وا
     if mode not in ("live", "fixed", "lapse"): raise ValueError("حالت نامعتبر")
     hour = float(j.get("hour") or 0) % 24
     def f(d): d["env"] = {"mode": mode, "hour": hour}
+    mutate(f); return jsonify(ok=True)
+
+
+@bp.post("/api/admin/weather")
+@admin_only
+def set_weather():
+    """آب‌وهوای دنیا: auto = چرخهٔ طبیعی سرور (مارکوف) | manual = نوع + شدت + گذار + دمای پایه.
+    وضعیت روی سند main ذخیره می‌شود، با rev جدید برای همه sync می‌شود و در view() هم می‌آید."""
+    j = request.get_json(silent=True) or {}
+    mode = "auto" if j.get("mode", "manual") == "auto" else "manual"
+    def f(d):
+        w = d.get("weather") if isinstance(d.get("weather"), dict) else dict(WEATHER_DEFAULT)
+        now = time.time()
+        if mode == "auto":
+            w.update(mode="auto", next=0)                  # اولین tick بعدی، سیر طبیعی را ادامه می‌دهد
+            log_event(d, "آب‌وهوا به چرخهٔ طبیعی برگشت.")
+        else:
+            t = j.get("type")
+            if t not in WEATHER_TYPES: raise ValueError("نوع آب‌وهوا نامعتبر")
+            try: inten = max(.1, min(1, float(j.get("intensity", .7))))
+            except (TypeError, ValueError): inten = .7
+            try: trans = max(3, min(180, int(j.get("transition", 25))))
+            except (TypeError, ValueError): trans = 25
+            try: temp = max(-15, min(48, float(j.get("temp", w.get("temp", 24)))))
+            except (TypeError, ValueError): temp = 24
+            w.update(mode="manual", type=t, intensity=round(inten, 2), since=now,
+                     next=now + 86400 * 365, temp=round(temp, 1), transition=trans)
+            log_event(d, "آب‌وهوا تنظیم شد: " + WEATHER_FA[t] + ".")
+        d["weather"] = w
     mutate(f); return jsonify(ok=True)
