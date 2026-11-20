@@ -1,6 +1,6 @@
 // ═══ خودروهای شهری: حرکت لاین‌محور با پیچ نرم و فاصله‌گذاری ایمن ═══
 'use strict';
-const cars=[],CC=[0xd94f3a,0xf0b13a,0x3f7f99,0x7cb342,0xf2ead6,0x94527f],HL=new THREE.MeshStandardMaterial({color:0xfff3c4,emissive:0xffe08a,emissiveIntensity:.2}),WH=new THREE.CylinderGeometry(.07,.07,.05,10),LANE=.5;
+const cars=[],CC=[0xd94f3a,0xf0b13a,0x3f7f99,0x7cb342,0xf2ead6,0x94527f],HL=new THREE.MeshStandardMaterial({color:0xfff3c4,emissive:0xffe08a,emissiveIntensity:.2}),WH=new THREE.CylinderGeometry(.07,.07,.05,10),LANE=.38;
 const DIRS=[[1,0],[-1,0],[0,1],[0,-1]];
 let spT=3,carRoadGraph=[],carRoadSig='',carSerial=0;
 const carSignals=new Map();
