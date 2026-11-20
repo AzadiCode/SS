@@ -63,14 +63,19 @@ function pickNext(c){
  c.d=[e.dx,e.dz];c.next=e.node;const q=carLanePoint(e.node,c.d);c.tx=q.x;c.tz=q.z;return 1;
 }
 function carStartTurn(c,incoming){
- const d=c.d,p0={x:c.g.position.x,z:c.g.position.z},p3=carLanePoint(c.node,d);
+ const d=c.d,p0={x:c.g.position.x,z:c.g.position.z},laneEnd=carLanePoint(c.node,d);
  if(incoming[0]===d[0]&&incoming[1]===d[1]){c.turn=null;return}
- // نقاط کنترل کوتاه و مماس با دو لاین؛ مانع برش مورب تقاطع و قوس‌های بیش‌ازحد بزرگ می‌شود.
- const reverse=incoming[0]===-d[0]&&incoming[1]===-d[1],chord=Math.hypot(p3.x-p0.x,p3.z-p0.z);
- const k=reverse?.18:Math.min(.14,Math.max(.07,chord*.42));
+ // نقطهٔ خروج کمی بعد از مرکز تقاطع قرار می‌گیرد؛ چرخش فقط در یک نقطهٔ فشرده رخ نمی‌دهد.
+ const reverse=incoming[0]===-d[0]&&incoming[1]===-d[1],exitRun=.48;
+ const p3={x:laneEnd.x+d[0]*exitRun,z:laneEnd.z+d[1]*exitRun};
+ // دسته‌های بزیه مماس با لاین ورودی/خروجی هستند؛ طول دسته برای گردش چپ و راست متفاوت است
+ // تا مماس میانی در هیچ‌یک از دو حالت به صفر نزدیک نشود.
+ const cross=incoming[0]*d[1]-incoming[1]*d[0],k=reverse?.42:(cross>0?.60:.30);
  const p1={x:p0.x+incoming[0]*k,z:p0.z+incoming[1]*k},p2={x:p3.x-d[0]*k,z:p3.z-d[1]*k};
- let len=0,prev=p0;for(let i=1;i<=12;i++){const u=i/12,v=1-u,pt={x:v*v*v*p0.x+3*v*v*u*p1.x+3*v*u*u*p2.x+u*u*u*p3.x,z:v*v*v*p0.z+3*v*v*u*p1.z+3*v*u*u*p2.z+u*u*u*p3.z};len+=Math.hypot(pt.x-prev.x,pt.z-prev.z);prev=pt}
- c.turn={p0,p1,p2,p3,u:0,len:Math.max(.08,len)};
+ // جدول طول قوس ۴۰ نمونه‌ای: پیشروی بر اساس فاصلهٔ واقعی روی منحنی است، نه u خطی.
+ const samples=[{u:0,x:p0.x,z:p0.z,dist:0}];let len=0,prev=p0;
+ for(let i=1;i<=40;i++){const u=i/40,v=1-u,pt={x:v*v*v*p0.x+3*v*v*u*p1.x+3*v*u*u*p2.x+u*u*u*p3.x,z:v*v*v*p0.z+3*v*v*u*p1.z+3*v*u*u*p2.z+u*u*u*p3.z};len+=Math.hypot(pt.x-prev.x,pt.z-prev.z);samples.push({u,x:pt.x,z:pt.z,dist:len});prev=pt}
+ c.turn={p0,p1,p2,p3,u:0,len:Math.max(.08,len),distance:0,samples};
 }
 function carSpawnClear(x,z){for(const o of cars){if(o.out)continue;if(Math.hypot(o.g.position.x-x,o.g.position.z-z)<.92)return false}return true}
 function spawnCar(){
@@ -123,9 +128,14 @@ function stepCars(dt,t){
   }
   c.v+=(desired-c.v)*Math.min(1,dt*7);let move=Math.max(0,c.v)*dt;
   if(redStop){move=Math.min(move,maxMove);if(maxMove<=.002)c.v=0}
-  if(c.turn){const tr=c.turn;tr.u=Math.min(1,tr.u+move/tr.len);const q=carBezier(tr,tr.u);g.position.x=q.x;g.position.z=q.z;
-   if(tr.u>=1){g.position.x=tr.p3.x;g.position.z=tr.p3.z;c.turn=null;}
-   const a=Math.atan2(-q.dz,q.dx);let da=Math.atan2(Math.sin(a-c.hd),Math.cos(a-c.hd));c.hd+=da*Math.min(1,dt*10);
+  if(c.turn){const tr=c.turn;tr.distance=Math.min(tr.len,tr.distance+move);
+   let lo=0,hi=tr.samples.length-1;while(lo<hi){const mid=(lo+hi)>>1;if(tr.samples[mid].dist<tr.distance)lo=mid+1;else hi=mid}
+   const b=tr.samples[lo],a0=tr.samples[Math.max(0,lo-1)],f=(tr.distance-a0.dist)/Math.max(.00001,b.dist-a0.dist);tr.u=a0.u+(b.u-a0.u)*f;
+   const q=carBezier(tr,tr.u);g.position.x=q.x;g.position.z=q.z;
+   const finished=tr.distance>=tr.len-.0001;
+   if(finished){g.position.x=tr.p3.x;g.position.z=tr.p3.z;c.turn=null;}
+   const a=finished?Math.atan2(-c.d[1],c.d[0]):Math.atan2(-q.dz,q.dx);
+   let da=Math.atan2(Math.sin(a-c.hd),Math.cos(a-c.hd));c.hd+=da*Math.min(1,dt*(finished?18:16));
   }else if(dist<=move+.025){
    g.position.x=c.tx;g.position.z=c.tz;const incoming=c.d.slice();c.node=c.next;
    c.history.push(carNodeKey(c.node));if(c.history.length>9)c.history.shift();

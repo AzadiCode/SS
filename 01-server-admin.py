@@ -27,6 +27,26 @@ def add_pedestrian_crossing():
     return jsonify(crossing=mutate(f))
 
 
+@bp.put("/api/admin/pedestrian-crossing/<int:cid>")
+@admin_only
+def move_pedestrian_crossing(cid):
+    j = request.get_json(silent=True) or {}
+    try: x, z = float(j.get("x")), float(j.get("z"))
+    except (TypeError, ValueError): raise ValueError("مختصات گذرگاه نامعتبر است")
+    if abs(x) > 200 or abs(z) > 200: raise ValueError("موقعیت گذرگاه نامعتبر است")
+    def f(d):
+        crossings = d.setdefault("pedestrian_crossings", [])
+        item = next((c for c in crossings if int(c.get("id", -1)) == cid), None)
+        if item is None: raise ValueError("گذرگاه پیدا نشد")
+        axis = j.get("axis", item.get("axis", "x"))
+        if axis not in ("x", "z"): raise ValueError("جهت گذرگاه نامعتبر است")
+        if any(int(c.get("id", -1)) != cid and abs(float(c.get("x", 0))-x) < .05 and abs(float(c.get("z", 0))-z) < .05 for c in crossings):
+            raise ValueError("در این نقطه گذرگاه دیگری وجود دارد")
+        item.update({"x": x, "z": z, "axis": axis})
+        return item
+    return jsonify(crossing=mutate(f))
+
+
 @bp.delete("/api/admin/pedestrian-crossing/<int:cid>")
 @admin_only
 def delete_pedestrian_crossing(cid):

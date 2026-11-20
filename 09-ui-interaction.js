@@ -1,10 +1,10 @@
 // ═══ لمس و انتخاب روی صحنه، ساخت دکمه‌های رابط، و ابزار مدیر (جابه‌جایی، ساخت، چرخش، حذف، نام، پیام).
 // پنل مدیر ← 10-admin-panel.js ═══
 'use strict';
-const MODES={move:'✋ جابه‌جایی: ساختمان را بکش و رها کن',build:'🏗️ نقشهٔ ساخت: شبح را بچین، بعد ✓ بزن تا همه ساخته شوند',rot:'🔄 چرخش: روی ساختمان بزن',del:'🗑️ حذف: روی ساختمان بزن',name:'🏷️ نام مستعار: روی آدم بزن',say:'💬 پیام: روی آدم بزن',pedestrian:'🚸 گذرگاه عابر: روی خیابان کنار پیاده‌رو بزن'};
+const MODES={move:'✋ جابه‌جایی: ساختمان را بکش و رها کن',build:'🏗️ نقشهٔ ساخت: شبح را بچین، بعد ✓ بزن تا همه ساخته شوند',rot:'🔄 چرخش: روی ساختمان بزن',del:'🗑️ حذف: روی ساختمان بزن',name:'🏷️ نام مستعار: روی آدم بزن',say:'💬 پیام: روی آدم بزن',pedestrian:'🚸 ابزار گذرگاه: روی خیابان قرار بده؛ برای جابه‌جایی از ابزار دست و برای حذف از سطل استفاده کن'};
 // ── رابط
 document.body.insertAdjacentHTML('afterbegin','<div id="nts"></div>');
-document.body.insertAdjacentHTML('beforeend',`<div id="adm"><div class="btn e g" data-m="move" title="جابه‌جایی">✋</div><div class="btn e g" data-m="build" title="ساخت">🏗️</div><div class="btn e g" data-m="rot" title="چرخش">🔄</div><div class="btn e g" data-m="del" title="حذف">🗑️</div><div class="btn e g" data-m="name" title="نام مستعار">🏷️</div><div class="btn e g" data-m="say" title="پیام">💬</div><div class="btn e g" data-m="pedestrian" title="تابلو و خط‌کشی عابر">🚸</div><div class="btn e g" data-m="pedestrian" title="تابلو و خط‌کشی عابر">🚸</div><div class="btn e g" id="brec" title="ضبط ویدیو (فقط تصویر سه‌بعدی)">🎥</div><div class="btn e g" id="brec2" title="استودیوی سینمایی: حرکت‌های آماده + ضبط (کامپیوتر و موبایل)">🎬</div><div class="btn e g" id="btm" title="زمان">⏱️</div></div><div id="pal" class="g"><span data-t="house" class="on">🏠</span><span data-t="hq">🏢</span><span data-t="farm">🌾</span><span data-t="market">🏪</span><span data-t="road">🛣️</span><span data-t="path" title="پیاده‌رو">🚶</span><select id="pathStyle" title="طرح پیاده‌رو" style="display:none;padding:5px;border-radius:6px;background:#173b35;color:#fff;border:1px solid #789"><option value="stone">سنگی</option><option value="dirt">خاکی</option></select><span data-t="tree">🌲</span><label><input type="checkbox" id="fr" checked> رایگان</label></div><div id="md" class="g"><p id="mt"></p><input id="mi" maxlength="120"><div><button id="mok">تأیید</button><button id="mno">انصراف</button></div></div>`);
+document.body.insertAdjacentHTML('beforeend',`<div id="adm"><div class="btn e g" data-m="move" title="جابه‌جایی">✋</div><div class="btn e g" data-m="build" title="ساخت">🏗️</div><div class="btn e g" data-m="rot" title="چرخش">🔄</div><div class="btn e g" data-m="del" title="حذف">🗑️</div><div class="btn e g" data-m="name" title="نام مستعار">🏷️</div><div class="btn e g" data-m="say" title="پیام">💬</div><div class="btn e g" id="brec" title="ضبط ویدیو (فقط تصویر سه‌بعدی)">🎥</div><div class="btn e g" id="brec2" title="استودیوی سینمایی: حرکت‌های آماده + ضبط (کامپیوتر و موبایل)">🎬</div><div class="btn e g" id="btm" title="زمان">⏱️</div></div><div id="pal" class="g"><span data-t="house" class="on">🏠</span><span data-t="hq">🏢</span><span data-t="farm">🌾</span><span data-t="market">🏪</span><span data-t="road">🛣️</span><span data-t="path" title="پیاده‌رو">🚶</span><select id="pathStyle" title="طرح پیاده‌رو" style="display:none;padding:5px;border-radius:6px;background:#173b35;color:#fff;border:1px solid #789"><option value="stone">سنگی</option><option value="dirt">خاکی</option></select><span data-tool="pedestrian" title="ساخت گذرگاه عابر">🚸 گذرگاه</span><span data-t="tree">🌲</span><label><input type="checkbox" id="fr" checked> رایگان</label></div><div id="md" class="g"><p id="mt"></p><input id="mi" maxlength="120"><div><button id="mok">تأیید</button><button id="mno">انصراف</button></div></div>`);
 $('side').insertAdjacentHTML('beforeend','<div id="bn" class="btn g" title="نمایش/پنهان نام‌ها"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.9 3.1-6.2 7-6.2s7 2.3 7 6.2"/></svg></div><div id="bm" class="btn g" title="قطع صدا"></div><div id="ba" class="btn g" title="ابزار مدیر"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/></svg></div>');
 $('tier').insertAdjacentHTML('beforeend','<span id="clk"></span>');
 // ── ابزار مدیر (جابه‌جایی، ساخت، چرخش، حذف، نام، پیام)
@@ -26,7 +26,7 @@ function makePedCrossing(item){
  if(pedCrossings.has(id))return;
  const {x,z,axis}=item,g=new THREE.Group();g.position.set(x,0,z);g.userData={crossing:item,id};
  for(let i=-3;i<=3;i++){const stripe=new THREE.Mesh(new THREE.BoxGeometry(axis==='x'?.105:1.05,.018,axis==='x'?1.05:.105),pedWhite);if(axis==='x')stripe.position.set(i*.155,.105,0);else stripe.position.set(0,.105,i*.155);g.add(stripe)}
- for(const side of [-1,1]){
+ for(const side of [1]){
   const post=new THREE.Mesh(new THREE.CylinderGeometry(.025,.035,.82,7),new THREE.MeshStandardMaterial({color:0x555b5b,roughness:.8}));
   const board=new THREE.Mesh(new THREE.BoxGeometry(.34,.38,.07),pedGreen),icon=new THREE.Group();
   const head=new THREE.Mesh(new THREE.SphereGeometry(.035,8,6),pedIconMat);head.position.set(0,.105,0);icon.add(head);
@@ -37,9 +37,13 @@ function makePedCrossing(item){
  }
  scene.add(g);pedCrossings.set(id,g)
 }
+function disposePedCrossing(id,g){
+ scene.remove(g);g.traverse(o=>{if(o.isMesh){o.geometry.dispose();if(o.material!==pedWhite&&o.material!==pedGreen&&o.material!==pedIconMat)o.material.dispose()}});pedCrossings.delete(id)
+}
 function syncPedCrossings(items=[]){
- const ids=new Set(items.map(v=>Number(v.id)));
- for(const [id,g] of pedCrossings)if(!ids.has(id)){scene.remove(g);g.traverse(o=>{if(o.isMesh){o.geometry.dispose();if(o.material!==pedWhite&&o.material!==pedGreen&&o.material!==pedIconMat)o.material.dispose()}});pedCrossings.delete(id)}
+ const byId=new Map(items.map(v=>[Number(v.id),v]));
+ for(const [id,g] of pedCrossings){const next=byId.get(id),old=g.userData.crossing;
+  if(!next||Number(old.x)!==Number(next.x)||Number(old.z)!==Number(next.z)||old.axis!==next.axis)disposePedCrossing(id,g)}
  for(const item of items)makePedCrossing(item)
 }
 async function placePedCrossing(e){
@@ -51,6 +55,16 @@ async function placePedCrossing(e){
  const axis=east>=north?'x':'z';
  try{const r=await fetch('/api/admin/pedestrian-crossing',{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':T},body:JSON.stringify({x,z,axis})});const j=await r.json();if(!r.ok)throw Error(j.error||'ذخیره گذرگاه ناموفق بود');toast('✅ گذرگاه در دنیای اصلی ذخیره شد');poll()}catch(err){toast(err.message||'خطا در ذخیره گذرگاه')}
 }
+function pickPedCrossing(e){
+ ray0(e);const hits=ray.intersectObjects([...pedCrossings.values()],true);if(!hits.length)return null;
+ let o=hits[0].object;while(o&&!o.userData.crossing)o=o.parent;return o||null
+}
+function rotatePedCrossing(e){
+ const hit=pickPedCrossing(e);if(!hit)return false;const b=hit.userData.crossing,axis=b.axis==='x'?'z':'x';
+ fetch('/api/admin/pedestrian-crossing/'+b.id,{method:'PUT',headers:{'Content-Type':'application/json','X-Admin-Token':T},body:JSON.stringify({x:b.x,z:b.z,axis})})
+ .then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||'چرخش گذرگاه ناموفق بود');toast('جهت گذرگاه تغییر کرد');poll()})
+ .catch(err=>toast(err.message));return true
+}
 function deletePedCrossing(e){
  ray0(e);const hits=ray.intersectObjects([...pedCrossings.values()],true);if(!hits.length)return false;let o=hits[0].object;while(o&&!o.userData.crossing)o=o.parent;if(!o)return false;
  const id=o.userData.id;if(!confirm('گذرگاه عابر حذف شود؟'))return true;
@@ -59,7 +73,7 @@ function deletePedCrossing(e){
 
 async function api(p,m,b,q){const r=await fetch(p,{method:m,headers:{'Content-Type':'application/json','X-Admin-Token':T},body:b?JSON.stringify(b):undefined}),j=await r.json().catch(()=>({}));if(r.status===401){T=localStorage.tk='';setAdm(0);toast('نشست مدیر تمام شد؛ دوباره وارد شو')}if(!r.ok){if(!q)toast(j.error||'خطا');throw 0}poll();return j}
 function setAdm(on){if(!on)unlockWorldInput();admOn=on;$('adm').style.display=on?'flex':'none';if(!on){setMode('');if(BP.on)bpEnd();const p=$('ap');if(p)p.style.display='none'}}
-function setMode(m){unlockWorldInput();mode=mode===m?'':m;document.querySelectorAll('#adm [data-m]').forEach(b=>b.classList.toggle('on',b.dataset.m===mode));$('pal').style.display=mode==='build'?'flex':'none';cur.visible=false;
+function setMode(m){unlockWorldInput();mode=mode===m?'':m;document.querySelectorAll('#adm [data-m]').forEach(b=>b.classList.toggle('on',b.dataset.m===mode));document.querySelectorAll('#pal [data-tool]').forEach(b=>b.classList.toggle('on',mode==='pedestrian'));$('pal').style.display=(mode==='build'||mode==='pedestrian')?'flex':'none';cur.visible=false;
 if(mode==='build'){bpStart()}else if(BP.on){bpEnd()}   // ورود/خروج مود نقشهٔ ساخت
 if(m||admOn)toast(MODES[mode]||'حالت عادی')}
 const ray0=e=>{mp.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);ray.setFromCamera(mp,cam)};
@@ -87,7 +101,7 @@ const bpDrag=e=>{const it=BP.dragIt,c=tgtOf(e,it);if(!c)return;
   if(BP.down)BP.down.moved=Math.max(BP.down.moved,Math.hypot(e.clientX-(BP.down.x??e.clientX),e.clientY-(BP.down.y??e.clientY)));
   if(it){if(c[0]!==it.x||c[1]!==it.z)bpMove(it,c[0],c[1])}
   else{bpFloat(c);if(BP.down&&isTile(BP.type))bpLine(c)}};
-async function onTap(e){if(mode==='pedestrian'){if(deletePedCrossing(e))return;placePedCrossing(e);return}const h=pickAt(e);
+async function onTap(e){if(mode==='pedestrian'){placePedCrossing(e);return}if(mode==='del'&&deletePedCrossing(e))return;if(mode==='rot'&&rotatePedCrossing(e))return;const h=pickAt(e);
 if(h.c){react(h.c);if(h.c.me&&!(T&&(mode==='name'||mode==='say'))){const v=await ask('اسم کارکتر تو (خالی = پیش‌فرض)',nameOf(MY));if(v!==null)fetch('/api/player/name',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({init:INIT,name:v})}).then(r=>r.ok?poll():r.json().then(j=>toast(j.error||'خطا'))).catch(()=>0)}else if(T&&mode==='name'){const v=await ask('نام مستعار (خالی = پیش‌فرض)',nameOf(h.c.i));if(v!==null)api('/api/admin/citizen/'+h.c.i,'PUT',{name:v}).catch(()=>0)}
 else if(T&&mode==='say'){const v=await ask('پیام بالای سر «'+nameOf(h.c.i)+'»');if(v)api('/api/admin/say','POST',{cid:h.c.i,text:v}).catch(()=>0)}return}
 if(h.b){h.g.userData.t=.55;
@@ -95,19 +109,22 @@ if(T&&mode==='rot')api('/api/admin/building/'+h.b.id,'PUT',{x:h.b.x,z:h.b.z,rot:
 else if(T&&mode==='del'){if(confirm('حذف شود؟'))api('/api/admin/building/'+h.b.id,'DELETE').catch(()=>0)}
 else if(!mode){if(!openHouse(h.g)){closeHouse();toast(bInfo(h.b)+(h.b.type==='house'?' · برای دیدن داخل خانه بیشتر زوم کن':''));ownerHi(h.b)}}}else if(!mode)closeHouse()}
 R.domElement.addEventListener('pointerdown',e=>{dn={x:e.clientX,y:e.clientY,t:performance.now()};if(!T||!mode)return;
-if(mode==='move'){const h=pickAt(e);if(h.b){captureWorldPointer(e);const g0=gpt(e);drag={g:h.g,b:h.b,c:[h.b.x,h.b.z],off:g0?[h.b.x*U-g0[0],h.b.z*U-g0[1]]:[0,0]};ctl.enabled=false;cur.visible=true;cur.position.set(h.b.x*U,.12,h.b.z*U);cur.material.color.setHex(0x3ddc97)}}
+if(mode==='move'){const pg=pickPedCrossing(e);if(pg){captureWorldPointer(e);const g0=gpt(e),b=pg.userData.crossing;pedDrag={g:pg,b,c:[b.x,b.z],off:g0?[b.x-g0[0],b.z-g0[1]]:[0,0]};ctl.enabled=false;return}
+const h=pickAt(e);if(h.b){captureWorldPointer(e);const g0=gpt(e);drag={g:h.g,b:h.b,c:[h.b.x,h.b.z],off:g0?[h.b.x*U-g0[0],h.b.z*U-g0[1]]:[0,0]};ctl.enabled=false;cur.visible=true;cur.position.set(h.b.x*U,.12,h.b.z*U);cur.material.color.setHex(0x3ddc97)}}
 else if(mode==='build'){
   if(BP.pid!=null&&e.pointerId!==BP.pid)return;               // چندلمسی: انگشت دوم نباید استروک ساخت را خراب کند
   BP.pid=e.pointerId;                                          // فقط اولین انگشت صاحب جلسهٔ ساخت است
   captureWorldPointer(e);
   if(BP.down)BP.down.x=e.clientX,BP.down.y=e.clientY;bpDown(e)}},true);
-addEventListener('pointermove',e=>{if(drag){const p=gpt(e),c=p?fpSnap(drag.b.type,drag.b.rot||0,p[0]+drag.off[0],p[1]+drag.off[1],W.buildings.filter(o=>o.id!==drag.b.id)):null;if(c){drag.c=c;drag.g.position.set(c[0]*U,.35,c[1]*U);cur.position.set(c[0]*U,.12,c[1]*U);cur.material.color.setHex(cellOk(c[0],c[1],drag.b.id)?0x3ddc97:0xff5a4c)}}
+addEventListener('pointermove',e=>{if(activePointer!==null&&e.pointerId!==activePointer)return;if(pedDrag){const p=gpt(e);if(p){pedDrag.c=[p[0]+pedDrag.off[0],p[1]+pedDrag.off[1]];pedDrag.g.position.set(pedDrag.c[0],0,pedDrag.c[1])}}else if(drag){const p=gpt(e),c=p?fpSnap(drag.b.type,drag.b.rot||0,p[0]+drag.off[0],p[1]+drag.off[1],W.buildings.filter(o=>o.id!==drag.b.id)):null;if(c){drag.c=c;drag.g.position.set(c[0]*U,.35,c[1]*U);cur.position.set(c[0]*U,.12,c[1]*U);cur.material.color.setHex(cellOk(c[0],c[1],drag.b.id)?0x3ddc97:0xff5a4c)}}
 else if(mode==='build'&&BP.down){if(BP.down){BP.down.x=e.clientX;BP.down.y=e.clientY}bpDrag(e)}});
 addEventListener('pointercancel',e=>{if(activePointer!==null&&e.pointerId!==activePointer)return;unlockWorldInput()});
 R.domElement.addEventListener('lostpointercapture',e=>{if(activePointer!==null&&e.pointerId===activePointer)unlockWorldInput()});
 addEventListener('blur',unlockWorldInput);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)unlockWorldInput()});
 addEventListener('pointerup',async e=>{if(activePointer!==null&&e.pointerId!==activePointer)return;const was=dn;dn=null;
+if(pedDrag){const d=pedDrag;pedDrag=null;unlockWorldInput(false);const[x,z]=d.c,ox=d.b.x,oz=d.b.z;d.b.x=x;d.b.z=z;
+if(Math.hypot(x-ox,z-oz)>.04){try{const r=await fetch('/api/admin/pedestrian-crossing/'+d.b.id,{method:'PUT',headers:{'Content-Type':'application/json','X-Admin-Token':T},body:JSON.stringify({x,z,axis:d.b.axis})});const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||'جابه‌جایی گذرگاه ناموفق بود');toast('گذرگاه جابه‌جا و ذخیره شد');poll()}catch(err){d.b.x=ox;d.b.z=oz;d.g.position.set(ox,0,oz);toast(err.message)}}return}
 if(drag){const d=drag,b=d.b;drag=null;unlockWorldInput(false);cur.visible=false;d.g.position.y=0;const[x,z]=d.c;
 if((x!==b.x||z!==b.z)&&cellOk(x,z,b.id)){const ox=b.x,oz=b.z;b.x=x;b.z=z;try{await api('/api/admin/building/'+b.id,'PUT',{x,z,rot:b.rot});toast('✅ جابه‌جا و ذخیره شد')}catch(_){b.x=ox;b.z=oz;d.g.position.set(ox*U,0,oz*U)}}
 else d.g.position.set(b.x*U,0,b.z*U);return}
@@ -132,7 +149,7 @@ if(mode==='build'){
 if(was&&Math.hypot(e.clientX-was.x,e.clientY-was.y)<8&&performance.now()-was.t<500)onTap(e);if(activePointer===e.pointerId)unlockWorldInput()});
 $('adm').insertAdjacentHTML('afterbegin','<div class="btn e g" id="bap" title="پنل ادمین">🛠️</div>');$('bap').onclick=()=>openAP();
 $('adm').onclick=e=>{const m=e.target.closest('[data-m]');if(m)setMode(m.dataset.m)};
-$('pal').onclick=e=>{const s=e.target.closest('[data-t]');if(s){bt=s.dataset.t;BP.type=bt;$('pal').querySelectorAll('[data-t]').forEach(x=>x.classList.toggle('on',x===s));const ps=$('pathStyle');if(ps){ps.style.display=bt==='path'?'inline-block':'none';ps.value=PATH_STYLE}bpGhostType();if(BP.on)toast('قلم: '+(W.catalog[bt]||bt))}};
+$('pal').onclick=e=>{const tool=e.target.closest('[data-tool="pedestrian"]');if(tool){setMode('pedestrian');return}const s=e.target.closest('[data-t]');if(s){bt=s.dataset.t;BP.type=bt;$('pal').querySelectorAll('[data-t]').forEach(x=>x.classList.toggle('on',x===s));const ps=$('pathStyle');if(ps){ps.style.display=bt==='path'?'inline-block':'none';ps.value=PATH_STYLE}bpGhostType();if(BP.on)toast('قلم: '+(W.catalog[bt]||bt))}};
 const ps=$('pathStyle');if(ps){ps.value=PATH_STYLE;ps.onchange=()=>{setPathStyle(ps.value);toast('طرح پیاده‌رو: '+(PATH_STYLE==='dirt'?'خاکی':'سنگ‌فرش'))}};
 $('bn').classList.add('dim');$('bn').onclick=()=>{namesOn=!namesOn;$('bn').classList.toggle('dim',!namesOn);toast(namesOn?'نام‌ها نمایش داده می‌شود':'نام‌ها پنهان شد')};
 $('ba').onclick=async()=>{if(!T){const k=await ask('رمز مدیر (ADMIN_KEY)','',1);if(!k)return;try{const r=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:k})}),j=await r.json();if(!r.ok)return toast(j.error||'رمز اشتباه است');T=localStorage.tk=j.token}catch(_){return toast('خطا در اتصال')}}setAdm(!admOn)};
