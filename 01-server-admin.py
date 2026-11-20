@@ -20,6 +20,20 @@ def crossing_anchored(d, gx, gz, extra=()):
     return False
 
 
+def banner_anchored(d, gx, gz, rot=0):
+    """تابلو بنری باید با لبهٔ خود به دفتر مدیرعامل بچسبد (جلوی دفتر یا گوشهٔ آن).
+    تماس واقعی خرده‌سلول‌ها با تماس چهارجهته — دقیقاً مثل fpTouchDir فرانت؛ بدون فاصله و بدون هم‌پوشانی."""
+    hqs = [b for b in d["buildings"] if b.get("type") == "hq"]
+    if not hqs: return False
+    cand = {"type": "banner", "gx": gx, "gz": gz, "x": gx, "z": gz, "rot": rot}
+    bc = rects_of(cand)[0]
+    for hq in hqs:
+        hc = rects_of(hq)[0]
+        if any((x + dx, z + dz) in hc for x, z in bc for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1))):
+            return True
+    return False
+
+
 @bp.post("/api/admin/building")
 @admin_only
 def add_building():
@@ -32,8 +46,10 @@ def add_building():
         x, z = (float(j["x"]), float(j["z"])) if j.get("x") not in (None, "") and j.get("z") not in (None, "") else free_cell(d, t)
         x, z, rot = check_place(d, t, x, z, auto_rot(d, t, x, z, j.get("rot"), auto=bool(j.get("ar"))))
         if t == "crossing" and not crossing_anchored(d, x, z): raise ValueError("تابلوی عابر پیاده باید کنار خیابان باشد")
+        if t == "banner" and not banner_anchored(d, x, z, rot): raise ValueError("تابلو بنری باید به دفتر مدیرعامل بچسبد")
         b = {"id": d["next_id"], "type": t, "x": x, "z": z, "gx": x, "gz": z, "rot": rot,
-             **({"style": "dirt" if j.get("style") == "dirt" else "stone"} if t == "path" else {})}
+             **({"style": "dirt" if j.get("style") == "dirt" else "stone"} if t == "path" else {}),
+             **({"bn": "شهر من|||"} if t == "banner" else {})}
         d["next_id"] += 1; d["buildings"].append(b); d["stats"]["money"] -= cost
         if t != "tree": log_event(d, f"{CATALOG[t]} ساخته شد" + (f" (−{cost/1e6:g} میلیون تومان)." if cost else "."))
         return b
@@ -153,6 +169,24 @@ def road_lights():
         if tgt.get("tl"): tgt.pop("tl", None); log_event(d, "چراغ راهنمایی این تقاطع حذف شد.")
         else: tgt["tl"] = 1; log_event(d, "چراغ راهنمایی این تقاطع اعمال شد.")
         return {"id": tgt["id"], "on": bool(tgt.get("tl"))}
+    return jsonify(mutate(f))
+
+
+@bp.post("/api/admin/banner")
+@admin_only
+def banner_text():
+    """متن تابلو بنری جلوی دفتر مدیرعامل: اسم شهر / مدیرعامل / تاریخ ساخت / متن اضافه —
+    در فیلد bn با جداکنندهٔ | ذخیره می‌شود؛ تغییر bn امضای sync را عوض می‌کند و مش تابلو با متن تازه بازسازی می‌شود."""
+    j = request.get_json(silent=True) or {}
+    try: bid = int(j.get("id", -1))
+    except (TypeError, ValueError): raise ValueError("شناسه نامعتبر")
+    def f(d):
+        b = next((b for b in d["buildings"] if b["id"] == bid and b["type"] == "banner"), None)
+        if not b: raise ValueError("تابلو بنری پیدا نشد")
+        vals = [str(j.get(k, "") or "").replace("|", "،").strip()[:40] for k in ("name", "ceo", "date", "extra")]
+        b["bn"] = "|".join(vals)
+        log_event(d, "متن تابلو بنری به‌روزرسانی شد.")
+        return {"bn": b["bn"]}
     return jsonify(mutate(f))
 
 

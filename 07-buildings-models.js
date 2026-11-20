@@ -115,5 +115,30 @@ else[[0,1.05,0,.62],[.25,.85,.1,.42],[-.22,.9,-.1,.4]].forEach(([a,y,c,r],i)=>ba
 // جهت‌گیری مدل رو به جاده در roads() انجام می‌شود (صفحهٔ اصلی رو به +z).
 crossing(g){cyl(g,.03,.045,.56,0x3a3f44,0,0,0,6);bx(g,.075,.045,.075,0x3a3f44,0,.56,0);
 const pl=new THREE.Mesh(new THREE.PlaneGeometry(.3,.3),CROSSSGN);pl.position.set(0,.62,.04);add(g,pl);
-const bk=new THREE.Mesh(new THREE.PlaneGeometry(.3,.3),M(0x1d5fbf,.5));bk.position.set(0,.62,-.04);bk.rotation.y=Math.PI;add(g,bk)}};
+const bk=new THREE.Mesh(new THREE.PlaneGeometry(.3,.3),M(0x1d5fbf,.5));bk.position.set(0,.62,-.04);bk.rotation.y=Math.PI;add(g,bk)},
+// ── تابلو بنری جلوی دفتر مدیرعامل: دو تیرک با گل‌سر فلزی، میلهٔ بالا و پارچهٔ بنری با متن شهر.
+// سلسله‌مراتب فونت: اسم شهر درشت‌ترین و بولد، بعد مدیرعامل، بعد تاریخ، بعد متن اضافه (هرکدام ریزتر).
+// متن در فیلد bn با | جدا می‌شود؛ تغییرش امضای sync را عوض می‌کند و مش با بافت تازه بازسازی می‌شود (12-net-sync).
+banner(g,b){const[v1,v2,v3,v4]=(b.bn||'شهر من|||').split('|');
+const cv=document.createElement('canvas');cv.width=512;cv.height=288;
+const draw=()=>{const x=cv.getContext('2d');
+ const gr=x.createLinearGradient(0,0,0,288);gr.addColorStop(0,'#14402f');gr.addColorStop(1,'#0b271d');x.fillStyle=gr;x.fillRect(0,0,512,288);
+ x.strokeStyle='#e9c877';x.lineWidth=5;x.strokeRect(9,9,494,270);
+ x.strokeStyle='#39ff8c';x.lineWidth=2;x.strokeRect(17,17,478,254);
+ x.fillStyle='rgba(233,200,119,.9)';[[9,9],[503,9],[9,279],[503,279]].forEach(([px,py])=>{x.beginPath();x.arc(px,py,7,0,6.284);x.fill()});
+ // زبانه‌های پایین پارچه (شکل بنر پارچه‌ای)
+ x.fillStyle='#0b271d';for(let i=0;i<8;i++){const px=17+i*59.75;x.beginPath();x.moveTo(px,271);x.lineTo(px+59.75,271);x.lineTo(px+29.875,286);x.closePath();x.fill()}
+ x.textAlign='center';x.textBaseline='middle';x.direction='rtl';
+ x.fillStyle='#ffe9a8';x.font='800 64px Vazirmatn,sans-serif';x.fillText(v1||'شهر من',256,86);
+ x.fillStyle='#d8ecd0';x.font='700 31px Vazirmatn,sans-serif';x.fillText(v2?'مدیرعامل: '+v2:'مدیرعامل: —',256,152);
+ x.fillStyle='#a9ccb6';x.font='500 26px Vazirmatn,sans-serif';if(v3)x.fillText(v3,256,196);
+ x.fillStyle='#8fb39f';x.font='500 22px Vazirmatn,sans-serif';if(v4)x.fillText(v4,256,234)};
+draw();const tex=new THREE.CanvasTexture(cv);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=4;
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{draw();tex.needsUpdate=true});
+const cloth=new THREE.Mesh(new THREE.PlaneGeometry(1.5,.9),new THREE.MeshStandardMaterial({map:tex,roughness:.78,emissive:0x123a2b,emissiveIntensity:.25}));
+cloth.position.set(0,.72,.008);add(g,cloth);
+const back=new THREE.Mesh(new THREE.PlaneGeometry(1.5,.9),M(0x0e2c22,.8));back.position.set(0,.72,-.008);back.rotation.y=Math.PI;add(g,back);
+[-1,1].forEach(q=>{cyl(g,.028,.04,1.2,0x3a3f44,q*.72,0,0,6);ball(g,.042,0xd9b45a,q*.72,1.22,0)});
+bx(g,1.5,.03,.03,0x2c3134,0,1.2,0);
+g.userData.sw=((b.id*9301+49297)%233280)/233280*6}};   // تپش نرم باد (همان سیستم تاب درخت‌ها؛ sw در building-animation مصرف می‌شود)
 function addB(b,delay=0){const g=new THREE.Group();build[b.type]?.(g,b);g.position.set(b.x*U,0,b.z*U);g.rotation.y=(b.type==='road'||b.type==='path')?0:b.rot*Math.PI/180;g.scale.setScalar(delay>0?0:.01);Object.assign(g.userData,{b,t:delay>0?-delay:0});scene.add(g);objs.set(b.id,g)}

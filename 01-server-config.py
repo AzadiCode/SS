@@ -23,16 +23,16 @@ U = CELL / GRID
 # Footprint sizes are integer sub-cells (width, depth); all placements use gx/gz.
 PATH_WIDTH_RATIO = 1 / 4
 FOOT = {"house": (6, 6), "hq": (8, 8), "farm": (8, 8), "market": (8, 6),
-        "tree": (2, 2), "road": (8, 8), "crossing": (2, 2)}
+        "tree": (2, 2), "road": (8, 8), "crossing": (2, 2), "banner": (6, 3)}
 _PATH_CELLS = max(1, math.ceil(FOOT["road"][0] * PATH_WIDTH_RATIO))
 FOOT["path"] = (_PATH_CELLS, _PATH_CELLS)
 GRID_TYPES = ("road", "path")
 FOOD_PRICE, FOOD_PER_PERSON, FARM_YIELD, MARKET_INCOME = 20000, 0.5, 10, 200000
 
 CATALOG = {"house": "خانه", "farm": "مزرعه", "market": "بازار", "road": "جاده", "path": "پیاده‌رو",
-           "crossing": "تابلوی عابر پیاده", "tree": "درخت", "hq": "دفتر مدیرعامل"}
+           "crossing": "تابلوی عابر پیاده", "banner": "تابلو بنری", "tree": "درخت", "hq": "دفتر مدیرعامل"}
 COST = {"house": 2_000_000, "farm": 1_500_000, "market": 3_000_000, "road": 100_000, "path": 50_000,
-        "crossing": 20_000, "tree": 0, "hq": 5_000_000}  # تومان
+        "crossing": 20_000, "banner": 0, "tree": 0, "hq": 5_000_000}  # تومان
 # قوانین داستان (مطابق ویدیو): هر فالو = ۱ نفر + ۱ میلیون تومان به خزانه
 RULES = {"subscriber": {"pop": 1, "money": 1_000_000, "subs": 1}, "contribution": {"pop": 1, "money": 1_000_000}}
 TIERS = [(0, "قبیله"), (500, "روستا"), (5000, "شهر"), (50000, "کشور")]   # آستانه‌ها پیشنهادی‌اند؛ تغییرشان بده

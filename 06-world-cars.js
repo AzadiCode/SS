@@ -123,7 +123,8 @@ function stepCars(dt,t){
   c.dx=vx;c.dz=vz;                                  // جهت فعلی حرکت؛ مبنای تشخیص روبه‌رویی در فاصله‌گذاری
   let desired=carSafeSpeed(c,vx,vz),redStop=false,maxMove=Infinity;
   // توقف قرمز/زرد: حدود ۱٫۲۸ واحد پیش از «مرکز تقاطع» (نه هدف قطعه) تا دماغه پشت خط توقف بایستد.
-  if(!c.turn&&c.next&&c.next.neighbors.length>=3){
+  // فقط تقاطعِ چراغ‌دار (فیلد tl) قانون چراغ دارد؛ تقاطع بدون چراغ آزاد است (کنترل با مدیر).
+  if(!c.turn&&c.next&&c.next.neighbors.length>=3&&c.next.b&&c.next.b.tl){
    const light=signalStatus(c.next,c.d,t);
    if(light!=='green'){redStop=true;desired=0;
     const nx=c.next.x-g.position.x,nz=c.next.z-g.position.z,dn=Math.hypot(nx,nz)||1;

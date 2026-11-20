@@ -24,6 +24,8 @@ function bpVal(type,x,z,skip,rot){bpHit=null;if(rot==null)rot=(type==='road'||ty
   if(type==='hq'&&[...W.buildings,...BP.items.filter(i=>i!==skip)].some(b=>b.type==='hq'))return'دفتر فقط یکی است';
   if(type==='crossing'){const cand={type,x,z,gx:x,gz:z,rot:0};
    if(![...W.buildings,...BP.items.filter(i=>i!==skip)].some(o=>o.type==='road'&&fpTouchDir(cand,o)>=0))return'تابلو باید کنار خیابان باشد'}
+  if(type==='banner'){const cand={type,x,z,gx:x,gz:z,rot:rot||0};
+   if(![...W.buildings,...BP.items.filter(i=>i!==skip)].some(o=>o.type==='hq'&&fpTouchDir(cand,o)>=0))return'بنر باید به دفتر مدیرعامل بچسبد'}
   return true}
 const bpFree=(x,z,skip)=>bpVal(BP.type,x,z,skip,BP.rot)===true;
 // ── شبحِ مدل واقعی: مدل کامل ساخته می‌شود، همهٔ مش‌ها در یک مش ادغام و با متریال شبح رندر می‌شوند (۱ دراکال)
