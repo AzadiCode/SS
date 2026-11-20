@@ -8,19 +8,21 @@ const carSignals=new Map();
 function rebuildCarRoadGraph(){
  const src=Array.isArray(roadC)?roadC:[],nodes=[],byKey=new Map();
  for(const r of src){const ix=Math.round(r.x/CELL),iz=Math.round(r.z/CELL),key=ix+','+iz;
-  const n={ix,iz,x:r.x,z:r.z,neighbors:[]};nodes.push(n);byKey.set(key,n)}
- const sig=nodes.map(n=>n.ix+','+n.iz+':'+n.x.toFixed(4)+','+n.z.toFixed(4)).sort().join('|');
+  const n={ix,iz,x:r.x,z:r.z,neighbors:[],b:r.b};nodes.push(n);byKey.set(key,n)}
+ const sig=nodes.map(n=>n.ix+','+n.iz+':'+n.x.toFixed(4)+','+n.z.toFixed(4)+':'+(n.b&&n.b.tl?1:0)).sort().join('|');
  if(sig===carRoadSig)return false;
  carRoadSig=sig;
  for(const n of nodes)for(const [dx,dz] of DIRS){const next=byKey.get((n.ix+dx)+','+(n.iz+dz));if(next)n.neighbors.push({node:next,dx,dz})}
  carRoadGraph=nodes.filter(n=>n.neighbors.length>0);
- // چراغ واقعی برای هر تقاطع سه‌راه/چهارراه؛ هر ورودی سرِ چراغ مستقل دارد.
+ // چراغ واقعی برای هر تقاطع سه‌راه/چهارراه فقط با اجازهٔ مدیر (فیلد tl روی رکورد کاشی)؛ هر ورودی سرِ چراغ مستقل دارد.
+ // سرِ چراغ روی «گوشهٔ پیاده‌رو» می‌نشیند (فاصلهٔ جانبی ۰٫۸۴ بیرون از آسفالت جادهٔ عرضی) نه روی جاده،
+ // و ارتفاع از ۱٫۵۵ به ۱٫۱۳ کوتاه‌تر شد تا با مقیاس بازی هماهنگ باشد.
  for(const g of carSignals.values()){scene.remove(g);g.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material.dispose()}})}carSignals.clear();
- for(const n of carRoadGraph)if(n.neighbors.length>=3){const root=new THREE.Group();root.position.set(n.x,0,n.z);
-  for(const e of n.neighbors){const d=[-e.dx,-e.dz],side=[-d[1],d[0]],h=new THREE.Group();h.position.set(-d[0]*.78+side[0]*.48,0,-d[1]*.78+side[1]*.48);h.rotation.y=Math.atan2(-d[0],-d[1]);
-   const pole=new THREE.Mesh(new THREE.CylinderGeometry(.025,.04,1.35,6),new THREE.MeshStandardMaterial({color:0x34383a,roughness:.8}));pole.position.y=.675;h.add(pole);
-   const box=new THREE.Mesh(new THREE.BoxGeometry(.19,.42,.16),new THREE.MeshStandardMaterial({color:0x202326,roughness:.65}));box.position.set(0,1.42,0);h.add(box);
-   const bulbs=[];for(let j=0;j<3;j++){const colors=[0xff2929,0xffc928,0x36df69],mat=new THREE.MeshStandardMaterial({color:colors[j],emissive:colors[j],emissiveIntensity:.06,roughness:.3});const bulb=new THREE.Mesh(new THREE.SphereGeometry(.052,8,6),mat);bulb.position.set(0,1.55-j*.13,.087);h.add(bulb);bulbs.push(bulb)}
+ for(const n of carRoadGraph)if(n.neighbors.length>=3&&n.b&&n.b.tl){const root=new THREE.Group();root.position.set(n.x,0,n.z);
+  for(const e of n.neighbors){const d=[-e.dx,-e.dz],side=[-d[1],d[0]],h=new THREE.Group();h.position.set(-d[0]*.80+side[0]*.84,0,-d[1]*.80+side[1]*.84);h.rotation.y=Math.atan2(-d[0],-d[1]);
+   const pole=new THREE.Mesh(new THREE.CylinderGeometry(.022,.036,.9,6),new THREE.MeshStandardMaterial({color:0x34383a,roughness:.8}));pole.position.y=.45;h.add(pole);
+   const box=new THREE.Mesh(new THREE.BoxGeometry(.17,.36,.14),new THREE.MeshStandardMaterial({color:0x202326,roughness:.65}));box.position.set(0,1.02,0);h.add(box);
+   const bulbs=[];for(let j=0;j<3;j++){const colors=[0xff2929,0xffc928,0x36df69],mat=new THREE.MeshStandardMaterial({color:colors[j],emissive:colors[j],emissiveIntensity:.06,roughness:.3});const bulb=new THREE.Mesh(new THREE.SphereGeometry(.046,8,6),mat);bulb.position.set(0,1.13-j*.105,.078);h.add(bulb);bulbs.push(bulb)}
    h.userData={d,bulbs};root.add(h)
   }scene.add(root);carSignals.set(n.ix+','+n.iz,root)
  }

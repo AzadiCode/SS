@@ -127,6 +127,35 @@ def move_building(bid):
     mutate(f); return jsonify(ok=True)
 
 
+@bp.post("/api/admin/road-lights")
+@admin_only
+def road_lights():
+    """چراغ راهنمایی تقاطع‌ها فقط با دست مدیر: روی کاشی جاده بزن — اگر خودش تقاطع (۳+ همسایه) باشد یا
+    همسایهٔ یک تقاطع، چراغ‌های «همان تقاطع» اعمال یا کلاً حذف می‌شوند (فیلد tl روی رکورد کاشی تقاطع)."""
+    j = request.get_json(silent=True) or {}
+    try: bid = int(j.get("id", -1))
+    except (TypeError, ValueError): raise ValueError("شناسه نامعتبر")
+    def f(d):
+        roads = [b for b in d["buildings"] if b["type"] == "road"]
+        def nbrs(b):
+            out = []
+            for o in roads:
+                if o is b: continue
+                dx, dz = o["x"] - b["x"], o["z"] - b["z"]
+                if (abs(dx) == 8 and dz == 0) or (abs(dz) == 8 and dx == 0): out.append(o)
+            return out
+        tgt = next((b for b in roads if b["id"] == bid), None)
+        if not tgt: raise ValueError("کاشی جاده پیدا نشد")
+        if len(nbrs(tgt)) < 3:
+            cand = [o for o in nbrs(tgt) if len(nbrs(o)) >= 3]
+            if not cand: raise ValueError("این قطعه تقاطع نیست؛ روی سه‌راه/چهارراه یا جادهٔ کنارش بزن")
+            tgt = min(cand, key=lambda o: 0 if o.get("tl") else 1)   # اگر چند تقاطع همسایه باشد، اولویت با تقاطعِ چراغ‌دار است
+        if tgt.get("tl"): tgt.pop("tl", None); log_event(d, "چراغ راهنمایی این تقاطع حذف شد.")
+        else: tgt["tl"] = 1; log_event(d, "چراغ راهنمایی این تقاطع اعمال شد.")
+        return {"id": tgt["id"], "on": bool(tgt.get("tl"))}
+    return jsonify(mutate(f))
+
+
 @bp.post("/api/admin/adjust")
 @admin_only
 def adjust():
