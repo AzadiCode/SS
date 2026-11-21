@@ -37,8 +37,8 @@ const QD=(()=>{
  else if(mob){auto=1;if(mem&&mem<=3)auto=5;else if(mem&&mem<=4)auto=3;else if(cores&&cores<=4)auto=3;else if(mem>=6&&cores>=8)auto=0}
  else{if(cores&&cores<=2)auto=4;else if(mem&&mem<=2)auto=4}
  const user=forced!=null?forced:saved,start=user!=null?user:auto;
- // pixelRatio پایه: موبایل حداکثر ۲، دسکتاپ ۲؛ حالت سبک ۱
- const pr=start>=6?1:Math.min(dpr,2);
+ // pixelRatio پایه: فاز ۰ — موبایل حداکثر ۱٫۵ (لوشن اصلی پایداری موبایل؛ اهرم‌های Q رویش ضرب می‌شوند)، دسکتاپ ۲؛ حالت سبک ۱
+ const pr=start>=6?1:Math.min(dpr,mob?1.5:2);
  return{mob,sw,mem,cores,dpr,start,user,forced,best:user!=null?user:0,aa:start<6,pr,sbase:mob?1536:2048,perf:qs.get('perf')==='1'||(()=>{try{return localStorage.tperf==='1'}catch(e){return false}})()}
 })();
 

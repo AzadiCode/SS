@@ -179,7 +179,7 @@ function bpFloat(c){const isTile=BP.type==='road'||BP.type==='path';
   BP.ghost.userData.tileMesh.material.color.setHex(ok?BP_OK:BP_BAD);
   const occupied=val==='اشغال است'||val==='تداخل با پیش‌نمایش';
   const occ=occupied&&bpHit&&W.buildings.includes(bpHit)?bpHit:null;
-  const top=occ&&objs.get(occ.id)?(()=>{const bx=new THREE.Box3().setFromObject(objs.get(occ.id));return Math.max(.12,bx.max.y+.25)})():.06;
+  const top=occ&&objs.get(occ.id)?(()=>{const og=objs.get(occ.id),bb=og.userData.bb||new THREE.Box3().setFromObject(og);return Math.max(.12,bb.max.y+.25)})():.06;   // فاز ۲: سازهٔ چانک‌شده ← باکس کش‌شده
   BP.ghost.userData.ring.position.y=top;
   BP.ghost.children.forEach(ch=>{if(ch!==BP.ghost.userData.ring)ch.visible=!occupied});
   BP.ghost.visible=true;BP.ok=ok}

@@ -35,6 +35,88 @@ function fpBounds(b){const gx=b.gx??b.x,gz=b.gz??b.z,[w,h]=fpDims(b.type,b.rot||
 function fpTouchDir(a,b){const A=fpBounds(a),B=fpBounds(b),ovZ=A.z0<=B.z1&&B.z0<=A.z1,ovX=A.x0<=B.x1&&B.x0<=A.x1;
  if(A.x1+1===B.x0&&ovZ)return 1;if(B.x1+1===A.x0&&ovZ)return 3;
  if(A.z1+1===B.z0&&ovX)return 2;if(B.z1+1===A.z0&&ovX)return 0;return-1}
+
+// ─── ایندکس مجاورت سلولی (فاز ۰) + به‌روزرسانی افزایشی (فاز ۱) ────────────────
+// هدف: حذف حلقه‌های درجه‌دوِ roads()/rebuildNav (مسیر×سازه، تابلو×جاده) و کلیدهای رشته‌ای،
+// با «خروجی بیت‌به‌بیت یکسان». مقیاس: هزاران ساختمان (هیچ فرض «صدها» در ساختار نیست).
+// ایندکس فقط روی دنیای معتبر (بدون همپوشانی — تضمین check_place/fpCheck) معنا دارد؛ هر سلول یک ساکن.
+// فاز ۰: fpWorldVer با هر تغییر ساختمان‌ها +۱ می‌شود (12-net-sync.js)؛ fpIndexEnsure فقط در تغییر بازسازی می‌کند.
+// فاز ۱: fpIndexUpdate مدخل‌های WDIFF (add/remove/move با ID) را «افزایشی» روی ایندکس می‌نشاند — بدون پاک‌سازی
+// کل Map (چرنِ حافظهٔ ۲۰۰ ساخت/حذف از ~۲۰هزار cell.set در هر تغییر به چند ده می‌رسد). نشانهٔ کهنگی = طول فهرست؛
+// هر ناهنجاری (نبود رکورد، هم‌پوشانی غیرممکن، ناهم‌خوانی طول) ← بازسازی کاملِ امن. خروجی نهایی هر دو مسیر یکسان.
+let fpWorldVer=0;
+const FPIDX={src:null,ver:-1,n:-1,cell:new Map(),byType:{},ord:new WeakMap()},
+ fpIdxKey=(x,z)=>(x+512)*2048+(z+512); // gx,gz ∈ [-512,511] — نقشهٔ ۳۲۰ خرده‌سلولی + حاشیهٔ رشد
+function fpIndexScan(blds){ // بازسازی کامل — تنها مرجعِ حقیقت؛ مسیر افزایشی هر ناهنجاری را به همین می‌فرستد
+ const cell=FPIDX.cell,by=FPIDX.byType,ord=FPIDX.ord;
+ cell.clear();for(const k in by)by[k].clear();
+ for(let i=0;i<blds.length;i++){const b=blds[i],bd=fpBounds(b);ord.set(b,i);
+  for(let x=bd.x0;x<=bd.x1;x++)for(let z=bd.z0;z<=bd.z1;z++)cell.set(fpIdxKey(x,z),b);
+  let m=by[b.type];if(!m)m=by[b.type]=new Map(); // نقشهٔ «مرکز→ساختمان» به‌ازای نوع ( همان معنای byType قدیمی roads )
+  m.set(fpIdxKey(b.gx??b.x,b.gz??b.z),b)}
+ FPIDX.n=blds.length}
+function fpIndexEnsure(blds){
+ // n جزو نشانهٔ تازگی است: push/splice بدون bump (مستقیم در تست/بنچ) هم ایندکس را کهنه می‌کند — قبلاً پنهان می‌ماند و ماسک کهنه می‌داد
+ if(FPIDX.src===blds&&FPIDX.ver===fpWorldVer&&FPIDX.n===blds.length)return FPIDX;
+ FPIDX.src=blds;FPIDX.ver=fpWorldVer;
+ fpIndexScan(blds);
+ return FPIDX}
+// فاز ۱ — اعمال افزایشی WDIFF: removes/moves/adds با ID و bounds از مدخلِ diff (data-only؛ مقایسه با id).
+// ترتیب: حذف‌ها ← جابه‌جایی‌ها (drop از from + put رکورد واقعی در to) ← افزودن‌ها؛ سپس ord کامل O(N) (فقط WeakMap.set).
+const _fpIdMap=new Map();
+function fpIndexUpdate(blds,diff){
+ const need=blds.length-(diff?diff.adds.length:0)+(diff?diff.removes.length:0);
+ if(!diff||FPIDX.src!==blds||FPIDX.n!==need){fpIndexEnsure(blds);return FPIDX}
+ const cell=FPIDX.cell,by=FPIDX.byType;let ok=true;
+ const drop=o=>{const bd=fpBounds(o),m=by[o.type],ck=fpIdxKey(o.gx??o.x,o.gz??o.z);
+  for(let x=bd.x0;x<=bd.x1;x++)for(let z=bd.z0;z<=bd.z1;z++){const k=fpIdxKey(x,z),c=cell.get(k);
+   if(c===undefined)continue;else if(c.id===o.id)cell.delete(k);else ok=false} // سلولِ دیگری مالِ این مدخل نیست ← ناهنجاری
+  if(m){const cur=m.get(ck);if(cur&&cur.id===o.id)m.delete(ck);else if(cur)ok=false}}
+ const put=b=>{const bd=fpBounds(b);
+  for(let x=bd.x0;x<=bd.x1;x++)for(let z=bd.z0;z<=bd.z1;z++)cell.set(fpIdxKey(x,z),b);
+  let m=by[b.type];if(!m)m=by[b.type]=new Map();m.set(fpIdxKey(b.gx??b.x,b.gz??b.z),b)};
+ if(diff.adds.length||diff.moves.length){_fpIdMap.clear();for(let i=0;i<blds.length;i++)_fpIdMap.set(blds[i].id,blds[i])}
+ for(const r of diff.removes)drop(r);
+ for(const mv of diff.moves){const b=_fpIdMap.get(mv.id);if(!b){ok=false;break}
+  drop({id:mv.id,type:mv.type,gx:mv.from.gx,gz:mv.from.gz,rot:mv.from.rot});put(b)}
+ if(ok)for(const a of diff.adds){const b=_fpIdMap.get(a.id);if(!b){ok=false;break}put(b)}
+ FPIDX.src=blds;
+ if(!ok){fpIndexScan(blds);return FPIDX} // برگشت امن به کامل — خروجی نهایی یکسان
+ const ord=FPIDX.ord;for(let i=0;i<blds.length;i++)ord.set(blds[i],i);
+ FPIDX.ver=fpWorldVer;FPIDX.n=blds.length;
+ return FPIDX}
+// همسایه‌های چسبیدهٔ b (هر نوع)، مرتب به ترتیبِ فهرست ساختمان‌ها — معادل اسکن کامل با fpTouchDir.
+// خروجی آرایهٔ مشترک است؛ قبل از فراخوانیِ بعدی مصرفش کن (بدون تخصیص در هر فراخوانی).
+const _fpAdj=[],_fpAdjSeen=new Set();
+function fpAdjacent(b){const r=_fpAdj,seen=_fpAdjSeen;r.length=0;seen.clear();
+ const bd=fpBounds(b),cell=FPIDX.cell;
+ const edge=(x,z)=>{const o=cell.get(fpIdxKey(x,z));if(o&&!seen.has(o)){seen.add(o);r.push(o)}};
+ for(let z=bd.z0;z<=bd.z1;z++){edge(bd.x1+1,z);edge(bd.x0-1,z)}
+ for(let x=bd.x0;x<=bd.x1;x++){edge(x,bd.z1+1);edge(x,bd.z0-1)}
+ if(r.length>1)r.sort((a,c)=>FPIDX.ord.get(a)-FPIDX.ord.get(c));
+ return r}
+// ماسک اتصال با همان معنای دقیق roads() قدیم: همسایهٔ نوع t با «مرکز» دقیقاً (dim_a+dim_b)/2 خرده‌سلول دور؛ تأیید fpTouchDir.
+const FP_MASK_DIM={road:FOOT.road[0],path:FOOT.path[0],crossing:FOOT.crossing[0]},FP_MASK_DIRS=[[0,-1],[1,0],[0,1],[-1,0]];
+function fpMaskFor(b,types){let m=0;const x=b.gx??b.x,z=b.gz??b.z;
+ for(const t of types){const d=(FP_MASK_DIM[b.type]+FP_MASK_DIM[t])/2,map=FPIDX.byType[t];if(!map)continue;
+  for(let i=0;i<4;i++){const o=map.get(fpIdxKey(x+FP_MASK_DIRS[i][0]*d,z+FP_MASK_DIRS[i][1]*d));if(o&&fpTouchDir(b,o)>=0)m|=1<<i}}
+ return m}
+// ماسکِ درِ همهٔ پیاده‌روها — همان قاعدهٔ fpDoorLinks (تماس واقعی + ضلعِ درِ خانه/دفتر)، با ایندکس و کلید عددی.
+const _fpDoorM=new Map();
+function fpDoorMask(blds){fpIndexEnsure(blds);const out=_fpDoorM;out.clear();
+ for(const p of blds){if(p.type!=='path')continue;
+  const k=fpIdxKey(p.gx??p.x,p.gz??p.z);
+  for(const b of fpAdjacent(p)){if(fpGrid(b.type))continue;const d=fpTouchDir(p,b);if(d<0)continue;
+   const a=(b.rot||0)*Math.PI/180,allowed=(b.type==='house'||b.type==='hq')?fpDi(Math.round(Math.sin(a)),Math.round(Math.cos(a))):-1;
+   if(allowed>=0&&(d+2)%4!==allowed)continue;
+   out.set(k,(out.get(k)||0)|(1<<d))}}
+ return out}
+// ماسک گذرگاه برای یک کاشی جاده: تابلوهای چسبیده با ایندکس — همان نگاشت جهت roadCrossingMask.
+function fpCrossMaskFor(road){let mask=0;
+ for(const s of fpAdjacent(road)){if(s.type!=='crossing')continue;const d=fpTouchDir(s,road);if(d>=0)mask|=[4,8,1,2][d]}
+ return mask}
+// اولین جادهٔ چسبیده به تابلو (به ترتیب فهرست ساختمان‌ها — همان «اولین rs» کد قدیم) برای جهت‌گیری صفحهٔ تابلو.
+function fpFirstTouchRoad(c){for(const r of fpAdjacent(c))if(r.type==='road'){const d=fpTouchDir(c,r);if(d>=0)return r}return null}
 const fpPartsRect=parts=>parts.map(set=>{let xs=[],zs=[];for(const k of set){const[x,z]=k.split(',').map(Number);xs.push(x);zs.push(z)}
  return[Math.min(...xs)*U,(Math.max(...xs)+1)*U,Math.min(...zs)*U,(Math.max(...zs)+1)*U]});
 function fpRects(b,TL){return fpPartsRect(fpCellParts(b,TL))}
