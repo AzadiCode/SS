@@ -48,7 +48,7 @@ function cull(dt){if((S.cT-=dt)>0)return;S.cT=.5;const vd=P.vd;
 function overlay(dt){if(!showOv){if(ov)ov.style.display='none';return}
  if(!ov){ov=document.createElement('div');ov.style.cssText='position:fixed;left:6px;top:6px;z-index:99998;font:11px/1.5 monospace;direction:ltr;white-space:pre;color:#bfffd0;background:rgba(0,0,0,.6);padding:4px 7px;border-radius:6px;pointer-events:none';document.body.appendChild(ov)}
  ov.style.display='';if((ovT-=dt)>0)return;ovT=.5;const I=R.info,m=I.memory;
- ov.textContent=Math.round(fpsA)+' fps · '+QNAMES[S.lv]+' ('+S.lv+')'+(S.auto?'':' · manual')+'\ncalls '+S.calls+'/'+BUD.calls+' · tris '+Math.round(I.render.triangles/1000)+'k\ngeo '+m.geometries+' · tex '+m.textures+' · prog '+(I.programs?I.programs.length:'-')+(performance.memory?' · heap '+Math.round(performance.memory.usedJSHeapSize/1048576)+'MB':'')+'\ncit '+cits.length+'/'+POP+' · dpr '+PRX.toFixed(2)+(S.benchFps?' · bench '+Math.round(S.benchFps):'')}
+ ov.textContent=Math.round(fpsA)+' fps · '+QNAMES[S.lv]+' ('+S.lv+')'+(S.auto?'':' · manual')+'\ncalls '+S.calls+'/'+BUD.calls+' · tris '+Math.round(I.render.triangles/1000)+'k · frame '+TWE.stats.frameMs()+'ms\n'+TWE.stats.line()+'\ngeo '+m.geometries+' · tex '+m.textures+' · prog '+(I.programs?I.programs.length:'-')+(performance.memory?' · heap '+Math.round(performance.memory.usedJSHeapSize/1048576)+'MB':'')+'\ncit '+cits.length+'/'+POP+' · dpr '+PRX.toFixed(2)+(S.benchFps?' · bench '+Math.round(S.benchFps):'')}
 function frame(dt){S.t+=dt;S.age+=dt;
  if(!R.shadowMap.autoUpdate&&++S.shN>=S.shE){S.shN=0;R.shadowMap.needsUpdate=true}
  const I=R.info.render;if(I.calls>S.cmax)S.cmax=I.calls;S.tris=I.triangles;
@@ -64,7 +64,8 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)reset()});
 apply(S.lv,true);
 const api={frame,names:QNAMES,state:S,lv:()=>S.lv,lost:()=>S.lost,
  citCap:()=>Math.max(1,Math.floor(HARD*P.cm)),halo:()=>P.fx?1e9:0,
+ snapshot1Low:()=>{try{return TWE.stats.p1Low()}catch(e){return'-'}},
  set(n){S.auto=false;apply(n);note('manual '+QNAMES[S.lv])},auto(){S.auto=true;reset()},
  perf(v=true){showOv=!!v;try{localStorage.tperf=v?'1':'0'}catch(e){}},
- snapshot(){const I=R.info;return{fps:Math.round(fpsA),level:S.lv,name:QNAMES[S.lv],calls:S.calls,tris:I.render.triangles,geometries:I.memory.geometries,textures:I.memory.textures,programs:I.programs?I.programs.length:0,citizens:cits.length,pop:POP,pixelRatio:PRX,bench:S.benchFps,log:S.log.slice()}}};
+ snapshot(){const I=R.info;return{fps:Math.round(fpsA),level:S.lv,name:QNAMES[S.lv],calls:S.calls,tris:I.render.triangles,geometries:I.memory.geometries,textures:I.memory.textures,programs:I.programs?I.programs.length:0,citizens:cits.length,pop:POP,pixelRatio:PRX,bench:S.benchFps,log:S.log.slice(),twe:TWE.stats.snapshot()}}};
 globalThis.Q=api;return api})();

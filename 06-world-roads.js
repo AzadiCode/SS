@@ -106,7 +106,7 @@ const maskFor=(b,types)=>{let m=0;const x=b.gx??b.x,z=b.gz??b.z;for(const t of t
 const doorMask=new Map();for(const l of fpDoorLinks(blds)){const k=l.cx+','+l.cz;doorMask.set(k,(doorMask.get(k)||0)|(1<<l.d))}
 lampPts.length=0;
 // خط‌کشی گذرگاه فقط با «تابلوی عابر پیاده» ساخته می‌شود؛ پیاده‌رو دیگر خط‌کشی خودکار جاده را تغییر نمی‌دهد.
-for(const b of rs){const g=objs.get(b.id);if(!g)continue;const m=maskFor(b,['road']),cr=roadCrossingMask(b,cs);const lamp=((b.x+b.z)%2+2)%2===0?1:0;if(lamp)lampPts.push({x:b.x*U+.82,y:1.12,z:b.z*U+.82});const k=m+'|'+cr+'|'+lamp;if(g.userData.k!==k){g.userData.k=k;roadMesh(g,m,lamp,cr)}}
+for(const b of rs){const g=objs.get(b.id);if(!g)continue;const m=maskFor(b,['road']),cr=roadCrossingMask(b,cs);const lamp=((b.x+b.z)%2+2)%2===0?1:0;if(lamp)lampPts.push({x:b.x*U+.82,y:1.12+fpBaseY('road',b.x,b.z,0),z:b.z*U+.82});const k=m+'|'+cr+'|'+lamp;if(g.userData.k!==k){g.userData.k=k;roadMesh(g,m,lamp,cr)}}   // y چراغ = ارتفاع واقعی گروه جاده (fpBaseY — کنار رود هم دقیق)
 for(const b of ps){const g=objs.get(b.id);if(!g)continue;const k=b.x+','+b.z,m=maskFor(b,['path','road'])|(doorMask.get(k)||0),style=b.style==='dirt'?'dirt':b.style==='stone'?'stone':LEGACY_PATH_STYLE,sig=m+'|'+style;if(g.userData.k!==sig){g.userData.k=sig;pathMesh(g,m,b.id,style)}}
 // تابلوی عابر پیاده رو به جادهٔ مجاورش می‌ایستد (صفحهٔ تابلو عمود بر مسیر عابر)؛ تشخیص با همان fpTouchDir.
 for(const c of cs){const g=objs.get(c.id);if(!g)continue;let fx=0,fz=0;

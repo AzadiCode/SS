@@ -3,21 +3,25 @@
 // کیفیت دستی: ?q=0..9  یا  ?q=ultra|high|med|low|potato   (۰ = بهترین، ۹ = سبک‌ترین). ?perf=1 ← نمایش آمار روی صفحه ═══
 'use strict';
 const QNAMES=['Ultra','Ultra-','High','High-','Medium','Medium-','Low','Low-','Min','Potato'];
-// جدول پله‌ها (هر پله یک گام ارزان‌تر از قبلی؛ ترتیب طبق اولویت: سایه نرم ← سایه ریز ← افکت‌ها ← فاصلهٔ دید ← شهروند ← pixelRatio)
+// جدول پله‌ها (هر پله یک گام ارزان‌تر از قبلی؛ ترتیب طبق اولویت: سایه نرم ← سایه ریز ← افکت‌ها ← فاصلهٔ دید ← pixelRatio)
 //  sh: نوع سایه (soft/pcf/off)  ss: اندازهٔ نقشهٔ سایه (۰ = پایهٔ دستگاه)  se: هر چند فریم یک‌بار سایه آپدیت شود
 //  cs: کدام شهروندها سایه بیندازند (2 همه، 1 فقط بدنه و سر، 0 هیچ)  fx: هاله/کرم شب‌تاب/نور فانوس  cl: تعداد ابرها
 //  vd: فاصلهٔ دید (واحد صحنه)  cm: ضریب سقف شهروندان  nt: ضریب تعداد نام‌های همزمان  pr: ضریب pixelRatio
+// ─── سیاستٔ Engine 2.0 (مأموریت §۹): هیچ محتوایی با ضعیف بودن دستگاه کم نمی‌شود —
+// تعداد شهروندها (cm=1) و نام‌ها (nt=1) در همهٔ پله‌ها ثابت است؛ هزینه به‌جای حذفِ محتوا، با
+// Instancing/گام ثابت شبیه‌سازی/Culling پایین می‌آید. ابرها هم کفِ ۲ تایی دارند (هویت بصری آسمان حفظ می‌شود).
+// vd = Culling فاصله‌ای است (اشیای دور پنهان می‌شوند ولی موجودیت و رفتارشان باقی است — مجاز طبق مأموریت).
 const QLV=[
- {sh:'soft',ss:0,  se:1,cs:2,fx:1,cl:8,vd:1e9,cm:1,  nt:1,  pr:1},
- {sh:'pcf', ss:0,  se:1,cs:2,fx:1,cl:8,vd:1e9,cm:1,  nt:1,  pr:1},
- {sh:'pcf', ss:1024,se:1,cs:2,fx:1,cl:8,vd:1e9,cm:1,  nt:1,  pr:1},
- {sh:'pcf', ss:768,se:2,cs:1,fx:1,cl:8,vd:1e9,cm:1,  nt:1,  pr:1},
- {sh:'pcf', ss:512,se:3,cs:1,fx:1,cl:6,vd:1e9,cm:1,  nt:1,  pr:1},
- {sh:'pcf', ss:512,se:3,cs:1,fx:0,cl:3,vd:1e9,cm:1,  nt:.8, pr:1},
- {sh:'pcf', ss:512,se:4,cs:0,fx:0,cl:3,vd:95, cm:1,  nt:.7, pr:1},
- {sh:'pcf', ss:512,se:4,cs:0,fx:0,cl:2,vd:80, cm:.6, nt:.5, pr:.9},
- {sh:'pcf', ss:512,se:6,cs:0,fx:0,cl:1,vd:65, cm:.35,nt:.4, pr:.8},
- {sh:'off',ss:512, se:1,cs:0,fx:0,cl:0,vd:50, cm:.2, nt:.3, pr:.7},
+ {sh:'soft',ss:0,  se:1,cs:2,fx:1,cl:8,vd:1e9,cm:1,nt:1,pr:1},
+ {sh:'pcf', ss:0,  se:1,cs:2,fx:1,cl:8,vd:1e9,cm:1,nt:1,pr:1},
+ {sh:'pcf', ss:1024,se:1,cs:2,fx:1,cl:8,vd:1e9,cm:1,nt:1,pr:1},
+ {sh:'pcf', ss:768,se:2,cs:1,fx:1,cl:8,vd:1e9,cm:1,nt:1,pr:1},
+ {sh:'pcf', ss:512,se:3,cs:1,fx:1,cl:6,vd:1e9,cm:1,nt:1,pr:1},
+ {sh:'pcf', ss:512,se:3,cs:1,fx:0,cl:5,vd:1e9,cm:1,nt:1,pr:1},
+ {sh:'pcf', ss:512,se:4,cs:0,fx:0,cl:4,vd:95, cm:1,nt:1,pr:1},
+ {sh:'pcf', ss:512,se:4,cs:0,fx:0,cl:3,vd:80, cm:1,nt:1,pr:.9},
+ {sh:'pcf', ss:512,se:6,cs:0,fx:0,cl:3,vd:65, cm:1,nt:1,pr:.8},
+ {sh:'off',ss:512, se:1,cs:0,fx:0,cl:2,vd:50, cm:1,nt:1,pr:.7},
 ];
 const QD=(()=>{
  const mob=innerWidth<820||matchMedia('(pointer:coarse)').matches;

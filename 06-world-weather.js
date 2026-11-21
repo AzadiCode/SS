@@ -113,7 +113,7 @@ function wxSync(w){const d=(w&&typeof w==='object')?w:{};
  const sig=t+'|'+i.toFixed(2)+'|'+Math.round(tp)+'|'+tr+'|'+WXmode;
  if(sig===WXsig)return;WXsig=sig;
  WXfrom={...WXcur};WXto=wxTarget(t,i);WXt0=performance.now()/1000;WXsec=tr; // گذار نرم با مدت قابل‌تنظیم
- WXtype=t;WXint=i;WXtemp=tp;wxHUD(true)}
+ WXtype=t;WXint=i;WXtemp=tp;wxHUD(true);TWE.emit('weather:changed',{type:t,intensity:i})}
 // ─── ۶) رعدوبرق: فلش چندضربه‌ای روی نور/آسمان موجود (بدون افزودن نور ⇒ بدون recompile شیدر) + صدای تأخیری WebAudio ───────────────────────────────────────────
 let boltT=9;
 function wxStrike(){FLASH=1;_strikeQ.length=0;_strikeQ.push(.1+Math.random()*.07);if(Math.random()<.5)_strikeQ.push(.24+Math.random()*.12);
@@ -234,3 +234,6 @@ function weatherStep(dt,t){const P=QLV[Q.lv()],fxOn=!!P.fx,den=WXQ[Q.lv()];
 globalThis.WXENG={set:(t,i=.8,temp)=>wxSync({mode:'manual',type:t,intensity:i,temp:temp==null?WXtemp:temp,transition:2}),
  auto:()=>wxSync({mode:'auto',type:WXtype,intensity:WXint,temp:WXtemp,transition:10}),
  state:()=>({type:WXtype,intensity:WXint,mode:WXmode,temp:WXtempC,env:{...WXcur},wet:WET,snowGround:SNOWG,wind:{...WIND}})};
+// ─── ۱۱) رویدادمحور (Engine 2.0): ساختمانِ تازه = متریال‌های زمان‌اجرِ تازه ⇒ لایهٔ سطوح (خیس/برف/ته‌رنگ)
+// بی‌درنگ رویشان بنشیند — به‌جای انتظار برای گشت‌زنیِ دوره‌ای؛ تغییر آب‌وهوا هم از EventBus عبور می‌کند.
+TWE.on('buildings:changed',()=>{wxSweepT=.05;wxSweepN=Math.max(wxSweepN,2)});
